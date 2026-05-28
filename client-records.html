@@ -1,0 +1,630 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Chic Lash — 客戶資料</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#FAF7F4;--white:#fff;--ink:#1A1714;--sub:#6B6560;--faint:#B8B0A8;
+  --border:#E8E2DC;--rose:#C4726A;--rose-light:#F5EDED;--rose-mid:#D4948C;
+  --ok:#3A7D5A;--ok-bg:#EDF5F0;--ok-bd:#A8D9BC;
+  --warn:#B83010;--warn-bg:#FBF0EC;
+  --radius:12px;--shadow:0 2px 16px rgba(0,0,0,.07);
+}
+body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--ink);min-height:100vh}
+.hdr{background:var(--white);border-bottom:1px solid var(--border);padding:14px 24px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100;box-shadow:0 1px 10px rgba(0,0,0,.05)}
+.hdr-logo{height:48px;object-fit:contain}
+.hdr-right{text-align:right}
+.hdr-title{font-size:15px;font-weight:600}
+.hdr-sub{font-size:11px;color:var(--sub);margin-top:2px}
+.main{max-width:1200px;margin:0 auto;padding:24px 20px}
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:24px}
+.stat{background:var(--white);border-radius:var(--radius);padding:16px 20px;box-shadow:var(--shadow)}
+.stat-num{font-size:28px;font-weight:700;color:var(--rose);margin-bottom:2px}
+.stat-lbl{font-size:11px;color:var(--sub);font-weight:500;letter-spacing:.04em}
+.toolbar{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:16px}
+.tb-input{border:1.5px solid var(--border);border-radius:8px;padding:8px 13px;font-size:13px;font-family:'Inter',sans-serif;outline:none;background:var(--white);color:var(--ink)}
+.tb-input:focus{border-color:var(--rose-mid)}
+.tb-select{border:1.5px solid var(--border);border-radius:8px;padding:8px 13px;font-size:13px;font-family:'Inter',sans-serif;outline:none;background:var(--white);color:var(--ink);-webkit-appearance:none;cursor:pointer}
+.tb-btn{border:none;border-radius:8px;padding:9px 16px;font-size:13px;font-weight:500;font-family:'Inter',sans-serif;cursor:pointer}
+.tb-btn.primary{background:var(--rose);color:#fff}
+.tb-btn.secondary{background:var(--white);color:var(--ink);border:1.5px solid var(--border)}
+.tb-btn.ok{background:var(--ok);color:#fff}
+.spacer{flex:1}
+
+/* import box */
+.import-box{background:var(--white);border-radius:var(--radius);box-shadow:var(--shadow);padding:20px;margin-bottom:20px}
+.import-title{font-size:13px;font-weight:600;margin-bottom:12px;color:var(--ink)}
+.import-row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+.import-label{font-size:12px;color:var(--sub);min-width:80px}
+input[type=file]{font-size:12px;font-family:'Inter',sans-serif;color:var(--sub)}
+
+/* tabs */
+.tabs{display:flex;gap:0;border-bottom:2px solid var(--border);margin-bottom:20px}
+.tab{padding:10px 20px;font-size:13px;font-weight:500;color:var(--sub);cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-2px;transition:all .15s}
+.tab.on{color:var(--rose);border-bottom-color:var(--rose)}
+
+/* analytics */
+.analytics-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px}
+.a-card{background:var(--white);border-radius:var(--radius);box-shadow:var(--shadow);padding:18px}
+.a-card-title{font-size:11px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--sub);margin-bottom:14px}
+.bar-row{display:flex;align-items:center;gap:10px;margin-bottom:8px;font-size:13px}
+.bar-label{min-width:140px;color:var(--ink);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.bar-track{flex:1;background:var(--bg);border-radius:4px;height:10px;overflow:hidden}
+.bar-fill{height:100%;border-radius:4px;background:var(--rose);transition:width .4s}
+.bar-val{min-width:40px;text-align:right;color:var(--sub);font-size:12px}
+
+/* table */
+.tbl-wrap{background:var(--white);border-radius:var(--radius);box-shadow:var(--shadow);overflow:hidden}
+.tbl-hdr{display:grid;grid-template-columns:160px 120px 160px 90px 80px 140px 90px 70px;background:var(--bg);border-bottom:1px solid var(--border)}
+.tbl-hdr div{padding:10px 12px;font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.08em;color:var(--sub);cursor:pointer;user-select:none}
+.tbl-body{max-height:calc(100vh - 400px);overflow-y:auto}
+.tbl-row{display:grid;grid-template-columns:160px 120px 160px 90px 80px 140px 90px 70px;border-bottom:1px solid var(--border);cursor:pointer;transition:background .1s}
+.tbl-row:hover{background:#FAF0EF}
+.tbl-row:last-child{border-bottom:none}
+.tbl-cell{padding:11px 12px;font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:flex;align-items:center;gap:4px}
+.svc-tag{display:inline-block;padding:2px 8px;border-radius:20px;font-size:10px;font-weight:600}
+.svc-tag.lash{background:#FEF3F2;color:#B42318}
+.svc-tag.facial{background:#F0FDF4;color:#15803D}
+.svc-tag.headspa{background:#EFF6FF;color:#1D4ED8}
+.svc-tag.massage{background:#FDF4FF;color:#7E22CE}
+.src-tag{font-size:9px;padding:1px 5px;border-radius:4px;background:var(--bg);color:var(--sub);border:1px solid var(--border)}
+.lapsed-badge{background:var(--warn-bg);color:var(--warn);padding:2px 6px;border-radius:10px;font-size:10px;font-weight:600}
+
+/* panel */
+.panel-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.35);z-index:200}
+.panel-overlay.on{display:block}
+.panel{position:fixed;right:0;top:0;bottom:0;width:500px;background:var(--white);box-shadow:-4px 0 30px rgba(0,0,0,.15);overflow-y:auto;z-index:201;transform:translateX(100%);transition:transform .25s ease}
+.panel.on{transform:translateX(0)}
+.panel-hdr{padding:20px 24px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;background:var(--white)}
+.panel-name{font-size:18px;font-weight:700}
+.panel-svc{font-size:12px;color:var(--sub);margin-top:3px}
+.panel-close{background:none;border:none;font-size:22px;color:var(--sub);cursor:pointer}
+.panel-body{padding:20px 24px}
+.p-sec{margin-bottom:20px}
+.p-sec-title{font-size:10px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--rose);margin-bottom:10px;padding-bottom:8px;border-bottom:1px solid var(--rose-light)}
+.p-row{display:flex;gap:8px;margin-bottom:8px;font-size:13px}
+.p-lbl{color:var(--sub);min-width:110px;flex-shrink:0}
+.p-val{font-weight:500;flex:1;word-break:break-word}
+.visit-item{background:var(--bg);border-radius:8px;padding:10px 14px;margin-bottom:6px;font-size:12px}
+.visit-date{font-weight:600;margin-bottom:2px}
+.visit-sub{color:var(--sub)}
+
+/* lapsed */
+.lapsed-panel{background:var(--white);border-radius:var(--radius);box-shadow:var(--shadow);padding:20px;margin-bottom:20px;display:none}
+.lapsed-panel.on{display:block}
+.lapsed-title{font-size:14px;font-weight:700;color:var(--warn);margin-bottom:12px}
+.lapsed-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:8px}
+.lapsed-card{background:var(--warn-bg);border:1px solid #F0B8A8;border-radius:8px;padding:10px 14px}
+.lapsed-card-name{font-weight:700;font-size:14px;margin-bottom:3px}
+.lapsed-card-sub{color:var(--sub);font-size:12px;margin-top:2px}
+
+.empty{text-align:center;padding:60px 20px;color:var(--faint);font-size:14px}
+.loading{text-align:center;padding:40px;color:var(--sub);font-size:14px}
+@media(max-width:768px){
+  .stats{grid-template-columns:1fr 1fr}
+  .analytics-grid{grid-template-columns:1fr}
+  .tbl-hdr,.tbl-row{grid-template-columns:1fr 1fr}
+  .tbl-cell:nth-child(n+3){display:none}
+  .panel{width:100%}
+}
+</style>
+</head>
+<body>
+
+<div class="hdr">
+  <img src="data:image/png;base64,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" class="hdr-logo" alt="Chic Lash">
+  <div class="hdr-right">
+    <div class="hdr-title">客戶資料管理</div>
+    <div class="hdr-sub" id="hdr-sub">載入中…</div>
+  </div>
+</div>
+
+<div class="main">
+  <div class="stats">
+    <div class="stat"><div class="stat-num" id="stat-total">—</div><div class="stat-lbl">總客戶數</div></div>
+    <div class="stat"><div class="stat-num" id="stat-new">—</div><div class="stat-lbl">本月新客</div></div>
+    <div class="stat"><div class="stat-num" id="stat-lapsed">—</div><div class="stat-lbl">超過8週未回</div></div>
+    <div class="stat"><div class="stat-num" id="stat-email">—</div><div class="stat-lbl">有 Email</div></div>
+  </div>
+
+  <!-- Tabs -->
+  <div class="tabs">
+    <div class="tab on" onclick="showTab('clients')">👥 客戶列表</div>
+    <div class="tab" onclick="showTab('analytics')">📊 數據分析</div>
+    <div class="tab" onclick="showTab('import')">⬆ 匯入 Square</div>
+  </div>
+
+  <!-- ── 客戶列表 tab ── -->
+  <div id="tab-clients">
+    <div class="toolbar">
+      <input class="tb-input" id="search" placeholder="🔍 搜尋姓名、電話、Email…" style="width:260px" oninput="applyFilters()">
+      <select class="tb-select" id="filter-svc" onchange="applyFilters()">
+        <option value="">所有服務</option>
+        <option value="lash">Eyelash</option>
+        <option value="facial">Facial</option>
+        <option value="headspa">Head Spa</option>
+        <option value="massage">Massage</option>
+      </select>
+      <select class="tb-select" id="filter-lapsed" onchange="applyFilters()">
+        <option value="">所有客戶</option>
+        <option value="4">4週未回</option>
+        <option value="8">8週未回</option>
+        <option value="12">12週未回</option>
+      </select>
+      <div class="spacer"></div>
+      <button class="tb-btn ok" onclick="exportCSV()">⬇ 匯出 CSV</button>
+      <button class="tb-btn secondary" onclick="toggleLapsed()">⚠ 流失客戶</button>
+      <button class="tb-btn secondary" onclick="reloadAll()">🔄 重新整理</button>
+    </div>
+
+    <div class="lapsed-panel" id="lapsed-panel">
+      <div class="lapsed-title">⚠ 流失客戶 — 超過 8 週未回</div>
+      <div class="lapsed-grid" id="lapsed-grid"></div>
+    </div>
+
+    <div class="tbl-wrap">
+      <div class="tbl-hdr">
+        <div onclick="sortBy('name')">姓名 <span id="sort-name"></span></div>
+        <div onclick="sortBy('phone')">電話</div>
+        <div onclick="sortBy('email')">Email</div>
+        <div onclick="sortBy('svc')">服務</div>
+        <div onclick="sortBy('dob')">生日</div>
+        <div onclick="sortBy('date')">填表時間 <span id="sort-date">↓</span></div>
+        <div>來源</div>
+        <div onclick="sortBy('weeks')">週未回</div>
+      </div>
+      <div class="tbl-body" id="tbl-body">
+        <div class="loading">載入客戶資料中…</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── 數據分析 tab ── -->
+  <div id="tab-analytics" style="display:none">
+    <div style="display:flex;gap:10px;margin-bottom:16px;flex-wrap:wrap;align-items:center">
+      <select class="tb-select" id="ana-month" onchange="renderAnalytics()">
+        <option value="">全部月份</option>
+      </select>
+      <select class="tb-select" id="ana-store" onchange="renderAnalytics()">
+        <option value="">兩店合計</option>
+        <option value="mv">Mill Valley</option>
+        <option value="sr">San Rafael</option>
+      </select>
+      <span style="font-size:12px;color:var(--sub)">（需匯入 Square CSV 才有分店和項目數據）</span>
+    </div>
+    <div class="analytics-grid" id="analytics-grid">
+      <div class="a-card"><div class="a-card-title">各服務人數</div><div id="ana-svc-chart"></div></div>
+      <div class="a-card"><div class="a-card-title">分店人數</div><div id="ana-store-chart"></div></div>
+      <div class="a-card" style="grid-column:1/-1"><div class="a-card-title">最熱門項目 Top 10</div><div id="ana-item-chart"></div></div>
+    </div>
+  </div>
+
+  <!-- ── 匯入 Square tab ── -->
+  <div id="tab-import" style="display:none">
+    <div class="import-box">
+      <div class="import-title">📋 匯入 Square 客戶資料（Customers CSV）</div>
+      <p style="font-size:12px;color:var(--sub);margin-bottom:12px">從 Square Dashboard → 客戶 → 匯出 CSV，上傳後系統會把 Square 客戶和填表資料合併</p>
+      <div class="import-row">
+        <span class="import-label">Customer CSV</span>
+        <input type="file" id="sq-customer-file" accept=".csv">
+        <button class="tb-btn primary" onclick="importSqCustomers()">匯入客戶</button>
+      </div>
+      <div id="sq-customer-status" style="margin-top:10px;font-size:12px;color:var(--sub)"></div>
+    </div>
+
+    <div class="import-box">
+      <div class="import-title">📦 匯入 Square 交易項目（Items CSV）— 用於分析</div>
+      <p style="font-size:12px;color:var(--sub);margin-bottom:12px">從匯入中心上傳的 Items CSV，可以分析各月各店服務項目人氣</p>
+      <div class="import-row">
+        <span class="import-label">Items CSV</span>
+        <input type="file" id="sq-items-file" accept=".csv">
+        <button class="tb-btn primary" onclick="importSqItems()">匯入項目</button>
+      </div>
+      <div id="sq-items-status" style="margin-top:10px;font-size:12px;color:var(--sub)"></div>
+    </div>
+
+    <div class="import-box" style="border-left:3px solid var(--ok)">
+      <div class="import-title" style="color:var(--ok)">ℹ 資料說明</div>
+      <div style="font-size:12px;color:var(--sub);line-height:1.8">
+        客人填完表單 → 自動存進 Firebase → 這裡立即可以查到<br>
+        填表時間以 <b>洛杉磯時間</b> 記錄（ISO格式轉換）<br>
+        Square 客戶匯入後，系統用電話號碼配對，自動合併資料<br>
+        Items CSV 匯入後，只存在本地瀏覽器，不上傳雲端
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Detail Panel -->
+<div class="panel-overlay" id="overlay" onclick="closePanel()"></div>
+<div class="panel" id="detail-panel">
+  <div class="panel-hdr">
+    <div>
+      <div class="panel-name" id="p-name"></div>
+      <div class="panel-svc" id="p-svc"></div>
+    </div>
+    <button class="panel-close" onclick="closePanel()">×</button>
+  </div>
+  <div class="panel-body" id="p-body"></div>
+</div>
+
+<script type="module">
+import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
+import { getFirestore, collection, getDocs, query, orderBy, addDoc } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
+
+const app = initializeApp({
+  apiKey:"AIzaSyCbiJE0WiBy9oOPp0Vh0AdsEOcPjyNsVwk",
+  authDomain:"chiclash-2a154.firebaseapp.com",
+  projectId:"chiclash-2a154",
+  storageBucket:"chiclash-2a154.firebasestorage.app",
+  messagingSenderId:"77248539857",
+  appId:"1:77248539857:web:54e80b840160a2e30569f0"
+});
+const db = getFirestore(app);
+
+// Load all client forms from Firebase
+async function fbLoad() {
+  const q = query(collection(db, 'client_forms'), orderBy('submittedAt','desc'));
+  const snap = await getDocs(q);
+  return snap.docs.map(d => ({id: d.id, ...d.data()}));
+}
+
+// Save Square customer to Firebase
+async function fbSaveCustomer(rec) {
+  await addDoc(collection(db, 'client_forms'), rec);
+}
+
+window._fb = { load: fbLoad, saveCustomer: fbSaveCustomer };
+
+// Auto-init after module loads
+window.addEventListener('DOMContentLoaded', ()=>{});
+// Signal ready
+window._fbReady = true;
+if (window._onFbReady) window._onFbReady();
+</script>
+
+<script>
+var allRecords = [];
+var sqItems = []; // local only, not uploaded
+var filtered = [];
+var sortKey = 'date';
+var sortDir = -1;
+var SVC_LABELS = {lash:'Eyelash', facial:'Facial', headspa:'Head Spa', massage:'Massage'};
+var RESP_LABELS = {
+  'sensitive':'眼睛敏感','prev-lash':'做過睫毛','contacts':'隱形眼鏡','lash-allergy':'過敏',
+  'makeup':'有化妝','makeup-removal':'卸妝方式','face-wash':'洗臉','water-temp':'水溫',
+  'exfoliator':'去角質','vitc':'美白產品','vitc-freq':'使用頻率','medical':'醫療狀況',
+  'claustrophobia':'幽閉恐懼','claus-pref':'偏好','facial-svc':'選擇服務','addons':'加購','waxing':'蜜蠟',
+  'prev-spa':'做過頭皮按摩','medication':'用藥','spa-allergy':'過敏','pregnant-spa':'懷孕',
+  'water-pref':'水溫偏好','head-pressure':'頭部力道','neck-pressure':'肩頸力道','scalp-cond':'頭皮狀況',
+  'pressure':'按摩力道','focus-areas':'重點部位','health':'健康狀況',
+  'allergyDetail':'過敏詳情','medicationDetail':'用藥詳情','surgery':'手術','massageIntensity':'按摩強度'
+};
+
+// ── INIT ──
+function init() {
+  if (window._fb) { reloadAll(); }
+  else { window._onFbReady = reloadAll; }
+}
+
+async function reloadAll() {
+  document.getElementById('tbl-body').innerHTML = '<div class="loading">載入中…</div>';
+  try {
+    var raw = await window._fb.load();
+    // Merge records by phone — keep all visits
+    var byPhone = {};
+    raw.forEach(r => {
+      var phone = (r.phone||'').replace(/\D/g,'');
+      var key = phone || r.id;
+      if (!byPhone[key]) {
+        byPhone[key] = Object.assign({}, r, {_visits:[], _source: r._source||'form'});
+      }
+      // Keep latest base info
+      if ((r.submittedAt||'') > (byPhone[key].submittedAt||'')) {
+        var visits = byPhone[key]._visits;
+        Object.assign(byPhone[key], r);
+        byPhone[key]._visits = visits;
+        byPhone[key]._source = r._source||'form';
+      }
+      byPhone[key]._visits.push({date: r.submittedAt, svc: r.service, store: r.store});
+    });
+    allRecords = Object.values(byPhone);
+    updateStats();
+    applyFilters();
+    buildMonthOptions();
+    renderAnalytics();
+    var now = new Date().toLocaleString('zh-TW', {timeZone:'America/Los_Angeles'});
+    document.getElementById('hdr-sub').textContent = '上次更新：' + now;
+  } catch(e) {
+    document.getElementById('tbl-body').innerHTML = '<div class="empty">載入失敗：' + e.message + '</div>';
+  }
+}
+
+function weeksAgo(dateStr) {
+  if (!dateStr) return null;
+  return Math.floor((Date.now() - new Date(dateStr).getTime()) / (7*24*3600*1000));
+}
+
+function fmtDate(dateStr) {
+  if (!dateStr) return '—';
+  // Convert to LA time
+  var d = new Date(dateStr);
+  return d.toLocaleString('zh-TW', {timeZone:'America/Los_Angeles', year:'numeric', month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit', hour12:false});
+}
+
+function updateStats() {
+  var now = new Date();
+  var moStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
+  document.getElementById('stat-total').textContent = allRecords.length;
+  document.getElementById('stat-new').textContent = allRecords.filter(r=>r.submittedAt>=moStart).length;
+  document.getElementById('stat-lapsed').textContent = allRecords.filter(r=>(weeksAgo(r.submittedAt)||0)>=8).length;
+  document.getElementById('stat-email').textContent = allRecords.filter(r=>r.email&&r.email.includes('@')).length;
+}
+
+// ── TABS ──
+function showTab(t) {
+  ['clients','analytics','import'].forEach(id=>{
+    document.getElementById('tab-'+id).style.display = id===t?'block':'none';
+  });
+  document.querySelectorAll('.tab').forEach((el,i)=>{
+    el.classList.toggle('on', ['clients','analytics','import'][i]===t);
+  });
+  if (t==='analytics') renderAnalytics();
+}
+
+// ── FILTER & SORT ──
+function applyFilters() {
+  var q = (document.getElementById('search').value||'').toLowerCase();
+  var svc = document.getElementById('filter-svc').value;
+  var lw = parseInt(document.getElementById('filter-lapsed').value)||0;
+  filtered = allRecords.filter(r=>{
+    var name = ((r.firstName||'')+(r.lastName||'')).toLowerCase();
+    var ok1 = !q || name.includes(q)||(r.phone||'').includes(q)||(r.email||'').toLowerCase().includes(q);
+    var ok2 = !svc || r.service===svc;
+    var ok3 = !lw || (weeksAgo(r.submittedAt)||0)>=lw;
+    return ok1&&ok2&&ok3;
+  });
+  filtered.sort((a,b)=>{
+    var av,bv;
+    if(sortKey==='name'){av=(a.firstName||'')+(a.lastName||'');bv=(b.firstName||'')+(b.lastName||'');}
+    else if(sortKey==='date'){av=a.submittedAt||'';bv=b.submittedAt||'';}
+    else if(sortKey==='svc'){av=a.service||'';bv=b.service||'';}
+    else if(sortKey==='email'){av=a.email||'';bv=b.email||'';}
+    else if(sortKey==='weeks'){av=weeksAgo(a.submittedAt)||0;bv=weeksAgo(b.submittedAt)||0;}
+    else{av='';bv='';}
+    return av<bv?-sortDir:av>bv?sortDir:0;
+  });
+  renderTable();
+}
+
+function sortBy(key) {
+  if(sortKey===key)sortDir*=-1;else{sortKey=key;sortDir=-1;}
+  document.querySelectorAll('[id^=sort-]').forEach(e=>e.textContent='');
+  var el=document.getElementById('sort-'+key);
+  if(el)el.textContent=sortDir===1?' ↑':' ↓';
+  applyFilters();
+}
+
+function renderTable() {
+  var body=document.getElementById('tbl-body');
+  if(!filtered.length){body.innerHTML='<div class="empty">沒有符合的客戶</div>';return;}
+  body.innerHTML=filtered.map(r=>{
+    var name=((r.firstName||'')+' '+(r.lastName||'')).trim()||'—';
+    var svc=r.service||'';
+    var w=weeksAgo(r.submittedAt);
+    var dateDisp=r.submittedAt?fmtDate(r.submittedAt):'—';
+    var src=r._source==='sq'?'Square':'填表';
+    var srcCls=r._source==='sq'?'src-sq':'src-form';
+    return '<div class="tbl-row" onclick="openPanel(\''+r.id+'\')">'+
+      '<div class="tbl-cell" style="font-weight:600">'+name+(w>=8?'<span class="lapsed-badge">'+w+'w</span>':'')+'</div>'+
+      '<div class="tbl-cell">'+( r.phone||'—')+'</div>'+
+      '<div class="tbl-cell" style="font-size:12px;color:var(--sub)">'+(r.email||'—')+'</div>'+
+      '<div class="tbl-cell"><span class="svc-tag '+svc+'">'+(SVC_LABELS[svc]||svc||'—')+'</span></div>'+
+      '<div class="tbl-cell" style="color:var(--sub)">'+(r.dob||'—')+'</div>'+
+      '<div class="tbl-cell" style="font-size:11px;color:var(--sub)">'+dateDisp+'</div>'+
+      '<div class="tbl-cell"><span class="src-tag">'+src+'</span></div>'+
+      '<div class="tbl-cell" style="color:'+(w>=8?'var(--warn)':'var(--sub)')+'">'+( w!==null?w+'週':'—')+'</div>'+
+    '</div>';
+  }).join('');
+}
+
+// ── DETAIL PANEL ──
+function openPanel(id) {
+  var r=allRecords.find(x=>x.id===id);if(!r)return;
+  var name=((r.firstName||'')+' '+(r.lastName||'')).trim()||'—';
+  document.getElementById('p-name').textContent=name;
+  document.getElementById('p-svc').textContent=(SVC_LABELS[r.service]||r.service||'')+(r.submittedAt?'　'+fmtDate(r.submittedAt):'');
+  var resp=r.responses||{};
+  var respHtml=Object.entries(resp).filter(([k,v])=>v&&(Array.isArray(v)?v.length:v)).map(([k,v])=>{
+    var label=RESP_LABELS[k]||k;
+    var val=Array.isArray(v)?v.join(', '):v;
+    return '<div class="p-row"><span class="p-lbl">'+label+'</span><span class="p-val">'+val+'</span></div>';
+  }).join('');
+  var visitsHtml=(r._visits||[]).map(v=>'<div class="visit-item"><div class="visit-date">'+fmtDate(v.date)+'</div><div class="visit-sub">'+(SVC_LABELS[v.svc]||v.svc||'')+(v.store?' · '+v.store.toUpperCase():'')+'</div></div>').join('');
+  document.getElementById('p-body').innerHTML=
+    '<div class="p-sec"><div class="p-sec-title">基本資料</div>'+
+      '<div class="p-row"><span class="p-lbl">電話</span><span class="p-val">'+(r.phone||'—')+'</span></div>'+
+      '<div class="p-row"><span class="p-lbl">Email</span><span class="p-val">'+(r.email||'—')+'</span></div>'+
+      '<div class="p-row"><span class="p-lbl">生日</span><span class="p-val">'+(r.dob||'—')+'</span></div>'+
+      '<div class="p-row"><span class="p-lbl">來源</span><span class="p-val">'+(r._source==='sq'?'Square匯入':'客人填表')+'</span></div>'+
+    '</div>'+
+    (respHtml?'<div class="p-sec"><div class="p-sec-title">問卷回答</div>'+respHtml+'</div>':'')+
+    (r.signature?'<div class="p-sec"><div class="p-sec-title">簽名</div><img src="'+r.signature+'" style="max-width:100%;border:1px solid var(--border);border-radius:8px"></div>':'')+
+    (r.agreementText?'<div class="p-sec"><div class="p-sec-title">📄 Agreement 條款（客人簽署版本）</div><pre style="font-size:11px;color:var(--sub);white-space:pre-wrap;line-height:1.7;font-family:inherit;background:var(--bg);border-radius:8px;padding:12px">'+r.agreementText+'</pre></div>':'')+
+    (visitsHtml?'<div class="p-sec"><div class="p-sec-title">填表/到訪記錄 ('+( r._visits||[]).length+'次)</div>'+visitsHtml+'</div>':'');
+  document.getElementById('overlay').classList.add('on');
+  document.getElementById('detail-panel').classList.add('on');
+}
+function closePanel(){document.getElementById('overlay').classList.remove('on');document.getElementById('detail-panel').classList.remove('on');}
+
+// ── LAPSED ──
+function toggleLapsed(){
+  var p=document.getElementById('lapsed-panel');
+  var on=p.classList.toggle('on');
+  if(!on)return;
+  var lapsed=allRecords.filter(r=>(weeksAgo(r.submittedAt)||0)>=8).sort((a,b)=>(weeksAgo(b.submittedAt)||0)-(weeksAgo(a.submittedAt)||0));
+  document.getElementById('lapsed-grid').innerHTML=lapsed.length
+    ?lapsed.map(r=>'<div class="lapsed-card"><div class="lapsed-card-name">'+((r.firstName||'')+' '+(r.lastName||'')).trim()+'</div><div class="lapsed-card-sub">'+(r.phone||'—')+'</div><div class="lapsed-card-sub" style="color:var(--warn);font-weight:600">'+weeksAgo(r.submittedAt)+'週未回</div></div>').join('')
+    :'<div style="color:var(--ok)">✓ 沒有超過8週未回的客戶</div>';
+}
+
+// ── EXPORT CSV ──
+function exportCSV(){
+  var rows=[['First Name','Last Name','Phone','Email','DOB','Service','Source','Submitted At (LA Time)','Weeks Since']];
+  filtered.forEach(r=>rows.push([r.firstName||'',r.lastName||'',r.phone||'',r.email||'',r.dob||'',SVC_LABELS[r.service]||r.service||'',r._source==='sq'?'Square':'Form',fmtDate(r.submittedAt),weeksAgo(r.submittedAt)||'']));
+  var csv=rows.map(r=>r.map(v=>'"'+String(v).replace(/"/g,'""')+'"').join(',')).join('\n');
+  var a=document.createElement('a');
+  a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv;charset=utf-8;'}));
+  a.download='chiclash-clients-'+new Date().toISOString().slice(0,10)+'.csv';
+  a.click();
+}
+
+// ── IMPORT SQUARE CUSTOMERS ──
+function importSqCustomers(){
+  var file=document.getElementById('sq-customer-file').files[0];
+  if(!file){alert('請選擇 CSV 檔案');return;}
+  var reader=new FileReader();
+  reader.onload=async function(e){
+    var text=e.target.result;
+    var lines=text.split('\n');
+    var headers=parseCSVLine(lines[0]).map(h=>h.trim());
+    var iFirst=headers.findIndex(h=>/first.name/i.test(h));
+    var iLast=headers.findIndex(h=>/last.name/i.test(h));
+    var iPhone=headers.findIndex(h=>/phone/i.test(h));
+    var iEmail=headers.findIndex(h=>/email/i.test(h));
+    var iDOB=headers.findIndex(h=>/birth|dob/i.test(h));
+    var iCreated=headers.findIndex(h=>/created|date/i.test(h));
+    var count=0;
+    for(var i=1;i<lines.length;i++){
+      var cols=parseCSVLine(lines[i]);
+      if(cols.length<3)continue;
+      var phone=(iPhone>=0?cols[iPhone]:'').replace(/\D/g,'');
+      if(!phone)continue;
+      // Check if already in allRecords by phone
+      var existing=allRecords.find(r=>(r.phone||'').replace(/\D/g,'')==phone);
+      if(existing){
+        // Update email/name if missing
+        if(!existing.email&&iEmail>=0)existing.email=cols[iEmail]||'';
+        continue;
+      }
+      var rec={
+        firstName:iFirst>=0?cols[iFirst].trim():'',
+        lastName:iLast>=0?cols[iLast].trim():'',
+        phone:iPhone>=0?cols[iPhone].trim():'',
+        email:iEmail>=0?cols[iEmail].trim():'',
+        dob:iDOB>=0?cols[iDOB].trim():'',
+        submittedAt:iCreated>=0&&cols[iCreated]?new Date(cols[iCreated]).toISOString():new Date().toISOString(),
+        service:'',_source:'sq',responses:{},_visits:[]
+      };
+      try{await window._fb.saveCustomer(rec);count++;}catch(err){console.error(err);}
+    }
+    document.getElementById('sq-customer-status').textContent='✓ 匯入完成，新增 '+count+' 筆客戶';
+    reloadAll();
+  };
+  reader.readAsText(file);
+}
+
+// ── IMPORT SQUARE ITEMS (local only) ──
+function importSqItems(){
+  var file=document.getElementById('sq-items-file').files[0];
+  if(!file){alert('請選擇 CSV 檔案');return;}
+  var reader=new FileReader();
+  reader.onload=function(e){
+    sqItems=parseSqItems(e.target.result);
+    buildMonthOptions();
+    renderAnalytics();
+    document.getElementById('sq-items-status').textContent='✓ 匯入 '+sqItems.length+' 筆項目記錄，數據分析已更新';
+    showTab('analytics');
+  };
+  reader.readAsText(file);
+}
+
+function parseSqItems(text){
+  var lines=text.split('\n');
+  var h=parseCSVLine(lines[0]).map(x=>x.trim());
+  var iDate=h.indexOf('Date'),iTime=h.indexOf('Time'),iItem=h.indexOf('Item'),iCat=h.indexOf('Category');
+  var iNet=h.indexOf('Net Sales'),iLoc=h.indexOf('Location'),iEmp=h.indexOf('Employee');
+  var rows=[];
+  for(var i=1;i<lines.length;i++){
+    var c=parseCSVLine(lines[i]);
+    if(c.length<4)continue;
+    var net=parseFloat((c[iNet]||'').replace(/[$,]/g,''))||0;
+    if(net<=0)continue;
+    var loc=(c[iLoc]||'').toLowerCase();
+    var store=loc.includes('san rafael')?'sr':'mv';
+    rows.push({date:c[iDate]||'',time:c[iTime]||'',item:c[iItem]||'',cat:c[iCat]||'',net:net,store:store,emp:c[iEmp]||''});
+  }
+  return rows;
+}
+
+// ── ANALYTICS ──
+function buildMonthOptions(){
+  var months=new Set();
+  sqItems.forEach(r=>{if(r.date)months.add(r.date.slice(0,7));});
+  allRecords.forEach(r=>{if(r.submittedAt)months.add(r.submittedAt.slice(0,7));});
+  var sorted=[...months].sort().reverse();
+  var sel=document.getElementById('ana-month');
+  var cur=sel.value;
+  sel.innerHTML='<option value="">全部月份</option>'+sorted.map(m=>'<option value="'+m+'"'+(m===cur?' selected':'')+'>'+m+'</option>').join('');
+}
+
+function renderAnalytics(){
+  var mo=document.getElementById('ana-month').value;
+  var store=document.getElementById('ana-store').value;
+
+  // Filter items
+  var items=sqItems.filter(r=>(!mo||r.date.startsWith(mo))&&(!store||r.store===store));
+
+  // Service counts from forms
+  var svcCount={lash:0,facial:0,headspa:0,massage:0};
+  allRecords.filter(r=>!mo||( r.submittedAt&&r.submittedAt.startsWith(mo))).forEach(r=>{if(svcCount[r.service]!==undefined)svcCount[r.service]++;});
+  renderBars('ana-svc-chart',Object.entries(svcCount).map(([k,v])=>({label:SVC_LABELS[k],val:v})),'var(--rose)');
+
+  // Store counts from items
+  var storeCount={mv:0,sr:0};
+  items.forEach(r=>storeCount[r.store]=(storeCount[r.store]||0)+1);
+  renderBars('ana-store-chart',[{label:'Mill Valley',val:storeCount.mv},{label:'San Rafael',val:storeCount.sr}],'var(--mv)');
+
+  // Top items
+  var itemCount={};
+  items.forEach(r=>{if(r.item)itemCount[r.item]=(itemCount[r.item]||0)+1;});
+  var top=Object.entries(itemCount).sort((a,b)=>b[1]-a[1]).slice(0,10).map(([k,v])=>({label:k,val:v}));
+  renderBars('ana-item-chart',top,'var(--ok)');
+}
+
+function renderBars(id,data,color){
+  var el=document.getElementById(id);if(!el)return;
+  if(!data.length||data.every(d=>d.val===0)){el.innerHTML='<div style="font-size:12px;color:var(--faint);padding:8px">尚無資料</div>';return;}
+  var max=Math.max(...data.map(d=>d.val))||1;
+  el.innerHTML=data.map(d=>'<div class="bar-row"><div class="bar-label">'+d.label+'</div><div class="bar-track"><div class="bar-fill" style="width:'+Math.round(d.val/max*100)+'%;background:'+color+'"></div></div><div class="bar-val">'+d.val+'</div></div>').join('');
+}
+
+// ── CSV PARSER ──
+function parseCSVLine(line){
+  var cols=[],cur='',inQ=false;
+  for(var i=0;i<(line||'').length;i++){
+    var ch=line[i];
+    if(ch==='"')inQ=!inQ;
+    else if(ch===','&&!inQ){cols.push(cur.replace(/^"|"$/g,''));cur='';}
+    else cur+=ch;
+  }
+  cols.push(cur.replace(/^"|"$/g,''));
+  return cols;
+}
+
+// expose
+window.showTab=showTab;window.applyFilters=applyFilters;window.sortBy=sortBy;
+window.openPanel=openPanel;window.closePanel=closePanel;window.toggleLapsed=toggleLapsed;
+window.exportCSV=exportCSV;window.importSqCustomers=importSqCustomers;window.importSqItems=importSqItems;
+window.reloadAll=reloadAll;window.renderAnalytics=renderAnalytics;
+
+// Wait for Firebase module then init
+if(window._fbReady){init();}else{window._onFbReady=init;}
+function init(){reloadAll();}
+</script>
+</body>
+</html>

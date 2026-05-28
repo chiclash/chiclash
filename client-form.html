@@ -1,0 +1,758 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>Chic Lash Boutique — Client Form</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+:root{
+  --cream:#FAF7F4;--white:#FFFFFF;--ink:#1A1714;--sub:#6B6560;--faint:#B8B0A8;
+  --border:#E8E2DC;--rose:#C4726A;--rose-light:#F5EDED;--rose-mid:#D4948C;
+  --ok:#3A7D5A;--ok-bg:#EDF5F0;
+  --radius:14px;--shadow:0 2px 20px rgba(0,0,0,.07);
+}
+body{background:var(--cream);font-family:'Inter',sans-serif;color:var(--ink);min-height:100vh;font-size:17px;padding:0 0 80px}
+
+/* ── HEADER ── */
+.hdr{background:var(--white);border-bottom:1px solid var(--border);padding:20px 24px;text-align:center;position:sticky;top:0;z-index:100;box-shadow:0 1px 12px rgba(0,0,0,.05)}
+
+.logo span{display:block;font-family:'Inter',sans-serif;font-size:10px;font-weight:500;letter-spacing:.18em;color:var(--sub);text-transform:uppercase;margin-top:2px}
+
+/* ── SERVICE PICKER ── */
+#step-pick{padding:32px 20px}
+.step-title{font-family:'Inter',sans-serif;font-size:22px;text-align:center;margin-bottom:6px}
+.step-sub{font-size:13px;color:var(--sub);text-align:center;margin-bottom:28px}
+.svc-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;max-width:500px;margin:0 auto}
+.svc-btn{background:var(--white);border:1.5px solid var(--border);border-radius:var(--radius);padding:22px 16px;cursor:pointer;transition:all .2s;text-align:center;-webkit-user-select:none}
+.svc-btn:active{transform:scale(.97)}
+.svc-btn.sel{border-color:var(--rose);background:var(--rose-light)}
+
+.svc-name{font-family:'Inter',sans-serif;font-size:17px;color:var(--ink)}
+.svc-desc{font-size:11px;color:var(--sub);margin-top:3px}
+.next-btn{display:block;width:100%;max-width:500px;margin:24px auto 0;background:var(--rose);color:#fff;border:none;border-radius:12px;padding:16px;font-size:17px;font-weight:500;cursor:pointer;font-family:'Inter',sans-serif;letter-spacing:.02em;transition:opacity .2s}
+.next-btn:disabled{opacity:.4;cursor:not-allowed}
+
+/* ── FORM ── */
+#step-form{display:none;padding:20px}
+.form-wrap{max-width:600px;margin:0 auto}
+.form-title{font-family:'Inter',sans-serif;font-size:21px;margin-bottom:4px}
+.form-subtitle{font-size:12px;color:var(--sub);margin-bottom:24px;padding-bottom:20px;border-bottom:1px solid var(--border)}
+
+/* sections */
+.sec{background:var(--white);border-radius:var(--radius);padding:20px;margin-bottom:16px;box-shadow:var(--shadow)}
+.sec-title{font-size:12px;font-weight:500;letter-spacing:.14em;text-transform:uppercase;color:var(--rose);margin-bottom:16px;padding-bottom:10px;border-bottom:1px solid var(--rose-light)}
+
+/* fields */
+.field{margin-bottom:16px}
+.field:last-child{margin-bottom:0}
+.field label{display:block;font-size:14px;font-weight:500;color:var(--sub);margin-bottom:6px;letter-spacing:.02em}
+.field input[type=text],.field input[type=email],.field input[type=tel],.field input[type=date],.field select,.field textarea{
+  width:100%;border:1.5px solid var(--border);border-radius:9px;padding:12px 14px;font-size:17px;font-family:'Inter',sans-serif;
+  color:var(--ink);background:var(--white);outline:none;transition:border-color .15s;-webkit-appearance:none
+}
+.field input:focus,.field select:focus,.field textarea:focus{border-color:var(--rose-mid)}
+.field textarea{resize:vertical;min-height:70px}
+.field-row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+
+/* radio & checkbox groups */
+.opt-group{display:flex;flex-wrap:wrap;gap:8px;margin-top:6px}
+.opt-group.col{flex-direction:column;gap:6px}
+.opt-btn{display:flex;align-items:center;gap:8px;padding:9px 14px;border:1.5px solid var(--border);border-radius:8px;cursor:pointer;font-size:15px;transition:all .15s;-webkit-user-select:none}
+.opt-btn.sel{border-color:var(--rose);background:var(--rose-light);color:var(--rose)}
+.opt-btn .dot{width:16px;height:16px;border-radius:50%;border:2px solid var(--faint);flex-shrink:0;transition:all .15s;display:flex;align-items:center;justify-content:center}
+.opt-btn.sel .dot{border-color:var(--rose);background:var(--rose)}
+.opt-btn .dot:after{content:'';width:6px;height:6px;border-radius:50%;background:#fff;display:none}
+.opt-btn.sel .dot:after{display:block}
+.opt-btn .sq{width:16px;height:16px;border-radius:4px;border:2px solid var(--faint);flex-shrink:0;transition:all .15s;display:flex;align-items:center;justify-content:center;font-size:10px;color:#fff}
+.opt-btn.sel .sq{border-color:var(--rose);background:var(--rose)}
+.ql{font-size:15px;color:var(--ink);font-weight:500;margin-bottom:8px}
+.sub-group{margin-left:24px;margin-top:8px}
+
+/* service table */
+.svc-table{width:100%;border-collapse:collapse;font-size:15px}
+.svc-table th{text-align:left;font-size:12px;font-weight:500;letter-spacing:.1em;text-transform:uppercase;color:var(--sub);padding:6px 8px;border-bottom:1px solid var(--border)}
+.svc-table td{padding:11px 8px;border-bottom:1px solid var(--border);vertical-align:middle}
+.svc-table tr:last-child td{border-bottom:none}
+.svc-table .price{font-weight:600;color:var(--rose);font-size:14px}
+.svc-table .sel-col{text-align:center;width:48px}
+
+/* policy */
+.policy-box{background:var(--cream);border-radius:9px;padding:14px;font-size:14px;color:var(--sub);line-height:1.7;margin-bottom:14px}
+.policy-box b{color:var(--ink)}
+.initial-list{display:flex;flex-direction:column;gap:8px;margin-bottom:16px}
+.initial-item{display:flex;align-items:flex-start;gap:10px;font-size:15px;line-height:1.5}
+.initial-check{width:22px;height:22px;border:2px solid var(--border);border-radius:6px;flex-shrink:0;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:13px;margin-top:1px;transition:all .15s}
+.initial-check.chk{border-color:var(--ok);background:var(--ok);color:#fff}
+
+/* signature */
+.sig-wrap{border:2px dashed var(--border);border-radius:10px;overflow:hidden;position:relative;background:var(--white)}
+#sig-canvas{display:block;width:100%;touch-action:none}
+.sig-clear{position:absolute;top:10px;right:10px;background:var(--cream);border:1px solid var(--border);border-radius:6px;padding:4px 10px;font-size:11px;color:var(--sub);cursor:pointer;font-family:'Inter',sans-serif}
+
+/* submit */
+.submit-btn{display:block;width:100%;background:var(--rose);color:#fff;border:none;border-radius:12px;padding:17px;font-size:18px;font-weight:500;cursor:pointer;font-family:'Inter',sans-serif;margin-top:8px;transition:opacity .2s;letter-spacing:.02em}
+.submit-btn:disabled{opacity:.5}
+
+/* success */
+#step-done{display:none;padding:60px 24px;text-align:center}
+.done-icon{font-size:64px;margin-bottom:20px}
+.done-title{font-family:'Inter',sans-serif;font-size:28px;margin-bottom:10px}
+.done-sub{font-size:14px;color:var(--sub);margin-bottom:36px;line-height:1.6}
+.reset-btn{background:var(--ink);color:#fff;border:none;border-radius:12px;padding:15px 32px;font-size:15px;cursor:pointer;font-family:'Inter',sans-serif}
+</style>
+</head>
+<body>
+
+<div class="hdr">
+  <img src="data:image/png;base64,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" alt="Chic Lash Boutique" style="height:110px;object-fit:contain">
+</div>
+
+<!-- STEP 1: Pick service -->
+<div id="step-pick">
+  <div class="step-title">Welcome!</div>
+  <div class="step-sub">Please select your service today</div>
+  <div class="svc-grid">
+    <div class="svc-btn" onclick="pickSvc('lash',this)">
+            <div class="svc-name">Eyelash</div>
+      <div class="svc-desc">Extensions & Lifting</div>
+    </div>
+    <div class="svc-btn" onclick="pickSvc('facial',this)">
+            <div class="svc-name">Facial</div>
+      <div class="svc-desc">Skin Care & Treatment</div>
+    </div>
+    <div class="svc-btn" onclick="pickSvc('headspa',this)">
+            <div class="svc-name">Head Spa</div>
+      <div class="svc-desc">Scalp Treatment</div>
+    </div>
+    <div class="svc-btn" onclick="pickSvc('massage',this)">
+            <div class="svc-name">Massage</div>
+      <div class="svc-desc">Body & Relaxation</div>
+    </div>
+  </div>
+  <button class="next-btn" id="next-btn" disabled onclick="showForm()">Continue →</button>
+</div>
+
+<!-- STEP 2: Form -->
+<div id="step-form">
+  <div class="form-wrap" autocomplete="off">
+    <button onclick="goBack()" style="display:flex;align-items:center;gap:6px;background:none;border:none;color:var(--sub);font-size:14px;font-family:'Inter',sans-serif;cursor:pointer;padding:4px 0;margin-bottom:16px">← Back</button>
+    <div class="form-title" id="form-title"></div>
+    <div class="form-subtitle" id="form-subtitle"></div>
+    <div id="form-body"></div>
+    <button class="submit-btn" id="submit-btn" onclick="submitForm()">Submit Form</button>
+  </div>
+</div>
+
+<!-- STEP 2.5: Staff Review -->
+<div id="step-review" style="display:none;padding:24px 20px;max-width:600px;margin:0 auto">
+  <div style="background:#fff;border-radius:16px;box-shadow:0 4px 24px rgba(0,0,0,.1);overflow:hidden">
+    <div style="background:var(--rose);color:#fff;padding:20px 24px">
+      <div style="font-size:11px;letter-spacing:.12em;text-transform:uppercase;opacity:.8;margin-bottom:4px">Staff Review</div>
+      <div style="font-size:20px;font-weight:600">請員工確認客人資訊</div>
+    </div>
+    <div style="padding:20px 24px" id="review-body"></div>
+    <div style="padding:0 24px 24px;display:flex;gap:12px">
+      <button onclick="goBackToForm()" style="flex:1;padding:14px;background:none;border:1.5px solid var(--border);border-radius:10px;font-size:15px;font-weight:500;cursor:pointer;font-family:'Inter',sans-serif;color:var(--sub)">← 返回修改</button>
+      <button onclick="confirmAndSave()" style="flex:2;padding:14px;background:var(--ok);color:#fff;border:none;border-radius:10px;font-size:15px;font-weight:600;cursor:pointer;font-family:'Inter',sans-serif">✓ 確認無誤，儲存</button>
+    </div>
+  </div>
+</div>
+<div id="step-done">
+  <div class="done-icon">🌸</div>
+  <div class="done-title">Thank you!</div>
+  <div class="done-sub">Your information has been saved.<br>Please hand the iPad back to your technician.</div>
+  <button class="reset-btn" onclick="resetForm()">New Client →</button>
+</div>
+
+<script type="module">
+import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
+import { getFirestore, collection, addDoc } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
+const app = initializeApp({
+  apiKey:"AIzaSyCbiJE0WiBy9oOPp0Vh0AdsEOcPjyNsVwk",
+  authDomain:"chiclash-2a154.firebaseapp.com",
+  projectId:"chiclash-2a154",
+  storageBucket:"chiclash-2a154.firebasestorage.app",
+  messagingSenderId:"77248539857",
+  appId:"1:77248539857:web:54e80b840160a2e30569f0"
+});
+window._db2 = getFirestore(app);
+window._addDoc = addDoc;
+window._collection = collection;
+</script>
+
+<script>
+var curSvc = null;
+
+function pickSvc(svc, el) {
+  curSvc = svc;
+  document.querySelectorAll('.svc-btn').forEach(b => b.classList.remove('sel'));
+  el.classList.add('sel');
+  document.getElementById('next-btn').disabled = false;
+}
+
+// ── RADIO / CHECKBOX HELPERS ──
+function radio(name, opts, inline) {
+  return `<div class="opt-group${inline?'':' col'}">`
+    + opts.map(o=>`<div class="opt-btn" data-name="${name}" data-val="${o}" onclick="pickOpt(this,'radio')">`
+      +`<span class="dot"></span>${o}</div>`).join('')
+    + `</div>`;
+}
+function checkbox(name, opts, inline) {
+  return `<div class="opt-group${inline?'':' col'}">`
+    + opts.map(o=>`<div class="opt-btn" data-name="${name}" data-val="${o}" onclick="pickOpt(this,'check')">`
+      +`<span class="sq"></span>${o}</div>`).join('')
+    + `</div>`;
+}
+function pickOpt(el, type) {
+  var name = el.dataset.name;
+  if (type==='radio') {
+    document.querySelectorAll(`.opt-btn[data-name="${name}"]`).forEach(b=>b.classList.remove('sel'));
+  }
+  el.classList.toggle('sel');
+  if (type==='radio' && !el.classList.contains('sel')) el.classList.add('sel');
+}
+
+// ── COMMON INFO SECTION ──
+function commonInfo() {
+  return `<div class="sec">
+    <div class="sec-title">Personal Information</div>
+    <div class="field-row">
+      <div class="field"><label>First Name *</label><input type="text" id="f-first" placeholder="First name" autocomplete="off"></div>
+      <div class="field"><label>Last Name *</label><input type="text" id="f-last" placeholder="Last name" autocomplete="off"></div>
+    </div>
+    <div class="field"><label>Phone Number *</label><input type="tel" id="f-phone" placeholder="(415) 000-0000" autocomplete="off"></div>
+    <div class="field"><label>E-mail</label><input type="email" id="f-email" placeholder="email@example.com" autocomplete="off"></div>
+    <div class="field"><label>Date of Birth (MM/DD)</label><input type="text" id="f-dob" placeholder="MM/DD" maxlength="5" autocomplete="off"></div>
+    <div class="field">
+      <label>How did you hear about us?</label>
+      ${checkbox('hear',['Google','Yelp','Friend','Pass By'],true)}
+    </div>
+  </div>`;
+}
+
+// ── SIGNATURE SECTION ──
+function sigSection() {
+  return `<div class="sec">
+    <div class="sec-title">Signature</div>
+    <div class="field"><label>Print Name</label><input type="text" id="f-print-name" placeholder="Your full name" autocomplete="off"></div>
+    <div class="field"><label>Date</label><input type="text" id="f-date" value="${new Date().toLocaleDateString('en-US')}" readonly style="color:var(--sub)"></div>
+    <div class="field">
+      <label>Signature</label>
+      <div class="sig-wrap">
+        <canvas id="sig-canvas" height="160"></canvas>
+        <button class="sig-clear" onclick="clearSig()">Clear</button>
+      </div>
+    </div>
+  </div>`;
+}
+
+// ── EYELASH FORM ──
+function buildLash() {
+  return commonInfo() + `
+  <div class="sec">
+    <div class="sec-title">Client Information</div>
+    <div class="field">
+      <div class="ql">Do you think you have sensitive eyes?</div>
+      ${radio('sensitive',['Yes','No'],true)}
+    </div>
+    <div class="field">
+      <div class="ql">Have you had eyelash extensions before?</div>
+      ${radio('prev-lash',['Yes, love them','Yes, had reactions','No, first time'],false)}
+    </div>
+    <div class="field">
+      <div class="ql">Do you wear contact lenses?</div>
+      ${radio('contacts',['Yes','No'],true)}
+    </div>
+    <div class="field">
+      <div class="ql">Any known allergies? (glue, latex, tape)</div>
+      ${radio('lash-allergy',['Yes','No'],true)}
+      <div id="lash-allergy-detail" style="margin-top:8px;display:none">
+        <input type="text" id="f-lash-allergy-detail" placeholder="Please specify...">
+      </div>
+    </div>
+  </div>
+  <div class="sec">
+    <div class="sec-title">Policy & Consent</div>
+    <div class="policy-box">
+      <b>1. Appointment Policy:</b> All services by appointment only. Please provide 3 hours notice to avoid a $30 cancellation charge.<br><br>
+      <b>2. Payment:</b> CASH Preferred. All types of Credit Cards accepted. No checks.<br><br>
+      <b>3. Fix/Removal:</b> If you experience discomfort or a lash becomes dislodged, contact us immediately. Do NOT attempt removal yourself — this can damage your natural lashes. <b>We are only responsible for complaints within 48 hours.</b><br><br>
+      <b>4. Refunds:</b> If you are unhappy with the service, please let us know within 48 hours. We can consider a half or full refund.
+    </div>
+    <div class="ql" style="margin-bottom:10px">Please initial each item below:</div>
+    <div class="initial-list">
+      <div class="initial-item"><div class="initial-check" onclick="toggleInitial(this)">✓</div><span>I understand this procedure involves synthetic eyelashes to be glued to my natural eyelashes.</span></div>
+      <div class="initial-item"><div class="initial-check" onclick="toggleInitial(this)">✓</div><span>I understand there are risks including eye redness and irritation. Adhesive fumes may cause tearing if I open my eyes during application.</span></div>
+      <div class="initial-item"><div class="initial-check" onclick="toggleInitial(this)">✓</div><span>I understand I must follow the eyelash extension care sheet to maintain the life of these extensions.</span></div>
+      <div class="initial-item"><div class="initial-check" onclick="toggleInitial(this)">✓</div><span>I agree to disclose any allergies to glue, latex, surgical tapes, cyanoacrylate, or Vaseline prior to application.</span></div>
+      <div class="initial-item"><div class="initial-check" onclick="toggleInitial(this)">✓</div><span>I agree that by signing this form, I release ChicLash Boutique and its employees from any claims or damages of any nature.</span></div>
+      <div class="initial-item"><div class="initial-check" onclick="toggleInitial(this)">✓</div><span>I authorize ChicLash Boutique to use my before and after photos for future clients or website use. <i>(Optional)</i></span></div>
+    </div>
+  </div>
+  ` + sigSection();
+}
+
+// ── FACIAL FORM ──
+function buildFacial() {
+  return commonInfo() + `
+  <div class="sec">
+    <div class="sec-title">Skin Analysis — Daily Care</div>
+    <div class="field">
+      <div class="ql">1. Do you wear makeup?</div>
+      ${radio('makeup',['Yes','No'],true)}
+      <div style="margin-top:8px"><div class="ql" style="font-size:12px;color:var(--sub)">Makeup removal method:</div>${checkbox('makeup-removal',['Oil','Wipes','Soap','Other'],true)}</div>
+    </div>
+    <div class="field">
+      <div class="ql">2. Face wash type:</div>
+      ${checkbox('face-wash',['Foam','Soap','Other'],true)}
+    </div>
+    <div class="field">
+      <div class="ql">3. Water temperature preference:</div>
+      ${radio('water-temp',['Cold','Warm'],true)}
+    </div>
+    <div class="field">
+      <div class="ql">4. Do you use exfoliators / enzymatic products?</div>
+      ${radio('exfoliator',['Yes','No'],true)}
+    </div>
+    <div class="field">
+      <div class="ql">5. Vitamin C or Brightening/Whitening products?</div>
+      ${radio('vitc',['Yes','No'],true)}
+      <div style="margin-top:8px"><div class="ql" style="font-size:12px;color:var(--sub)">Usage frequency:</div>${radio('vitc-freq',['Daily','Weekly','Sometimes'],true)}</div>
+    </div>
+  </div>
+  <div class="sec">
+    <div class="sec-title">Medical & Special Requirements</div>
+    <div class="field">
+      <div class="ql">6. Please check if apply:</div>
+      ${checkbox('medical',['Currently Pregnant','Metal implants in body'],false)}
+      <div style="margin-top:8px">
+        <div class="opt-btn" data-name="claustrophobia" data-val="Yes" onclick="pickOpt(this,'check');toggleClaus()"><span class="sq"></span>Claustrophobia</div>
+        <div id="claus-opts" style="display:none;margin-top:8px;margin-left:24px">
+          ${checkbox('claus-pref',['A: Do not cover my eyes and lip','B: Masks OK, let me know before applying','C: I need to keep the lights on'],false)}
+        </div>
+      </div>
+    </div>
+    <div class="field">
+      <label>7. Allergies (Aspirin, Iodine, Nuts, etc.)</label>
+      <input type="text" id="f-facial-allergy" placeholder="List any allergies...">
+    </div>
+    <div class="field">
+      <label>8. Shoulder/Neck Massage intensity (1–10)</label>
+      <input type="text" id="f-massage-intensity" placeholder="e.g. 5">
+    </div>
+  </div>
+  <div class="sec">
+    <div class="sec-title">Facial Services Selection</div>
+    <table class="svc-table">
+      <thead><tr><th>Service</th><th>Time</th><th class="price">Price</th><th class="sel-col">Select</th></tr></thead>
+      <tbody>
+        ${[
+          ['Signature (Gypsum Mask)','1h 30m','$295'],
+          ['Pola Anti-Aging (Gypsum Mask)','1h 15m','$325'],
+          ['Acne Care (Antibacterial Mask)','1h 30m','$285'],
+          ['Hydro Facial (Hydro Mask)','1h','$225'],
+          ['Hydro Lux (Hydro Mask)','1h 20m','$265'],
+          ['Prenatal Care (Hydro Mask)','1h 15m','$225'],
+          ['Teen Care / Hydro Mask','1h','$150'],
+          ['Gentle Men (Hydro Mask)','1h','$175'],
+        ].map(([n,t,p])=>`<tr>
+          <td>${n}</td><td style="color:var(--sub);font-size:12px">${t}</td>
+          <td class="price">${p}</td>
+          <td class="sel-col"><div class="opt-btn" style="padding:6px;justify-content:center" data-name="facial-svc" data-val="${n}" onclick="pickOpt(this,'radio')"><span class="dot"></span></div></td>
+        </tr>`).join('')}
+      </tbody>
+    </table>
+  </div>
+  <div class="sec">
+    <div class="sec-title">Add-ons & Waxing</div>
+    <div class="field">
+      <div class="ql">Add-ons:</div>
+      ${checkbox('addons',['Ultrasonic Cleaning ($25)','Eye Treatment (Reg $10 / Pola $35)'],true)}
+    </div>
+    <div class="field">
+      <div class="ql">Waxing:</div>
+      ${checkbox('waxing',['Brow ($30)','Full Face ($55)','Lip/Chin ($15)'],true)}
+    </div>
+  </div>
+  <div class="sec">
+    <div class="sec-title">Consent</div>
+    <div class="policy-box">
+      I understand treatments are for cosmetic purposes. I have provided accurate health information. I've been informed that using brightening/Vitamin C products may cause sensitivity during treatment. I consent to the treatment and release ChicLash Boutique from any liability for adverse reactions not disclosed prior to treatment.
+    </div>
+  </div>
+  ` + sigSection();
+}
+
+// ── HEAD SPA FORM ──
+function buildHeadSpa() {
+  return commonInfo() + `
+  <div class="sec">
+    <div class="sec-title">Head Spa Consultation</div>
+    <div class="field">
+      <div class="ql">1. Have you received a scalp massage before?</div>
+      ${radio('prev-spa',['Yes','No'],true)}
+    </div>
+    <div class="field">
+      <div class="ql">2. Are you on any medication?</div>
+      ${radio('medication',['Yes','No'],true)}
+      <div style="margin-top:8px"><input type="text" id="f-medication-detail" placeholder="If yes, which ones..."></div>
+    </div>
+    <div class="field">
+      <div class="ql">3. Do you have any allergies?</div>
+      ${radio('spa-allergy',['Yes','No'],true)}
+      <div style="margin-top:8px"><input type="text" id="f-spa-allergy-detail" placeholder="If yes, which ones..."></div>
+    </div>
+    <div class="field">
+      <div class="ql">4. Are you pregnant?</div>
+      ${radio('pregnant-spa',['Yes','No'],true)}
+    </div>
+    <div class="field">
+      <div class="ql">5. Water temperature preference:</div>
+      ${radio('water-pref',['Cool','Normal','Warm','Extra Warm'],true)}
+    </div>
+    <div class="field">
+      <div class="ql">6. Head Massage Pressure:</div>
+      ${radio('head-pressure',['Soft','Medium','Hard'],true)}
+    </div>
+    <div class="field">
+      <div class="ql">7. Neck & Shoulder Massage Pressure:</div>
+      ${radio('neck-pressure',['Soft','Medium','Hard'],true)}
+    </div>
+    <div class="field">
+      <div class="ql">8. Please indicate if you have any of the following:</div>
+      ${checkbox('scalp-cond',['Skin Conditions','Dandruff','Eczema','Psoriasis'],true)}
+    </div>
+    <div class="field">
+      <label>9. Head, neck or shoulder surgery (if any):</label>
+      <input type="text" id="f-surgery" placeholder="Describe if applicable...">
+    </div>
+  </div>
+  <div class="sec">
+    <div class="sec-title">Consent</div>
+    <div class="policy-box">
+      I understand that scalp massage therapy is for the purpose of stress reduction, relief from muscular tension or spasm, or for increasing circulation. I understand that the therapist does not diagnose illness, disease or any other physical or mental disorder. The therapist does not prescribe medical treatment nor perform spinal manipulations. I will inform the therapist of my current condition at the time of each visit.
+    </div>
+  </div>
+  ` + sigSection();
+}
+
+// ── MASSAGE FORM ──
+function buildMassage() {
+  return commonInfo() + `
+  <div class="sec">
+    <div class="sec-title">1. Massage Preferences</div>
+    <div class="field">
+      <div class="ql">Desired Pressure:</div>
+      ${radio('pressure',['Light','Medium','Firm / Deep Tissue'],true)}
+    </div>
+    <div class="field">
+      <div class="ql">Areas to Focus On:</div>
+      ${checkbox('focus-areas',['Neck','Shoulders','Upper Back','Lower Back','Hips/Glutes','Arms/Hands','Legs/Feet','Scalp/Face'],true)}
+    </div>
+  </div>
+  <div class="sec">
+    <div class="sec-title">2. Health History</div>
+    <div class="field">
+      <div class="ql">Do you have any of the following?</div>
+      ${checkbox('health',['High Blood Pressure','Varicose Veins','Blood Clots/DVT','Osteoporosis','Recent Surgery','Pregnancy','Skin Rashes','Numbness/Tingling'],true)}
+    </div>
+  </div>
+  <div class="sec">
+    <div class="sec-title">Consent</div>
+    <div class="policy-box">
+      I understand that massage therapy is for stress reduction and circulation. The therapist does not diagnose illness or perform medical treatment. I have informed the therapist of all my medical history.
+    </div>
+  </div>
+  ` + sigSection();
+}
+
+function toggleInitial(el) {
+  el.classList.toggle('chk');
+}
+function toggleClaus() {
+  var el = document.getElementById('claus-opts');
+  if(el) el.style.display = el.style.display==='none'?'block':'none';
+}
+
+// ── SIGNATURE CANVAS ──
+var sigCtx, sigDrawing = false, sigLastX, sigLastY;
+function initSig() {
+  var canvas = document.getElementById('sig-canvas');
+  if(!canvas) return;
+  canvas.width = canvas.offsetWidth * window.devicePixelRatio;
+  canvas.height = 160 * window.devicePixelRatio;
+  canvas.style.height = '160px';
+  sigCtx = canvas.getContext('2d');
+  sigCtx.scale(window.devicePixelRatio, window.devicePixelRatio);
+  sigCtx.strokeStyle = '#1A1714';
+  sigCtx.lineWidth = 2.5;
+  sigCtx.lineCap = 'round';
+  sigCtx.lineJoin = 'round';
+
+  function getPos(e) {
+    var r = canvas.getBoundingClientRect();
+    var t = e.touches ? e.touches[0] : e;
+    return {x: t.clientX - r.left, y: t.clientY - r.top};
+  }
+  canvas.addEventListener('pointerdown', e=>{
+    sigDrawing=true; var p=getPos(e); sigLastX=p.x; sigLastY=p.y;
+    sigCtx.beginPath(); sigCtx.moveTo(p.x,p.y); e.preventDefault();
+  });
+  canvas.addEventListener('pointermove', e=>{
+    if(!sigDrawing) return;
+    var p=getPos(e);
+    sigCtx.lineTo(p.x,p.y); sigCtx.stroke();
+    sigCtx.beginPath(); sigCtx.moveTo(p.x,p.y);
+    sigLastX=p.x; sigLastY=p.y; e.preventDefault();
+  });
+  ['pointerup','pointerleave','pointercancel'].forEach(ev=>
+    canvas.addEventListener(ev, ()=>sigDrawing=false));
+}
+function clearSig() {
+  var canvas = document.getElementById('sig-canvas');
+  if(canvas && sigCtx) sigCtx.clearRect(0, 0, canvas.width, canvas.height);
+}
+function getSigDataURL() {
+  var canvas = document.getElementById('sig-canvas');
+  if(!canvas) return '';
+  // Check if blank
+  var data = sigCtx.getImageData(0,0,canvas.width,canvas.height).data;
+  var hasInk = false;
+  for(var i=3;i<data.length;i+=4){if(data[i]>10){hasInk=true;break;}}
+  return hasInk ? canvas.toDataURL('image/png') : '';
+}
+
+// ── SHOW FORM ──
+function showForm() {
+  var titles = {lash:'Eyelash Agreement & Consent',facial:'Skin Care Report & Consent',headspa:'Head Spa Agreement & Consent',massage:'Massage Therapy Consent'};
+  document.getElementById('form-title').textContent = titles[curSvc];
+  document.getElementById('form-subtitle').textContent = 'Please complete all fields and sign below';
+  var builders = {lash:buildLash, facial:buildFacial, headspa:buildHeadSpa, massage:buildMassage};
+  document.getElementById('form-body').innerHTML = builders[curSvc]();
+  document.getElementById('step-pick').style.display = 'none';
+  document.getElementById('step-form').style.display = 'block';
+  window.scrollTo(0,0);
+  setTimeout(initSig, 100);
+
+  // Lash allergy toggle
+  document.querySelectorAll('[data-name="lash-allergy"]').forEach(el=>{
+    el.addEventListener('click', ()=>{
+      setTimeout(()=>{
+        var isYes = document.querySelector('[data-name="lash-allergy"][data-val="Yes"]')?.classList.contains('sel');
+        var d = document.getElementById('lash-allergy-detail');
+        if(d) d.style.display = isYes?'block':'none';
+      }, 50);
+    });
+  });
+}
+
+// ── COLLECT DATA ──
+function collectFormData() {
+  var data = {
+    service: curSvc,
+    submittedAt: new Date().toISOString(),
+    store: 'mv', // default; can be set by staff
+    firstName: document.getElementById('f-first')?.value.trim() || '',
+    lastName: document.getElementById('f-last')?.value.trim() || '',
+    phone: document.getElementById('f-phone')?.value.trim() || '',
+    email: document.getElementById('f-email')?.value.trim() || '',
+    dob: document.getElementById('f-dob')?.value.trim() || '',
+    printName: document.getElementById('f-print-name')?.value.trim() || '',
+    date: document.getElementById('f-date')?.value || '',
+    signature: getSigDataURL(),
+    hear: getChecked('hear'),
+    responses: {},
+    agreementText: getAgreementText()
+  };
+
+  // Collect all radio/checkbox answers
+  var answered = {};
+  document.querySelectorAll('.opt-btn.sel').forEach(el=>{
+    var n = el.dataset.name, v = el.dataset.val;
+    if(!n||!v||['hear'].includes(n)) return;
+    if(!answered[n]) answered[n] = [];
+    if(!answered[n].includes(v)) answered[n].push(v);
+  });
+  data.responses = answered;
+
+  // Service-specific fields
+  if(curSvc==='lash') data.responses.allergyDetail = document.getElementById('f-lash-allergy-detail')?.value||'';
+  if(curSvc==='facial') {
+    data.responses.allergyDetail = document.getElementById('f-facial-allergy')?.value||'';
+    data.responses.massageIntensity = document.getElementById('f-massage-intensity')?.value||'';
+    data.initials = document.querySelectorAll('.initial-check.chk').length;
+  }
+  if(curSvc==='headspa') {
+    data.responses.medicationDetail = document.getElementById('f-medication-detail')?.value||'';
+    data.responses.allergyDetail = document.getElementById('f-spa-allergy-detail')?.value||'';
+    data.responses.surgery = document.getElementById('f-surgery')?.value||'';
+  }
+  return data;
+}
+
+function getAgreementText() {
+  var texts = {
+    lash: 'CHIC LASH BOUTIQUE — EYELASH AGREEMENT AND CONSENT FORM\n\n' +
+      'POLICY:\n' +
+      '1. All services are provided by appointment only and subject to availability.\n' +
+      '2. Payment methods: CASH Preferred, All types Credit Cards, No checks.\n' +
+      '3. Fix/Removal: If you are experiencing any discomfort or irritation, please inform us immediately as THIS IS NOT NORMAL. If an eyelash becomes dislodged, or you decide to completely remove your lashes, please do not attempt to do it by yourself as this can damage your natural lashes. Please contact us immediately to schedule a professional removal. We are not responsible for damages caused by improper removal. If you experience any problems please contact us within 48 hours as we are only responsible for complaints within the first 48 hours.\n' +
+      '4. Cancellations: Please provide us with a 3 hours notice to avoid a $30 cancellation charge of your scheduled appointment.\n' +
+      '5. Refunds: Please let us know if you are unhappy with the service within 48 hours, we can consider a half refund or full refund.\n\n' +
+      'CLIENT INITIALS — I understand and agree that:\n' +
+      '- This procedure involves synthetic eyelashes to be glued to my natural eyelashes.\n' +
+      '- There are risks involved in this procedure, including but not limited to eye redness and irritation. The fumes from the adhesive may cause my eyes to tear up if I open my eyes during the application process.\n' +
+      '- I am required to follow the eyelash extension care sheet in order to maintain the maximum life of these extensions.\n' +
+      '- I agree to disclose any allergies I may have to glue, latex, surgical tapes, cyanoacrylate, Vaseline, etc. prior to the application process.\n' +
+      '- By signing this consent form, I release ChicLash Boutique and any of its employees & Agents from any claims or damages of any nature.\n' +
+      '- I authorize ChicLash Boutique to use my before and after photos to show other future clients or website uses. (Optional)',
+
+    facial: 'CHIC LASH BOUTIQUE — SKIN CARE REPORT & CONSENT FORM\n\n' +
+      'CONSENT:\n' +
+      'I understand treatments are for cosmetic purposes. I have provided accurate health information. I have been informed that using brightening/Vitamin C products may cause sensitivity during treatment. I consent to the treatment and release ChicLash Boutique from any liability for adverse reactions not disclosed prior to treatment.',
+
+    headspa: 'CHIC LASH BOUTIQUE — HEAD SPA AGREEMENT AND CONSENT FORM\n\n' +
+      'CONSENT:\n' +
+      'I understand that scalp massage therapy is for the purpose of stress reduction, relief from muscular tension or spasm, or for increasing circulation. I understand that the therapist does not diagnose illness, disease or any other physical or mental disorder. The therapist does not prescribe medical treatment nor perform spinal manipulations. I will inform the therapist of my current condition at the time of each visit.',
+
+    massage: 'CHIC LASH BOUTIQUE — MASSAGE THERAPY CONSENT FORM\n\n' +
+      'CONSENT:\n' +
+      'I understand that massage therapy is for stress reduction and circulation. The therapist does not diagnose illness or perform medical treatment. I have informed the therapist of all my medical history.'
+  };
+  return texts[curSvc] || '';
+}
+
+function getChecked(name) {
+  return [...document.querySelectorAll(`.opt-btn.sel[data-name="${name}"]`)].map(e=>e.dataset.val);
+}
+
+// ── SUBMIT → show staff review ──
+var _pendingData = null;
+
+async function submitForm() {
+  var data = collectFormData();
+  if(!data.firstName || !data.lastName) { alert('Please enter your first and last name.'); return; }
+  if(!data.phone) { alert('Please enter your phone number.'); return; }
+
+  _pendingData = data;
+
+  // Build review summary
+  var svcLabel = {lash:'Eyelash',facial:'Facial',headspa:'Head Spa',massage:'Massage'}[data.service]||data.service;
+  var name = data.firstName + ' ' + data.lastName;
+  var resp = data.responses || {};
+
+  // Highlight important flags
+  var flags = [];
+  if(resp['lash-allergy']?.includes('Yes') || resp['spa-allergy']?.includes('Yes')) flags.push({warn:true, text:'⚠ 有過敏 — '+( resp.allergyDetail||'請確認')});
+  if(resp['sensitive']?.includes('Yes')) flags.push({warn:true, text:'⚠ 眼睛敏感'});
+  if(resp['contacts']?.includes('Yes')) flags.push({warn:false, text:'👁 戴隱形眼鏡'});
+  if(resp['medical']?.includes('Currently Pregnant') || resp['pregnant-spa']?.includes('Yes')) flags.push({warn:true, text:'⚠ 懷孕中'});
+  if(resp['medical']?.includes('Metal implants in body')) flags.push({warn:true, text:'⚠ 體內有金屬植入物'});
+  if(resp['claustrophobia']?.length) flags.push({warn:false, text:'💡 幽閉恐懼 — '+( resp['claus-pref']||[]).join(', ')});
+  if(resp['health']?.length) flags.push({warn:true, text:'⚠ 健康狀況：'+(resp['health']||[]).join(', ')});
+  if(resp['medication']?.includes('Yes')) flags.push({warn:true, text:'⚠ 有用藥 — '+(resp.medicationDetail||'請確認')});
+  if(resp['surgery']) flags.push({warn:false, text:'🏥 手術史：'+resp.surgery});
+  if(resp['scalp-cond']?.length) flags.push({warn:false, text:'頭皮狀況：'+(resp['scalp-cond']||[]).join(', ')});
+
+  // Preferences
+  var prefs = [];
+  if(resp['pressure']) prefs.push('力道：'+resp['pressure'].join('/'));
+  if(resp['head-pressure']) prefs.push('頭部力道：'+resp['head-pressure'].join('/'));
+  if(resp['neck-pressure']) prefs.push('肩頸力道：'+resp['neck-pressure'].join('/'));
+  if(resp['water-pref']) prefs.push('水溫：'+resp['water-pref'].join('/'));
+  if(resp['focus-areas']?.length) prefs.push('重點部位：'+resp['focus-areas'].join(', '));
+  if(resp['massageIntensity']) prefs.push('按摩強度：'+resp.massageIntensity+'/10');
+  if(resp['facial-svc']?.length) prefs.push('選擇服務：'+resp['facial-svc'].join(', '));
+  if(resp['addons']?.length) prefs.push('加購：'+resp['addons'].join(', '));
+  if(resp['waxing']?.length) prefs.push('蜜蠟：'+resp['waxing'].join(', '));
+
+  var flagHtml = flags.length ? flags.map(f=>
+    '<div style="display:flex;align-items:flex-start;gap:8px;padding:8px 12px;border-radius:8px;background:'+(f.warn?'#FBF0EC':'#F5F5F5')+';margin-bottom:6px;font-size:14px;color:'+(f.warn?'#B83010':'#1A1714')+'">'+f.text+'</div>'
+  ).join('') : '<div style="color:#6B6560;font-size:13px">無特殊注意事項</div>';
+
+  var prefHtml = prefs.length ? prefs.map(p=>
+    '<div style="font-size:14px;color:#1A1714;padding:4px 0;border-bottom:1px solid #F0EBE5">'+p+'</div>'
+  ).join('') : '<div style="color:#6B6560;font-size:13px">—</div>';
+
+  var hasSig = !!data.signature;
+
+  document.getElementById('review-body').innerHTML =
+    '<div style="margin-bottom:16px">'+
+      '<div style="font-size:13px;color:#6B6560;margin-bottom:2px">客人</div>'+
+      '<div style="font-size:19px;font-weight:700">'+name+'</div>'+
+      '<div style="font-size:13px;color:#6B6560;margin-top:2px">'+svcLabel+'　'+( data.phone||'')+(data.dob?'　生日 '+data.dob:'')+'</div>'+
+    '</div>'+
+    '<div style="margin-bottom:16px">'+
+      '<div style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.1em;color:#C4726A;margin-bottom:8px">⚠ 重要注意事項</div>'+
+      flagHtml+
+    '</div>'+
+    (prefs.length?'<div style="margin-bottom:16px"><div style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.1em;color:#C4726A;margin-bottom:8px">偏好設定</div>'+prefHtml+'</div>':'')+
+    '<div style="display:flex;align-items:center;gap:8px;font-size:13px;color:'+(hasSig?'#3A7D5A':'#B83010')+';margin-top:8px">'+
+      (hasSig?'✓ 已簽名':'⚠ 尚未簽名，請請客人補簽')+
+    '</div>';
+
+  document.getElementById('step-form').style.display = 'none';
+  document.getElementById('step-review').style.display = 'block';
+  window.scrollTo(0,0);
+}
+
+function goBackToForm() {
+  document.getElementById('step-review').style.display = 'none';
+  document.getElementById('step-form').style.display = 'block';
+  window.scrollTo(0,0);
+}
+
+async function confirmAndSave() {
+  var btn = document.querySelector('#step-review button:last-child');
+  btn.disabled = true;
+  btn.textContent = '儲存中…';
+  try {
+    if(window._db2) {
+      await window._addDoc(window._collection(window._db2, 'client_forms'), _pendingData);
+    }
+    document.getElementById('step-review').style.display = 'none';
+    document.getElementById('step-done').style.display = 'block';
+    window.scrollTo(0,0);
+  } catch(e) {
+    console.error(e);
+    alert('連線失敗，請確認 WiFi 後重試');
+    btn.disabled = false;
+    btn.textContent = '✓ 確認無誤，儲存';
+  }
+}
+
+// ── RESET ──
+function resetForm() {
+  curSvc = null;
+  _pendingData = null;
+  document.querySelectorAll('.svc-btn').forEach(b=>b.classList.remove('sel'));
+  document.getElementById('next-btn').disabled = true;
+  document.getElementById('form-body').innerHTML = '';
+  document.getElementById('step-done').style.display = 'none';
+  document.getElementById('step-review').style.display = 'none';
+  document.getElementById('step-pick').style.display = 'block';
+  window.scrollTo(0,0);
+}
+
+// expose to HTML onclick
+function goBack() {
+  document.getElementById('step-form').style.display = 'none';
+  document.getElementById('step-pick').style.display = 'block';
+  document.getElementById('form-body').innerHTML = '';
+  window.scrollTo(0,0);
+}
+window.goBack = goBack;
+window.goBackToForm = goBackToForm;
+window.confirmAndSave = confirmAndSave;
+window.showForm = showForm;
+window.pickOpt = pickOpt;
+window.toggleInitial = toggleInitial;
+window.toggleClaus = toggleClaus;
+window.clearSig = clearSig;
+window.submitForm = submitForm;
+window.resetForm = resetForm;
+</script>
+</body>
+</html>

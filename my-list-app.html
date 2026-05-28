@@ -1,0 +1,944 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0" />
+  <meta name="theme-color" content="#1a1a2e" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <title>我的清單</title>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@300;400;500;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --bg: #0f0f1a;
+      --surface: #1a1a2e;
+      --card: #16213e;
+      --accent: #e94560;
+      --accent2: #0f3460;
+      --text: #e8e8f0;
+      --text-dim: #8888aa;
+      --border: rgba(255,255,255,0.07);
+      --done-color: #3a3a5a;
+      --radius: 16px;
+      --shadow: 0 8px 32px rgba(0,0,0,0.4);
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+
+    body {
+      font-family: 'Noto Sans TC', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      min-height: -webkit-fill-available;
+      overflow-x: hidden;
+    }
+
+    /* Ambient background */
+    body::before {
+      content: '';
+      position: fixed;
+      top: -30%;
+      left: -20%;
+      width: 80vw;
+      height: 80vw;
+      background: radial-gradient(circle, rgba(233,69,96,0.12) 0%, transparent 70%);
+      pointer-events: none;
+      z-index: 0;
+    }
+    body::after {
+      content: '';
+      position: fixed;
+      bottom: -20%;
+      right: -20%;
+      width: 70vw;
+      height: 70vw;
+      background: radial-gradient(circle, rgba(15,52,96,0.3) 0%, transparent 70%);
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    .app {
+      position: relative;
+      z-index: 1;
+      max-width: 480px;
+      margin: 0 auto;
+      padding: 0 0 120px;
+      min-height: 100vh;
+    }
+
+    /* Header */
+    .header {
+      padding: 56px 24px 24px;
+      position: sticky;
+      top: 0;
+      background: linear-gradient(to bottom, var(--bg) 80%, transparent);
+      z-index: 10;
+    }
+
+    .header-top {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 8px;
+    }
+
+    .app-title {
+      font-size: 28px;
+      font-weight: 700;
+      letter-spacing: -0.5px;
+      background: linear-gradient(135deg, var(--text) 0%, var(--accent) 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .stats {
+      font-family: 'DM Mono', monospace;
+      font-size: 12px;
+      color: var(--text-dim);
+      padding: 4px 10px;
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      background: var(--surface);
+    }
+
+    .progress-bar {
+      height: 3px;
+      background: var(--border);
+      border-radius: 3px;
+      overflow: hidden;
+      margin-top: 16px;
+    }
+    .progress-fill {
+      height: 100%;
+      background: linear-gradient(90deg, var(--accent), #ff8a65);
+      border-radius: 3px;
+      transition: width 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    /* Lists tabs */
+    .lists-tabs {
+      display: flex;
+      gap: 8px;
+      padding: 0 24px 16px;
+      overflow-x: auto;
+      scrollbar-width: none;
+    }
+    .lists-tabs::-webkit-scrollbar { display: none; }
+
+    .tab {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 8px 14px;
+      border-radius: 20px;
+      border: 1px solid var(--border);
+      background: var(--surface);
+      color: var(--text-dim);
+      font-size: 13px;
+      font-family: 'Noto Sans TC', sans-serif;
+      cursor: pointer;
+      white-space: nowrap;
+      transition: all 0.2s;
+      flex-shrink: 0;
+    }
+    .tab.active {
+      background: var(--accent);
+      border-color: var(--accent);
+      color: white;
+    }
+    .tab .tab-count {
+      font-family: 'DM Mono', monospace;
+      font-size: 11px;
+      background: rgba(0,0,0,0.2);
+      padding: 1px 6px;
+      border-radius: 10px;
+    }
+    .tab-add {
+      border-style: dashed;
+      opacity: 0.6;
+    }
+
+    .tab .tab-del {
+      display: none;
+      background: rgba(0,0,0,0.3);
+      border-radius: 50%;
+      width: 16px;
+      height: 16px;
+      align-items: center;
+      justify-content: center;
+      font-size: 11px;
+      line-height: 1;
+      flex-shrink: 0;
+    }
+    .tab.deletable .tab-del { display: flex; }
+
+    /* Delete list confirm */
+    .del-confirm {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.6);
+      backdrop-filter: blur(4px);
+      z-index: 200;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.2s;
+    }
+    .del-confirm.open { opacity: 1; pointer-events: all; }
+    .del-confirm-box {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      padding: 28px 24px 20px;
+      width: 100%;
+      max-width: 320px;
+      text-align: center;
+      transform: scale(0.92);
+      transition: transform 0.2s;
+    }
+    .del-confirm.open .del-confirm-box { transform: scale(1); }
+    .del-confirm-icon { font-size: 36px; margin-bottom: 12px; }
+    .del-confirm h3 { font-size: 17px; margin-bottom: 8px; }
+    .del-confirm p { font-size: 13px; color: var(--text-dim); margin-bottom: 20px; line-height: 1.5; }
+    .del-confirm-btns { display: flex; gap: 10px; }
+    .del-btn-cancel {
+      flex: 1; padding: 12px;
+      background: var(--card); border: 1px solid var(--border);
+      color: var(--text); border-radius: 12px;
+      font-size: 14px; font-family: 'Noto Sans TC', sans-serif;
+      cursor: pointer;
+    }
+    .del-btn-ok {
+      flex: 1; padding: 12px;
+      background: var(--accent); border: none;
+      color: white; border-radius: 12px;
+      font-size: 14px; font-family: 'Noto Sans TC', sans-serif;
+      cursor: pointer; font-weight: 500;
+    }
+
+    /* Date badge */
+    .item-meta { display: flex; flex-direction: column; gap: 4px; flex: 1; min-width: 0; }
+    .item-date {
+      display: inline-flex; align-items: center; gap: 4px;
+      font-family: 'DM Mono', monospace; font-size: 11px;
+      padding: 2px 8px; border-radius: 8px; width: fit-content; margin-top: 3px;
+      background: rgba(255,255,255,0.06); color: var(--text-dim);
+    }
+    .item-date.overdue { background: rgba(233,69,96,0.18); color: #e94560; }
+    .item-date.today   { background: rgba(255,165,0,0.18);  color: #ffaa33; }
+    .item-date.soon    { background: rgba(100,200,100,0.15);color: #6dcc6d; }
+    .list-item.done .item-date { opacity: 0.4; }
+
+    .date-toggle {
+      background: none; border: none; color: var(--text-dim);
+      cursor: pointer; padding: 4px 6px; font-size: 18px;
+      border-radius: 8px; transition: color 0.2s; flex-shrink: 0;
+    }
+    .date-toggle.active { color: #ffaa33; }
+    .date-row { display: none; padding: 0 18px 10px; gap: 8px; align-items: center; }
+    .date-row.visible { display: flex; }
+    .date-input {
+      flex: 1; background: var(--card); border: 1px solid var(--border);
+      border-radius: 10px; padding: 7px 12px; color: var(--text);
+      font-size: 13px; font-family: 'DM Mono', monospace; outline: none; color-scheme: dark;
+    }
+    .date-input:focus { border-color: var(--accent); }
+    .date-clear { background: none; border: none; color: var(--text-dim); font-size: 18px; cursor: pointer; padding: 0 4px; }
+
+    /* Image in item */
+    .item-img-thumb {
+      width: 56px; height: 56px;
+      border-radius: 10px;
+      object-fit: cover;
+      cursor: pointer;
+      flex-shrink: 0;
+      border: 1px solid var(--border);
+      transition: transform 0.15s;
+    }
+    .item-img-thumb:active { transform: scale(0.95); }
+
+    /* Image lightbox */
+    .lightbox {
+      position: fixed; inset: 0;
+      background: rgba(0,0,0,0.92);
+      z-index: 300;
+      display: flex; align-items: center; justify-content: center;
+      opacity: 0; pointer-events: none;
+      transition: opacity 0.2s;
+    }
+    .lightbox.open { opacity: 1; pointer-events: all; }
+    .lightbox img {
+      max-width: 92vw; max-height: 85vh;
+      border-radius: 12px;
+      object-fit: contain;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.8);
+    }
+    .lightbox-close {
+      position: absolute; top: 20px; right: 20px;
+      background: rgba(255,255,255,0.15); border: none;
+      color: white; font-size: 22px; width: 40px; height: 40px;
+      border-radius: 50%; cursor: pointer; display: flex;
+      align-items: center; justify-content: center;
+    }
+
+    /* Image upload button */
+    .img-btn {
+      background: none; border: none; color: var(--text-dim);
+      cursor: pointer; padding: 4px 6px; font-size: 18px;
+      border-radius: 8px; transition: color 0.2s; flex-shrink: 0;
+    }
+    .img-btn:active { color: var(--accent); }
+    .img-uploading { color: #ffaa33 !important; animation: pulse 1s infinite; }
+    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
+
+    /* Items list */
+    .items-container {
+      padding: 0 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .list-item {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 14px 16px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      cursor: pointer;
+      transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+      animation: slideIn 0.3s ease forwards;
+      position: relative;
+      overflow: hidden;
+    }
+
+    @keyframes slideIn {
+      from { opacity: 0; transform: translateY(16px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    .list-item::before {
+      content: '';
+      position: absolute;
+      left: 0; top: 0; bottom: 0;
+      width: 3px;
+      background: var(--accent);
+      border-radius: 3px 0 0 3px;
+      opacity: 0;
+      transition: opacity 0.2s;
+    }
+    .list-item:active { transform: scale(0.98); }
+    .list-item.done {
+      opacity: 0.5;
+    }
+    .list-item.done .item-text {
+      text-decoration: line-through;
+      color: var(--text-dim);
+    }
+    .list-item.done::before { opacity: 0; }
+    .list-item:not(.done)::before { opacity: 1; }
+
+    .checkbox {
+      width: 22px;
+      height: 22px;
+      border-radius: 50%;
+      border: 2px solid var(--text-dim);
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.2s;
+    }
+    .list-item.done .checkbox {
+      background: var(--text-dim);
+      border-color: var(--text-dim);
+    }
+    .checkbox svg { display: none; }
+    .list-item.done .checkbox svg { display: block; }
+
+    .item-text {
+      flex: 1;
+      font-size: 15px;
+      font-weight: 400;
+      line-height: 1.4;
+      transition: color 0.2s;
+    }
+
+    .item-delete {
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      border: none;
+      background: transparent;
+      color: var(--text-dim);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      opacity: 0;
+      transition: all 0.2s;
+      flex-shrink: 0;
+    }
+    .list-item:hover .item-delete,
+    .list-item:focus-within .item-delete {
+      opacity: 1;
+    }
+
+    /* Empty state */
+    .empty-state {
+      text-align: center;
+      padding: 60px 24px;
+      color: var(--text-dim);
+    }
+    .empty-icon {
+      font-size: 48px;
+      margin-bottom: 16px;
+      filter: grayscale(0.3);
+    }
+    .empty-state p { font-size: 15px; line-height: 1.6; }
+
+    /* Input area */
+    .input-area {
+      position: fixed;
+      bottom: 0;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 100%;
+      max-width: 480px;
+      padding: 16px;
+      background: linear-gradient(to top, var(--bg) 70%, transparent);
+      z-index: 20;
+    }
+
+    .input-wrapper {
+      display: flex;
+      gap: 10px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      padding: 8px 8px 8px 18px;
+      box-shadow: var(--shadow);
+      transition: border-color 0.2s;
+    }
+    .input-wrapper:focus-within {
+      border-color: var(--accent);
+    }
+
+    .input-field {
+      flex: 1;
+      background: none;
+      border: none;
+      outline: none;
+      color: var(--text);
+      font-size: 15px;
+      font-family: 'Noto Sans TC', sans-serif;
+      padding: 4px 0;
+    }
+    .input-field::placeholder { color: var(--text-dim); }
+
+    .add-btn {
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      background: var(--accent);
+      border: none;
+      color: white;
+      font-size: 22px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      flex-shrink: 0;
+      transition: transform 0.15s, background 0.2s;
+    }
+    .add-btn:active { transform: scale(0.92); background: #c73652; }
+
+    /* Section label */
+    .section-label {
+      padding: 8px 24px 6px;
+      font-size: 11px;
+      font-family: 'DM Mono', monospace;
+      color: var(--text-dim);
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+    }
+
+    /* Modal for new list */
+    .modal-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.6);
+      backdrop-filter: blur(4px);
+      z-index: 100;
+      display: flex;
+      align-items: flex-end;
+      justify-content: center;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.25s;
+    }
+    .modal-overlay.open {
+      opacity: 1;
+      pointer-events: all;
+    }
+    .modal {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 24px 24px 0 0;
+      padding: 24px 24px 40px;
+      width: 100%;
+      max-width: 480px;
+      transform: translateY(100%);
+      transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    .modal-overlay.open .modal {
+      transform: translateY(0);
+    }
+    .modal-handle {
+      width: 36px; height: 4px;
+      background: var(--border);
+      border-radius: 4px;
+      margin: 0 auto 20px;
+    }
+    .modal h3 { font-size: 18px; margin-bottom: 16px; }
+    .modal-input {
+      width: 100%;
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 12px 16px;
+      color: var(--text);
+      font-size: 15px;
+      font-family: 'Noto Sans TC', sans-serif;
+      outline: none;
+      margin-bottom: 16px;
+    }
+    .modal-input:focus { border-color: var(--accent); }
+    .modal-btn {
+      width: 100%;
+      padding: 14px;
+      background: var(--accent);
+      color: white;
+      border: none;
+      border-radius: 14px;
+      font-size: 15px;
+      font-family: 'Noto Sans TC', sans-serif;
+      font-weight: 500;
+      cursor: pointer;
+      transition: opacity 0.2s;
+    }
+    .modal-btn:active { opacity: 0.85; }
+  </style>
+</head>
+<body>
+<div class="app">
+  <div class="header">
+    <div class="header-top">
+      <div class="app-title">我的清單</div>
+      <div class="stats" id="stats">0 / 0</div>
+    </div>
+    <div class="progress-bar">
+      <div class="progress-fill" id="progressFill" style="width:0%"></div>
+    </div>
+  </div>
+
+  <div class="lists-tabs" id="listsTabs">
+    <!-- Tabs generated by JS -->
+    <button class="tab tab-add" id="addListBtn">＋ 新清單</button>
+  </div>
+
+  <div id="itemsArea"></div>
+
+  <div class="input-area">
+    <div class="input-wrapper">
+      <input class="input-field" id="newItemInput" placeholder="新增項目…" autocomplete="off" />
+      <button class="img-btn" id="imgUploadBtn" title="上傳圖片">📷</button>
+      <input type="file" id="imgFileInput" accept="image/*" style="display:none" />
+      <button class="add-btn" id="addItemBtn">＋</button>
+    </div>
+  </div>
+</div>
+
+<!-- Delete list confirm -->
+<div class="del-confirm" id="delConfirm">
+  <div class="del-confirm-box">
+    <div class="del-confirm-icon">🗑️</div>
+    <h3>刪除清單？</h3>
+    <p id="delConfirmMsg">確定要刪除這個清單嗎？<br>裡面的所有項目也會一起消失。</p>
+    <div class="del-confirm-btns">
+      <button class="del-btn-cancel" id="delCancel">取消</button>
+      <button class="del-btn-ok" id="delOk">刪除</button>
+    </div>
+  </div>
+</div>
+
+<!-- Lightbox -->
+<div class="lightbox" id="lightbox">
+  <button class="lightbox-close" id="lightboxClose">✕</button>
+  <img id="lightboxImg" src="" alt="" />
+</div>
+
+<!-- New list modal -->
+<div class="modal-overlay" id="modalOverlay">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <h3>建立新清單</h3>
+    <input class="modal-input" id="modalInput" placeholder="清單名稱，例如：購物、工作…" maxlength="20" />
+    <button class="modal-btn" id="modalConfirm">建立</button>
+  </div>
+</div>
+
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+  import { getFirestore, doc, setDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+  import { getStorage, ref, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-storage.js";
+
+  const firebaseConfig = {
+    apiKey: "AIzaSyCb1JE0WiBy9oOPp0Vh0AdsE0cPjyNsVwk",
+    authDomain: "chiclash-2a154.firebaseapp.com",
+    projectId: "chiclash-2a154",
+    storageBucket: "chiclash-2a154.firebasestorage.app",
+    messagingSenderId: "77248539857",
+    appId: "1:77248539857:web:54e80b840160a2e30569f0"
+  };
+
+  const app = initializeApp(firebaseConfig);
+  const db = getFirestore(app);
+  const storage = getStorage(app);
+  const STATE_DOC = doc(db, 'myListApp', 'sharedState');
+
+  // State
+  let state = {
+    lists: [{ id: 'default', name: '待辦事項' }],
+    items: {},
+    activeList: 'default',
+  };
+
+  // Show loading indicator
+  document.getElementById('itemsArea').innerHTML = `<div class="empty-state"><div class="empty-icon">⏳</div><p>連接中…</p></div>`;
+
+  // Real-time sync from Firestore
+  onSnapshot(STATE_DOC, (snap) => {
+    if (snap.exists()) {
+      const data = snap.data();
+      // Keep activeList from local if possible
+      const prevActive = state.activeList;
+      state = data;
+      // Restore activeList if still valid
+      if (data.lists && data.lists.find(l => l.id === prevActive)) {
+        state.activeList = prevActive;
+      } else {
+        state.activeList = data.lists?.[0]?.id || 'default';
+      }
+    }
+    render();
+  });
+
+  async function save() {
+    try {
+      await setDoc(STATE_DOC, JSON.parse(JSON.stringify(state)));
+    } catch(e) { console.error('儲存失敗', e); }
+  }
+
+  function getItems() {
+    return state.items[state.activeList] || [];
+  }
+
+  function setItems(items) {
+    state.items[state.activeList] = items;
+    save();
+  }
+
+  function uid() {
+    return Date.now().toString(36) + Math.random().toString(36).slice(2,5);
+  }
+
+  // Render
+  function renderTabs() {
+    const container = document.getElementById('listsTabs');
+    const addBtn = document.getElementById('addListBtn');
+    [...container.children].forEach(c => { if (c !== addBtn) c.remove(); });
+
+    state.lists.forEach(list => {
+      const items = state.items[list.id] || [];
+      const remaining = items.filter(i => !i.done).length;
+      const isDefault = list.id === 'default';
+      const tab = document.createElement('button');
+      tab.className = 'tab' + (list.id === state.activeList ? ' active' : '');
+      tab.dataset.listId = list.id;
+      tab.innerHTML = `${escapeHTML(list.name)} <span class="tab-count">${remaining}</span>${!isDefault ? '<span class="tab-del" title="刪除清單">✕</span>' : ''}`;
+
+      // Click to switch
+      tab.addEventListener('click', (e) => {
+        if (e.target.classList.contains('tab-del')) {
+          promptDeleteList(list.id, list.name);
+        } else {
+          state.activeList = list.id;
+          render();
+        }
+      });
+
+      // Long press to show delete button
+      if (!isDefault) {
+        let pressTimer;
+        tab.addEventListener('touchstart', () => {
+          pressTimer = setTimeout(() => {
+            tab.classList.toggle('deletable');
+          }, 500);
+        }, { passive: true });
+        tab.addEventListener('touchend', () => clearTimeout(pressTimer), { passive: true });
+        tab.addEventListener('touchmove', () => clearTimeout(pressTimer), { passive: true });
+        // On desktop: right click
+        tab.addEventListener('contextmenu', (e) => {
+          e.preventDefault();
+          tab.classList.toggle('deletable');
+        });
+      }
+
+      container.insertBefore(tab, addBtn);
+    });
+  }
+
+  function renderItems() {
+    const area = document.getElementById('itemsArea');
+    const items = getItems();
+    const todo = items.filter(i => !i.done);
+    const done = items.filter(i => i.done);
+
+    if (items.length === 0) {
+      area.innerHTML = `<div class="empty-state"><div class="empty-icon">📋</div><p>還沒有任何項目<br>從下方輸入框開始新增吧！</p></div>`;
+      return;
+    }
+
+    let html = '';
+    if (todo.length > 0) {
+      html += `<div class="section-label">待完成 · ${todo.length}</div><div class="items-container">`;
+      todo.forEach(item => { html += itemHTML(item); });
+      html += '</div>';
+    }
+    if (done.length > 0) {
+      html += `<div class="section-label" style="margin-top:16px">已完成 · ${done.length}</div><div class="items-container">`;
+      done.forEach(item => { html += itemHTML(item); });
+      html += '</div>';
+    }
+    area.innerHTML = html;
+
+    // Bind events
+    area.querySelectorAll('.list-item').forEach(el => {
+      const id = el.dataset.id;
+      el.querySelector('.checkbox').addEventListener('click', (e) => { e.stopPropagation(); toggleItem(id); });
+      el.querySelector('.item-delete').addEventListener('click', (e) => { e.stopPropagation(); deleteItem(id); });
+      const thumb = el.querySelector('.item-img-thumb');
+      if (thumb) {
+        thumb.addEventListener('click', (e) => {
+          e.stopPropagation();
+          openLightbox(thumb.dataset.img);
+        });
+      }
+    });
+  }
+
+  function itemHTML(item) {
+    const imgHtml = item.imageUrl
+      ? `<img class="item-img-thumb" src="${item.imageUrl}" alt="圖片" data-img="${item.imageUrl}" />`
+      : '';
+    return `<div class="list-item${item.done ? ' done' : ''}" data-id="${item.id}">
+      <div class="checkbox">
+        <svg width="12" height="10" viewBox="0 0 12 10" fill="none">
+          <path d="M1 5L4.5 8.5L11 1.5" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </div>
+      ${imgHtml}
+      <div class="item-meta">
+        <div class="item-text">${escapeHTML(item.text)}</div>
+        ${item.date ? dateLabel(item.date) : ''}
+      </div>
+      <button class="item-delete" title="刪除">
+        <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+          <path d="M1 1L13 13M13 1L1 13" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+        </svg>
+      </button>
+    </div>`;
+  }
+
+  function renderStats() {
+    const items = getItems();
+    const done = items.filter(i => i.done).length;
+    const total = items.length;
+    document.getElementById('stats').textContent = `${done} / ${total}`;
+    const pct = total === 0 ? 0 : Math.round((done / total) * 100);
+    document.getElementById('progressFill').style.width = pct + '%';
+  }
+
+  function render() {
+    renderTabs();
+    renderItems();
+    renderStats();
+  }
+
+  function escapeHTML(str) {
+    return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+
+  function dateLabel(dateStr) {
+    if (!dateStr) return '';
+    const today = new Date(); today.setHours(0,0,0,0);
+    const d = new Date(dateStr + 'T00:00:00');
+    const diff = Math.round((d - today) / 86400000);
+    let label = '';
+    if      (diff === 0)  label = '今天';
+    else if (diff === -1) label = '昨天';
+    else {
+      const m = d.getMonth()+1, day = d.getDate();
+      label = `${m}/${day}`;
+    }
+    return `<span class="item-date">${label}</span>`;
+  }
+
+  // Actions
+  function addItem(text, date) {
+    text = text.trim();
+    if (!text) return;
+    const items = getItems();
+    items.unshift({ id: uid(), text, done: false, date: date || '' });
+    setItems(items);
+    render();
+  }
+
+  function toggleItem(id) {
+    const items = getItems();
+    const item = items.find(i => i.id === id);
+    if (item) item.done = !item.done;
+    setItems(items);
+    render();
+  }
+
+  function deleteItem(id) {
+    setItems(getItems().filter(i => i.id !== id));
+    render();
+  }
+
+  // Delete list
+  let pendingDeleteId = null;
+  function promptDeleteList(id, name) {
+    pendingDeleteId = id;
+    document.getElementById('delConfirmMsg').innerHTML = `確定要刪除「${escapeHTML(name)}」嗎？<br>裡面的所有項目也會一起消失。`;
+    document.getElementById('delConfirm').classList.add('open');
+  }
+  document.getElementById('delCancel').onclick = () => {
+    document.getElementById('delConfirm').classList.remove('open');
+    pendingDeleteId = null;
+  };
+  document.getElementById('delOk').onclick = () => {
+    if (pendingDeleteId) {
+      state.lists = state.lists.filter(l => l.id !== pendingDeleteId);
+      delete state.items[pendingDeleteId];
+      if (state.activeList === pendingDeleteId) {
+        state.activeList = state.lists[0]?.id || 'default';
+      }
+      pendingDeleteId = null;
+      save();
+      render();
+    }
+    document.getElementById('delConfirm').classList.remove('open');
+  };
+
+  // Lightbox
+  function openLightbox(url) {
+    document.getElementById('lightboxImg').src = url;
+    document.getElementById('lightbox').classList.add('open');
+  }
+  document.getElementById('lightboxClose').onclick = () => document.getElementById('lightbox').classList.remove('open');
+  document.getElementById('lightbox').addEventListener('click', (e) => {
+    if (e.target === document.getElementById('lightbox')) document.getElementById('lightbox').classList.remove('open');
+  });
+
+  // Image upload
+  let pendingImageUrl = null;
+  const imgBtn = document.getElementById('imgUploadBtn');
+  const imgFileInput = document.getElementById('imgFileInput');
+
+  imgBtn.onclick = () => imgFileInput.click();
+  imgFileInput.addEventListener('change', async () => {
+    const file = imgFileInput.files[0];
+    if (!file) return;
+    imgBtn.classList.add('img-uploading');
+    imgBtn.textContent = '⏳';
+    try {
+      const storageRef = ref(storage, `listImages/${uid()}_${file.name}`);
+      await uploadBytes(storageRef, file);
+      pendingImageUrl = await getDownloadURL(storageRef);
+      imgBtn.textContent = '✅';
+      imgBtn.classList.remove('img-uploading');
+    } catch(e) {
+      console.error(e);
+      imgBtn.textContent = '📷';
+      imgBtn.classList.remove('img-uploading');
+      alert('圖片上傳失敗，請稍後再試');
+    }
+    imgFileInput.value = '';
+  });
+
+  // Input
+  const input = document.getElementById('newItemInput');
+
+  function todayStr() {
+    const d = new Date();
+    const m = String(d.getMonth()+1).padStart(2,'0');
+    const day = String(d.getDate()).padStart(2,'0');
+    return `${d.getFullYear()}-${m}-${day}`;
+  }
+
+  function doAdd() {
+    const text = input.value.trim();
+    if (!text && !pendingImageUrl) return;
+    const items = getItems();
+    items.unshift({ id: uid(), text: text || '（圖片）', done: false, date: todayStr(), imageUrl: pendingImageUrl || '' });
+    state.items[state.activeList] = items;
+    save();
+    input.value = '';
+    pendingImageUrl = null;
+    imgBtn.textContent = '📷';
+    input.focus();
+  }
+
+  document.getElementById('addItemBtn').onclick = doAdd;
+  input.addEventListener('keydown', e => { if (e.key === 'Enter') doAdd(); });
+
+  // New list modal
+  const overlay = document.getElementById('modalOverlay');
+  const modalInput = document.getElementById('modalInput');
+  document.getElementById('addListBtn').onclick = () => {
+    overlay.classList.add('open');
+    setTimeout(() => modalInput.focus(), 300);
+  };
+  overlay.addEventListener('click', e => {
+    if (e.target === overlay) overlay.classList.remove('open');
+  });
+  document.getElementById('modalConfirm').onclick = () => {
+    const name = modalInput.value.trim();
+    if (!name) return;
+    const id = uid();
+    state.lists.push({ id, name });
+    state.activeList = id;
+    modalInput.value = '';
+    overlay.classList.remove('open');
+    save();
+    render();
+  };
+  modalInput.addEventListener('keydown', e => {
+    if (e.key === 'Enter') document.getElementById('modalConfirm').click();
+  });
+
+  // Init
+  render();
+</script>
+</body>
+</html>
