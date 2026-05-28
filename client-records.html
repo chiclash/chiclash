@@ -149,6 +149,11 @@ input[type=file]{font-size:12px;font-family:'Inter',sans-serif;color:var(--sub)}
         <option value="headspa">Head Spa</option>
         <option value="massage">Massage</option>
       </select>
+      <select class="tb-select" id="filter-store" onchange="applyFilters()">
+        <option value="">兩店合計</option>
+        <option value="mv">Mill Valley</option>
+        <option value="sr">San Rafael</option>
+      </select>
       <select class="tb-select" id="filter-lapsed" onchange="applyFilters()">
         <option value="">所有客戶</option>
         <option value="4">4週未回</option>
@@ -386,13 +391,15 @@ function showTab(t) {
 function applyFilters() {
   var q = (document.getElementById('search').value||'').toLowerCase();
   var svc = document.getElementById('filter-svc').value;
+  var storeF = document.getElementById('filter-store').value;
   var lw = parseInt(document.getElementById('filter-lapsed').value)||0;
   filtered = allRecords.filter(r=>{
     var name = ((r.firstName||'')+(r.lastName||'')).toLowerCase();
     var ok1 = !q || name.includes(q)||(r.phone||'').includes(q)||(r.email||'').toLowerCase().includes(q);
     var ok2 = !svc || r.service===svc;
-    var ok3 = !lw || (weeksAgo(r.submittedAt)||0)>=lw;
-    return ok1&&ok2&&ok3;
+    var ok3 = !storeF || r.store===storeF;
+    var ok4 = !lw || (weeksAgo(r.submittedAt)||0)>=lw;
+    return ok1&&ok2&&ok3&&ok4;
   });
   filtered.sort((a,b)=>{
     var av,bv;
