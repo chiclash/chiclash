@@ -173,13 +173,14 @@ body{background:var(--cream);font-family:'Inter',sans-serif;color:var(--ink);min
   <div style="background:#fff;border-radius:16px;box-shadow:0 4px 24px rgba(0,0,0,.1);overflow:hidden">
     <div style="background:var(--rose);color:#fff;padding:20px 24px">
       <div style="font-size:11px;letter-spacing:.12em;text-transform:uppercase;opacity:.8;margin-bottom:4px">Staff Review — <span id="review-store-label"></span></div>
-      <div style="font-size:20px;font-weight:600">請員工確認客人資訊</div>
+      <div style="font-size:20px;font-weight:600">Staff: Please Review Client Info
+请工作人员确认客户信息</div>
     </div>
     <!-- Client info summary -->
     <div style="padding:20px 24px" id="review-body"></div>
     <div style="padding:0 24px 24px;display:flex;gap:12px">
       <button onclick="goBackToForm()" style="flex:1;padding:14px;background:none;border:1.5px solid var(--border);border-radius:10px;font-size:15px;font-weight:500;cursor:pointer;font-family:'Inter',sans-serif;color:var(--sub)">← Back</button>
-      <button onclick="confirmAndSave()" style="flex:2;padding:14px;background:var(--ok);color:#fff;border:none;border-radius:10px;font-size:15px;font-weight:600;cursor:pointer;font-family:'Inter',sans-serif">✓ 確認無誤，儲存</button>
+      <button onclick="confirmAndSave()" style="flex:2;padding:14px;background:var(--ok);color:#fff;border:none;border-radius:10px;font-size:15px;font-weight:600;cursor:pointer;font-family:'Inter',sans-serif">✓ Confirm & Save 确认并保存</button>
     </div>
   </div>
 </div>
@@ -713,32 +714,32 @@ async function submitForm() {
 
   // Build flags with Chinese
   var flags = [];
-  if(resp['lash-allergy']?.includes('Yes') || resp['spa-allergy']?.includes('Yes')) flags.push({warn:true, text:'⚠ 有過敏 — '+(resp.allergyDetail||'請確認')});
-  if(resp['sensitive']?.includes('Yes')) flags.push({warn:true, text:'⚠ 眼睛敏感'});
-  if(resp['contacts']?.includes('Yes')) flags.push({warn:false, text:'👁 戴隱形眼鏡'});
-  if(resp['medical']?.includes('Currently Pregnant') || resp['pregnant-spa']?.includes('Yes')) flags.push({warn:true, text:'⚠ 懷孕中'});
-  if(resp['medical']?.includes('Metal implants in body')) flags.push({warn:true, text:'⚠ 體內有金屬植入物'});
-  if(resp['claustrophobia']?.length) flags.push({warn:false, text:'💡 幽閉恐懼 — '+trArr(resp['claus-pref'])});
-  if(resp['health']?.length) flags.push({warn:true, text:'⚠ 健康狀況：'+trArr(resp['health'])});
-  if(resp['medication']?.includes('Yes')) flags.push({warn:true, text:'⚠ 有用藥 — '+(resp.medicationDetail||'請確認')});
-  if(resp['surgery']) flags.push({warn:false, text:'🏥 手術史：'+resp.surgery});
-  if(resp['scalp-cond']?.length) flags.push({warn:false, text:'頭皮狀況：'+trArr(resp['scalp-cond'])});
+  if(resp['lash-allergy']?.includes('Yes') || resp['spa-allergy']?.includes('Yes')) flags.push({warn:true, text:'⚠ Allergy 过敏 — '+(resp.allergyDetail||'請確認')});
+  if(resp['sensitive']?.includes('Yes')) flags.push({warn:true, text:'⚠ Sensitive eyes 眼睛敏感'});
+  if(resp['contacts']?.includes('Yes')) flags.push({warn:false, text:'👁 Wears contacts 戴隐形眼镜'});
+  if(resp['medical']?.includes('Currently Pregnant') || resp['pregnant-spa']?.includes('Yes')) flags.push({warn:true, text:'⚠ Pregnant 怀孕中'});
+  if(resp['medical']?.includes('Metal implants in body')) flags.push({warn:true, text:'⚠ Metal implants 体内金属植入物'});
+  if(resp['claustrophobia']?.length) flags.push({warn:false, text:'💡 Claustrophobia 幽闭恐惧 — '+trArr(resp['claus-pref'])});
+  if(resp['health']?.length) flags.push({warn:true, text:'⚠ Health conditions 健康状况：'+trArr(resp['health'])});
+  if(resp['medication']?.includes('Yes')) flags.push({warn:true, text:'⚠ On medication 有用药 — '+(resp.medicationDetail||'請確認')});
+  if(resp['surgery']) flags.push({warn:false, text:'🏥 Surgery history 手术史：'+resp.surgery});
+  if(resp['scalp-cond']?.length) flags.push({warn:false, text:'Scalp condition 头皮状况：'+trArr(resp['scalp-cond'])});
 
   // Preferences with Chinese
   var prefs = [];
-  if(resp['pressure']) prefs.push('力道：'+trArr(resp['pressure']));
-  if(resp['head-pressure']) prefs.push('頭部力道：'+trArr(resp['head-pressure']));
-  if(resp['neck-pressure']) prefs.push('肩頸力道：'+trArr(resp['neck-pressure']));
-  if(resp['water-pref']) prefs.push('水溫：'+trArr(resp['water-pref']));
-  if(resp['focus-areas']?.length) prefs.push('重點部位：'+trArr(resp['focus-areas']));
-  if(resp['massageIntensity']) prefs.push('按摩強度：'+resp.massageIntensity+'/10');
-  if(resp['facial-svc']?.length) prefs.push('選擇服務：'+trArr(resp['facial-svc']));
-  if(resp['addons']?.length) prefs.push('加購：'+trArr(resp['addons']));
-  if(resp['waxing']?.length) prefs.push('蜜蠟：'+trArr(resp['waxing']));
+  if(resp['pressure']) prefs.push('Pressure 力道：'+trArr(resp['pressure']));
+  if(resp['head-pressure']) prefs.push('頭部Pressure 力道：'+trArr(resp['head-pressure']));
+  if(resp['neck-pressure']) prefs.push('肩頸Pressure 力道：'+trArr(resp['neck-pressure']));
+  if(resp['water-pref']) prefs.push('Water temp 水温：'+trArr(resp['water-pref']));
+  if(resp['focus-areas']?.length) prefs.push('Focus areas 重点部位：'+trArr(resp['focus-areas']));
+  if(resp['massageIntensity']) prefs.push('Massage intensity 按摩强度：'+resp.massageIntensity+'/10');
+  if(resp['facial-svc']?.length) prefs.push('Service selected 选择服务：'+trArr(resp['facial-svc']));
+  if(resp['addons']?.length) prefs.push('Add-ons 加购：'+trArr(resp['addons']));
+  if(resp['waxing']?.length) prefs.push('Waxing 蜜蜡：'+trArr(resp['waxing']));
 
   var flagHtml = flags.length ? flags.map(f=>
     '<div style="display:flex;align-items:flex-start;gap:8px;padding:8px 12px;border-radius:8px;background:'+(f.warn?'#FBF0EC':'#F5F5F5')+';margin-bottom:6px;font-size:14px;color:'+(f.warn?'#B83010':'#1A1714')+'">'+f.text+'</div>'
-  ).join('') : '<div style="color:#6B6560;font-size:13px">無特殊注意事項</div>';
+  ).join('') : '<div style="color:#6B6560;font-size:13px">No special notes 无特殊注意事项</div>';
 
   var prefHtml = prefs.length ? prefs.map(p=>
     '<div style="font-size:14px;color:#1A1714;padding:4px 0;border-bottom:1px solid #F0EBE5">'+p+'</div>'
@@ -750,23 +751,23 @@ async function submitForm() {
 
   document.getElementById('review-body').innerHTML =
     '<div style="margin-bottom:16px">'+
-      '<div style="font-size:13px;color:#6B6560;margin-bottom:2px">客人</div>'+
+      '<div style="font-size:13px;color:#6B6560;margin-bottom:2px">Client 客人</div>'+
       '<div style="font-size:19px;font-weight:700">'+name+'</div>'+
-      '<div style="font-size:13px;color:#6B6560;margin-top:2px">'+svcLabel+'　'+(data.phone||'')+(data.dob?'　生日 '+data.dob:'')+'</div>'+
+      '<div style="font-size:13px;color:#6B6560;margin-top:2px">'+svcLabel+'　'+(data.phone||'')+(data.dob?'　DOB 生日 '+data.dob:'')+'</div>'+
     '</div>'+
     '<div style="margin-bottom:16px">'+
-      '<div style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.1em;color:#C4726A;margin-bottom:8px">⚠ 重要注意事項</div>'+
+      '<div style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.1em;color:#C4726A;margin-bottom:8px">⚠ Important Notes 重要提示</div>'+
       flagHtml+
     '</div>'+
-    (prefs.length?'<div style="margin-bottom:16px"><div style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.1em;color:#C4726A;margin-bottom:8px">偏好設定</div>'+prefHtml+'</div>':'')+
+    (prefs.length?'<div style="margin-bottom:16px"><div style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.1em;color:#C4726A;margin-bottom:8px">Preferences 偏好</div>'+prefHtml+'</div>':'')+
     '<div style="display:flex;align-items:center;gap:8px;font-size:13px;color:'+(hasSig?'#3A7D5A':'#B83010')+';margin-bottom:16px">'+
-      (hasSig?'✓ 已簽名':'⚠ 尚未簽名，請請客人補簽')+
+      (hasSig?'✓ Signed 已签名':'⚠ Not signed — please ask client to sign | 尚未签名，请让客户补签')+
     '</div>'+
     // Agreement checkbox — required before saving
     '<div id="agreement-check-wrap" style="background:#F0FDF4;border:1.5px solid #A8D9BC;border-radius:10px;padding:14px 16px;margin-bottom:4px">'+
       '<label style="display:flex;align-items:flex-start;gap:12px;cursor:pointer;font-size:14px;line-height:1.5">'+
         '<input type="checkbox" id="staff-agreement-cb" onchange="checkAgreement()" style="width:20px;height:20px;margin-top:2px;accent-color:#3A7D5A;flex-shrink:0;cursor:pointer">'+
-        '<span>員工確認：客人已閱讀並同意所有條款，並完成簽名。<b>（必須勾選才能儲存）</b></span>'+
+        '<span>Staff confirm: Client has read, agreed to all terms, and signed. 工作人员确认：客户已阅读并同意所有条款，并完成签名。<b>(Required before saving 必须勾选才能保存)</b></span>'+
       '</label>'+
     '</div>';
 
@@ -789,10 +790,10 @@ function goBackToForm() {
 
 async function confirmAndSave() {
   var cb = document.getElementById('staff-agreement-cb');
-  if(cb && !cb.checked) { alert('請員工確認並勾選同意條款'); return; }
+  if(cb && !cb.checked) { alert('Please check the agreement box before saving.'); return; }
   _pendingData.store = _selectedStore || 'mv';
   var btn = document.querySelector('#step-review button:last-child');
-  btn.disabled = true; btn.textContent = '儲存中…';
+  btn.disabled = true; btn.textContent = 'Saving...';
   try {
     if(window._db2) {
       await window._addDoc(window._collection(window._db2, 'client_forms'), _pendingData);
@@ -802,9 +803,9 @@ async function confirmAndSave() {
     window.scrollTo(0,0);
   } catch(e) {
     console.error(e);
-    alert('連線失敗，請確認 WiFi 後重試');
+    alert('Connection failed. Please check WiFi and try again.');
     btn.disabled = false;
-    btn.textContent = '✓ 確認無誤，儲存';
+    btn.textContent = '✓ Confirm & Save 确认并保存';
   }
 }
 
