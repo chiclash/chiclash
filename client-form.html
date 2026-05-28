@@ -381,6 +381,10 @@ function buildFacial() {
     <div class="policy-box">
       I understand treatments are for cosmetic purposes. I have provided accurate health information. I've been informed that using brightening/Vitamin C products may cause sensitivity during treatment. I consent to the treatment and release ChicLash Boutique from any liability for adverse reactions not disclosed prior to treatment.
     </div>
+    <label style="display:flex;align-items:flex-start;gap:12px;cursor:pointer;font-size:15px;line-height:1.5;padding:4px 0">
+      <input type="checkbox" id="facial-consent-cb" style="width:22px;height:22px;margin-top:2px;accent-color:var(--ok);flex-shrink:0;cursor:pointer">
+      <span>I have read and agree to the above consent. <b style="color:var(--rose)">*</b></span>
+    </label>
   </div>
   ` + sigSection();
 }
@@ -434,6 +438,10 @@ function buildHeadSpa() {
     <div class="policy-box">
       I understand that scalp massage therapy is for the purpose of stress reduction, relief from muscular tension or spasm, or for increasing circulation. I understand that the therapist does not diagnose illness, disease or any other physical or mental disorder. The therapist does not prescribe medical treatment nor perform spinal manipulations. I will inform the therapist of my current condition at the time of each visit.
     </div>
+    <label style="display:flex;align-items:flex-start;gap:12px;cursor:pointer;font-size:15px;line-height:1.5;padding:4px 0">
+      <input type="checkbox" id="headspa-consent-cb" style="width:22px;height:22px;margin-top:2px;accent-color:var(--ok);flex-shrink:0;cursor:pointer">
+      <span>I have read and agree to the above consent. <b style="color:var(--rose)">*</b></span>
+    </label>
   </div>
   ` + sigSection();
 }
@@ -464,6 +472,10 @@ function buildMassage() {
     <div class="policy-box">
       I understand that massage therapy is for stress reduction and circulation. The therapist does not diagnose illness or perform medical treatment. I have informed the therapist of all my medical history.
     </div>
+    <label style="display:flex;align-items:flex-start;gap:12px;cursor:pointer;font-size:15px;line-height:1.5;padding:4px 0">
+      <input type="checkbox" id="massage-consent-cb" style="width:22px;height:22px;margin-top:2px;accent-color:var(--ok);flex-shrink:0;cursor:pointer">
+      <span>I have read and agree to the above consent. <b style="color:var(--rose)">*</b></span>
+    </label>
   </div>
   ` + sigSection();
 }
@@ -638,35 +650,67 @@ async function submitForm() {
 
   _pendingData = data;
 
+  // Check consent checkbox
+  var consentCb = document.getElementById('facial-consent-cb') ||
+                  document.getElementById('headspa-consent-cb') ||
+                  document.getElementById('massage-consent-cb');
+  if(consentCb && !consentCb.checked) {
+    alert('Please read and agree to the consent before submitting.');
+    consentCb.scrollIntoView({behavior:'smooth', block:'center'});
+    return;
+  }
+
   // Build review summary
   var svcLabel = {lash:'Eyelash',facial:'Facial',headspa:'Head Spa',massage:'Massage'}[data.service]||data.service;
   var name = data.firstName + ' ' + data.lastName;
   var resp = data.responses || {};
 
-  // Highlight important flags
+  // Translation map for English options
+  var TRANS = {
+    'High Blood Pressure':'高血壓','Varicose Veins':'靜脈曲張','Blood Clots/DVT':'血栓',
+    'Osteoporosis':'骨質疏鬆','Recent Surgery':'近期手術','Pregnancy':'懷孕',
+    'Skin Rashes':'皮膚疹','Numbness/Tingling':'麻木/刺痛',
+    'Neck':'頸部','Shoulders':'肩部','Upper Back':'上背','Lower Back':'下背',
+    'Hips/Glutes':'臀部','Arms/Hands':'手臂/手','Legs/Feet':'腿/腳','Scalp/Face':'頭皮/臉',
+    'Light':'輕','Medium':'中','Firm / Deep Tissue':'深層/深組織',
+    'Soft':'輕','Hard':'重',
+    'Cool':'涼','Normal':'正常','Warm':'溫','Extra Warm':'非常溫',
+    'Skin Conditions':'皮膚狀況','Dandruff':'頭皮屑','Eczema':'濕疹','Psoriasis':'牛皮癬',
+    'Yes':'是','No':'否',
+    'Oil':'油','Wipes':'濕巾','Soap':'肥皂','Foam':'泡沫',
+    'Cold':'冷','Daily':'每天','Weekly':'每週','Sometimes':'有時',
+    'Currently Pregnant':'懷孕中','Metal implants in body':'體內金屬植入物',
+    'A: Do not cover my eyes and lip':'A: 不要遮眼睛和嘴唇',
+    'B: Masks OK, let me know before applying':'B: 可以敷膜，請提前告知',
+    'C: I need to keep the lights on':'C: 需要開燈'
+  };
+  function tr(v){ return TRANS[v] || v; }
+  function trArr(arr){ return (arr||[]).map(tr).join('、'); }
+
+  // Build flags with Chinese
   var flags = [];
-  if(resp['lash-allergy']?.includes('Yes') || resp['spa-allergy']?.includes('Yes')) flags.push({warn:true, text:'⚠ 有過敏 — '+( resp.allergyDetail||'請確認')});
+  if(resp['lash-allergy']?.includes('Yes') || resp['spa-allergy']?.includes('Yes')) flags.push({warn:true, text:'⚠ 有過敏 — '+(resp.allergyDetail||'請確認')});
   if(resp['sensitive']?.includes('Yes')) flags.push({warn:true, text:'⚠ 眼睛敏感'});
   if(resp['contacts']?.includes('Yes')) flags.push({warn:false, text:'👁 戴隱形眼鏡'});
   if(resp['medical']?.includes('Currently Pregnant') || resp['pregnant-spa']?.includes('Yes')) flags.push({warn:true, text:'⚠ 懷孕中'});
   if(resp['medical']?.includes('Metal implants in body')) flags.push({warn:true, text:'⚠ 體內有金屬植入物'});
-  if(resp['claustrophobia']?.length) flags.push({warn:false, text:'💡 幽閉恐懼 — '+( resp['claus-pref']||[]).join(', ')});
-  if(resp['health']?.length) flags.push({warn:true, text:'⚠ 健康狀況：'+(resp['health']||[]).join(', ')});
+  if(resp['claustrophobia']?.length) flags.push({warn:false, text:'💡 幽閉恐懼 — '+trArr(resp['claus-pref'])});
+  if(resp['health']?.length) flags.push({warn:true, text:'⚠ 健康狀況：'+trArr(resp['health'])});
   if(resp['medication']?.includes('Yes')) flags.push({warn:true, text:'⚠ 有用藥 — '+(resp.medicationDetail||'請確認')});
   if(resp['surgery']) flags.push({warn:false, text:'🏥 手術史：'+resp.surgery});
-  if(resp['scalp-cond']?.length) flags.push({warn:false, text:'頭皮狀況：'+(resp['scalp-cond']||[]).join(', ')});
+  if(resp['scalp-cond']?.length) flags.push({warn:false, text:'頭皮狀況：'+trArr(resp['scalp-cond'])});
 
-  // Preferences
+  // Preferences with Chinese
   var prefs = [];
-  if(resp['pressure']) prefs.push('力道：'+resp['pressure'].join('/'));
-  if(resp['head-pressure']) prefs.push('頭部力道：'+resp['head-pressure'].join('/'));
-  if(resp['neck-pressure']) prefs.push('肩頸力道：'+resp['neck-pressure'].join('/'));
-  if(resp['water-pref']) prefs.push('水溫：'+resp['water-pref'].join('/'));
-  if(resp['focus-areas']?.length) prefs.push('重點部位：'+resp['focus-areas'].join(', '));
+  if(resp['pressure']) prefs.push('力道：'+trArr(resp['pressure']));
+  if(resp['head-pressure']) prefs.push('頭部力道：'+trArr(resp['head-pressure']));
+  if(resp['neck-pressure']) prefs.push('肩頸力道：'+trArr(resp['neck-pressure']));
+  if(resp['water-pref']) prefs.push('水溫：'+trArr(resp['water-pref']));
+  if(resp['focus-areas']?.length) prefs.push('重點部位：'+trArr(resp['focus-areas']));
   if(resp['massageIntensity']) prefs.push('按摩強度：'+resp.massageIntensity+'/10');
-  if(resp['facial-svc']?.length) prefs.push('選擇服務：'+resp['facial-svc'].join(', '));
-  if(resp['addons']?.length) prefs.push('加購：'+resp['addons'].join(', '));
-  if(resp['waxing']?.length) prefs.push('蜜蠟：'+resp['waxing'].join(', '));
+  if(resp['facial-svc']?.length) prefs.push('選擇服務：'+trArr(resp['facial-svc']));
+  if(resp['addons']?.length) prefs.push('加購：'+trArr(resp['addons']));
+  if(resp['waxing']?.length) prefs.push('蜜蠟：'+trArr(resp['waxing']));
 
   var flagHtml = flags.length ? flags.map(f=>
     '<div style="display:flex;align-items:flex-start;gap:8px;padding:8px 12px;border-radius:8px;background:'+(f.warn?'#FBF0EC':'#F5F5F5')+';margin-bottom:6px;font-size:14px;color:'+(f.warn?'#B83010':'#1A1714')+'">'+f.text+'</div>'
@@ -674,27 +718,39 @@ async function submitForm() {
 
   var prefHtml = prefs.length ? prefs.map(p=>
     '<div style="font-size:14px;color:#1A1714;padding:4px 0;border-bottom:1px solid #F0EBE5">'+p+'</div>'
-  ).join('') : '<div style="color:#6B6560;font-size:13px">—</div>';
+  ).join('') : '';
 
   var hasSig = !!data.signature;
+  var needsInitials = curSvc === 'lash';
+  var initialsOk = !needsInitials || (data.initials >= 5);
 
   document.getElementById('review-body').innerHTML =
     '<div style="margin-bottom:16px">'+
       '<div style="font-size:13px;color:#6B6560;margin-bottom:2px">客人</div>'+
       '<div style="font-size:19px;font-weight:700">'+name+'</div>'+
-      '<div style="font-size:13px;color:#6B6560;margin-top:2px">'+svcLabel+'　'+( data.phone||'')+(data.dob?'　生日 '+data.dob:'')+'</div>'+
+      '<div style="font-size:13px;color:#6B6560;margin-top:2px">'+svcLabel+'　'+(data.phone||'')+(data.dob?'　生日 '+data.dob:'')+'</div>'+
     '</div>'+
     '<div style="margin-bottom:16px">'+
       '<div style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.1em;color:#C4726A;margin-bottom:8px">⚠ 重要注意事項</div>'+
       flagHtml+
     '</div>'+
     (prefs.length?'<div style="margin-bottom:16px"><div style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.1em;color:#C4726A;margin-bottom:8px">偏好設定</div>'+prefHtml+'</div>':'')+
-    '<div style="display:flex;align-items:center;gap:8px;font-size:13px;color:'+(hasSig?'#3A7D5A':'#B83010')+';margin-top:8px">'+
+    '<div style="display:flex;align-items:center;gap:8px;font-size:13px;color:'+(hasSig?'#3A7D5A':'#B83010')+';margin-bottom:16px">'+
       (hasSig?'✓ 已簽名':'⚠ 尚未簽名，請請客人補簽')+
+    '</div>'+
+    // Agreement checkbox — required before saving
+    '<div id="agreement-check-wrap" style="background:#F0FDF4;border:1.5px solid #A8D9BC;border-radius:10px;padding:14px 16px;margin-bottom:4px">'+
+      '<label style="display:flex;align-items:flex-start;gap:12px;cursor:pointer;font-size:14px;line-height:1.5">'+
+        '<input type="checkbox" id="staff-agreement-cb" onchange="checkAgreement()" style="width:20px;height:20px;margin-top:2px;accent-color:#3A7D5A;flex-shrink:0;cursor:pointer">'+
+        '<span>員工確認：客人已閱讀並同意所有條款，並完成簽名。<b>（必須勾選才能儲存）</b></span>'+
+      '</label>'+
     '</div>';
 
   document.getElementById('step-form').style.display = 'none';
   document.getElementById('step-review').style.display = 'block';
+  // Disable save button until checkbox ticked
+  var saveBtn = document.querySelector('#step-review button:last-child');
+  if(saveBtn) { saveBtn.disabled = true; saveBtn.style.opacity = '0.4'; }
   window.scrollTo(0,0);
 }
 
@@ -743,9 +799,18 @@ function goBack() {
   document.getElementById('form-body').innerHTML = '';
   window.scrollTo(0,0);
 }
+function checkAgreement() {
+  var cb = document.getElementById('staff-agreement-cb');
+  var btn = document.querySelector('#step-review button:last-child');
+  if(!btn) return;
+  btn.disabled = !cb?.checked;
+  btn.style.opacity = cb?.checked ? '1' : '0.4';
+}
+
 window.goBack = goBack;
 window.goBackToForm = goBackToForm;
 window.confirmAndSave = confirmAndSave;
+window.checkAgreement = checkAgreement;
 window.showForm = showForm;
 window.pickOpt = pickOpt;
 window.toggleInitial = toggleInitial;

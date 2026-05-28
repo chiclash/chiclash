@@ -254,7 +254,7 @@ input[type=file]{font-size:12px;font-family:'Inter',sans-serif;color:var(--sub)}
 
 <script type="module">
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
-import { getFirestore, collection, getDocs, query, orderBy, addDoc } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
+import { getFirestore, collection, getDocs, query, orderBy, addDoc, deleteDoc, updateDoc, doc } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
 
 const app = initializeApp({
   apiKey:"AIzaSyCbiJE0WiBy9oOPp0Vh0AdsEOcPjyNsVwk",
@@ -277,8 +277,14 @@ async function fbLoad() {
 async function fbSaveCustomer(rec) {
   await addDoc(collection(db, 'client_forms'), rec);
 }
+async function fbDelete(id) {
+  await deleteDoc(doc(db, 'client_forms', id));
+}
+async function fbUpdate(id, data) {
+  await updateDoc(doc(db, 'client_forms', id), data);
+}
 
-window._fb = { load: fbLoad, saveCustomer: fbSaveCustomer };
+window._fb = { load: fbLoad, saveCustomer: fbSaveCustomer, delete: fbDelete, update: fbUpdate };
 
 // Auto-init after module loads
 window.addEventListener('DOMContentLoaded', ()=>{});
@@ -434,6 +440,7 @@ function renderTable() {
 
 // ── DETAIL PANEL ──
 function openPanel(id) {
+  _currentPanelId = id;
   var r=allRecords.find(x=>x.id===id);if(!r)return;
   var name=((r.firstName||'')+' '+(r.lastName||'')).trim()||'—';
   document.getElementById('p-name').textContent=name;
@@ -447,10 +454,13 @@ function openPanel(id) {
   var visitsHtml=(r._visits||[]).map(v=>'<div class="visit-item"><div class="visit-date">'+fmtDate(v.date)+'</div><div class="visit-sub">'+(SVC_LABELS[v.svc]||v.svc||'')+(v.store?' · '+v.store.toUpperCase():'')+'</div></div>').join('');
   document.getElementById('p-body').innerHTML=
     '<div class="p-sec"><div class="p-sec-title">基本資料</div>'+
-      '<div class="p-row"><span class="p-lbl">電話</span><span class="p-val">'+(r.phone||'—')+'</span></div>'+
-      '<div class="p-row"><span class="p-lbl">Email</span><span class="p-val">'+(r.email||'—')+'</span></div>'+
-      '<div class="p-row"><span class="p-lbl">生日</span><span class="p-val">'+(r.dob||'—')+'</span></div>'+
+      '<div class="p-row"><span class="p-lbl">電話</span><span class="p-val" id="pe-phone" onclick="editField(\'phone\',this)">'+( r.phone||'—')+'</span></div>'+
+      '<div class="p-row"><span class="p-lbl">Email</span><span class="p-val" id="pe-email" onclick="editField(\'email\',this)">'+( r.email||'—')+'</span></div>'+
+      '<div class="p-row"><span class="p-lbl">生日</span><span class="p-val" id="pe-dob" onclick="editField(\'dob\',this)">'+( r.dob||'—')+'</span></div>'+
       '<div class="p-row"><span class="p-lbl">來源</span><span class="p-val">'+(r._source==='sq'?'Square匯入':'客人填表')+'</span></div>'+
+      '<div style="margin-top:14px;display:flex;gap:8px">'+
+        '<button onclick="deleteClient(\''+id+'\')" style="padding:8px 16px;background:var(--warn-bg);color:var(--warn);border:1px solid #F0B8A8;border-radius:7px;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit">🗑 刪除此客戶</button>'+
+      '</div>'+
     '</div>'+
     (respHtml?'<div class="p-sec"><div class="p-sec-title">問卷回答</div>'+respHtml+'</div>':'')+
     (r.signature?'<div class="p-sec"><div class="p-sec-title">簽名</div><img src="'+r.signature+'" style="max-width:100%;border:1px solid var(--border);border-radius:8px"></div>':'')+
@@ -621,6 +631,44 @@ window.showTab=showTab;window.applyFilters=applyFilters;window.sortBy=sortBy;
 window.openPanel=openPanel;window.closePanel=closePanel;window.toggleLapsed=toggleLapsed;
 window.exportCSV=exportCSV;window.importSqCustomers=importSqCustomers;window.importSqItems=importSqItems;
 window.reloadAll=reloadAll;window.renderAnalytics=renderAnalytics;
+window.deleteClient=deleteClient;window.editField=editField;
+
+async function deleteClient(id) {
+  if(!confirm('確定刪除這個客戶資料？此動作無法復原。')) return;
+  try {
+    await window._fb.delete(id);
+    closePanel();
+    await reloadAll();
+  } catch(e) {
+    alert('刪除失敗：' + e.message);
+  }
+}
+
+function editField(field, el) {
+  var r = allRecords.find(x => x.id === _currentPanelId);
+  if (!r) return;
+  var cur = r[field] || '';
+  var input = document.createElement('input');
+  input.value = cur === '—' ? '' : cur;
+  input.style.cssText = 'border:1.5px solid var(--rose-mid);border-radius:6px;padding:4px 8px;font-size:13px;font-family:inherit;outline:none;width:160px';
+  el.replaceWith(input);
+  input.focus();
+  async function save() {
+    var val = input.value.trim();
+    r[field] = val;
+    var span = document.createElement('span');
+    span.className = 'p-val';
+    span.id = 'pe-' + field;
+    span.textContent = val || '—';
+    span.onclick = function(){ editField(field, span); };
+    input.replaceWith(span);
+    try { await window._fb.update(r.id, {[field]: val}); }
+    catch(e) { alert('儲存失敗：' + e.message); }
+  }
+  input.addEventListener('blur', save);
+  input.addEventListener('keydown', e => { if(e.key==='Enter') input.blur(); if(e.key==='Escape') { input.value=cur; input.blur(); } });
+}
+var _currentPanelId = null;
 
 // Wait for Firebase module then init
 if(window._fbReady){init();}else{window._onFbReady=init;}
