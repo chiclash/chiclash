@@ -4569,7 +4569,8 @@ function parseSqTxnCSV(text) {
   };
   var iDate=fi(['Date']), iTime=fi(['Time']), iLoc=fi(['Location']),
       iTxn=fi(['Transaction ID']), iNet=fi(['Net Sales']), iTip=fi(['Tip']),
-      iCash=fi(['Cash']), iStatus=fi(['Transaction Status']), iEvt=fi(['Event Type']),
+      iCash=fi(['Cash']), iCard=fi(['Card']), iOther=fi(['Other Tender']),
+      iStatus=fi(['Transaction Status']), iEvt=fi(['Event Type']),
       iCust=fi(['Customer Name']), iTotal=fi(['Total Collected']),
       iDiscName=fi(['Discount Name']);
 
@@ -4587,20 +4588,25 @@ function parseSqTxnCSV(text) {
     if (!txnId) continue;
     var net = parseFloat((cols[iNet] || '').replace(/[$,]/g, '')) || 0;
     var tip = parseFloat((cols[iTip] || '').replace(/[$,]/g, '')) || 0;
-    var cash = parseFloat((cols[iCash] || '').replace(/[$,]/g, '')) || 0;
+    var cashAmt = parseFloat((cols[iCash] || '').replace(/[$,]/g, '')) || 0;
+    var cardAmt = parseFloat((iCard >= 0 ? (cols[iCard] || '') : '').replace(/[$,]/g, '')) || 0;
+    var otherAmt = parseFloat((iOther >= 0 ? (cols[iOther] || '') : '').replace(/[$,]/g, '')) || 0;
     var locRaw = (cols[iLoc] || '').toLowerCase();
     var store = locRaw.indexOf('san rafael') >= 0 ? 'sr' : 'mv';
     var discName = iDiscName >= 0 ? (cols[iDiscName] || '').trim().toLowerCase() : '';
+
+    // Cash only if Cash column > 0 and no card
+    // Other Tender = Venmo/etc = treated as card (goes through GoDaddy)
+    var isCash = (cashAmt > 0 && cardAmt === 0 && otherAmt === 0);
+    var pay = isCash ? 'cash' : 'card';
     map[txnId] = {
       date: dateStr,
       time: iTime >= 0 ? (cols[iTime] || '') : '',
       store: store,
       net: net,
       tip: tip,
-      cash: cash,
-      // Only mark as 'cash' if there's NO card portion (net sales = 0 means pure cash)
-      // Split payments (cash > 0 AND net > 0) still have a card portion → treat as 'card'
-      pay: (cash > 0 && net === 0) ? 'cash' : 'card',
+      cash: cashAmt,
+      pay: pay,
       customer: iCust >= 0 ? (cols[iCust] || '').trim() : '',
       isCP: discName === 'classpass'
     };
@@ -6259,6 +6265,16 @@ function gdUntagOther(key) {
   localStorage.setItem('gd_confirmed', JSON.stringify(gdConfirmed));
   impRenderGDRecon();
 }
+function gdMarkPay(key, payType) {
+  gdConfirmed[key] = payType;
+  localStorage.setItem('gd_confirmed', JSON.stringify(gdConfirmed));
+  impRenderGDRecon();
+}
+function gdClearPay(key) {
+  delete gdConfirmed[key];
+  localStorage.setItem('gd_confirmed', JSON.stringify(gdConfirmed));
+  impRenderGDRecon();
+}
 
 function impRenderGDRecon() {
   console.log('[GDRecon] impGDData:', JSON.stringify(impGDData), 'impRows:', impRows.length, 'impGDTxns:', JSON.stringify(Object.keys(impGDTxns||{})));
@@ -6431,7 +6447,7 @@ function impRenderGDRecon() {
         : cashTip  ? '#FFF9EE'
         : saleMiss ? '#FFF0F0'
         : splitDiff? '#FFF8EE'
-        : missing  ? '#FFF0F0'
+        : missing  ? (gdConfirmed[confKey+'_pay'] ? '#F0FFF4' : '#FFF0F0')
         : 'var(--white)';
 
       var sqCell = '<span style="font-family:monospace;font-weight:600">$'+g.gross.toFixed(2)+'</span>'
@@ -6445,12 +6461,27 @@ function impRenderGDRecon() {
       var diffBlock = '';
       if (!confirmed && !isFree) {
         if (missing) {
-          diffBlock = '<tr style="background:#FEF0EE"><td colspan="5" style="padding:5px 8px 5px 28px">'
-            + '<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">'
-            + '<span style="font-size:11px;color:#B83010;font-weight:700">⚠ GoDaddy 找不到這筆</span>'
-            + '<span style="font-size:11px;color:var(--sub)">Square記錄：服務費 <b>$'+g.gross.toFixed(2)+'</b>'+(g.tip>0?' 小費 <b>$'+g.tip.toFixed(2)+'</b>':'')+'</span>'
-            + '<span style="font-size:11px;color:var(--sub)">→ 可能是現金、記帳時間不同、或GoDaddy尚未結算</span>'
-            + '</div></td></tr>';
+          var payKey = confKey + '_pay';
+          var markedPay = gdConfirmed[payKey];
+          if (markedPay) {
+            // Already marked - show resolved
+            var payLabels = {cash:'💵 現金', venmo:'💜 Venmo', other:'✓ 其他已確認'};
+            diffBlock = '<tr style="background:#F0FFF4"><td colspan="5" style="padding:5px 8px 5px 28px">'
+              + '<div style="display:flex;align-items:center;gap:8px">'
+              + '<span style="font-size:11px;color:var(--ok);font-weight:700">'+(payLabels[markedPay]||markedPay)+' — 已確認不入GD</span>'
+              + '<button data-key="'+payKey+'" onclick="event.stopPropagation();gdClearPay(this.dataset.key)" style="font-size:9px;color:var(--sub);background:none;border:1px solid var(--border);border-radius:3px;padding:1px 6px;cursor:pointer;font-family:inherit">取消</button>'
+              + '</div></td></tr>';
+          } else {
+            diffBlock = '<tr style="background:#FEF0EE"><td colspan="5" style="padding:6px 8px 8px 28px">'
+              + '<div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">'
+              + '<span style="font-size:11px;color:#B83010;font-weight:700">⚠ GD找不到這筆</span>'
+              + '<span style="font-size:11px;color:var(--sub)">$'+g.gross.toFixed(2)+(g.tip>0?' +$'+g.tip.toFixed(2):'')+'</span>'
+              + '<span style="font-size:11px;color:var(--faint)">→ 確認付款方式：</span>'
+              + '<button data-key="'+payKey+'" onclick="event.stopPropagation();gdMarkPay(this.dataset.key,\'cash\')" style="padding:3px 10px;background:#F5F5DC;color:#8A5F1A;border:1px solid #D4B896;border-radius:5px;font-size:11px;font-weight:600;cursor:pointer;font-family:inherit">💵 現金</button>'
+              + '<button data-key="'+payKey+'" onclick="event.stopPropagation();gdMarkPay(this.dataset.key,\'venmo\')" style="padding:3px 10px;background:#F3EDF7;color:#5E35B1;border:1px solid #C9B8EF;border-radius:5px;font-size:11px;font-weight:600;cursor:pointer;font-family:inherit">💜 Venmo</button>'
+              + '<button data-key="'+payKey+'" onclick="event.stopPropagation();gdMarkPay(this.dataset.key,\'other\')" style="padding:3px 10px;background:none;color:var(--sub);border:1px solid var(--border);border-radius:5px;font-size:11px;cursor:pointer;font-family:inherit">其他已確認</button>'
+              + '</div></td></tr>';
+          }
         } else if (saleMiss) {
           var bigger = saleDiff > 0 ? 'Square' : 'GoDaddy';
           var abs = Math.abs(saleDiff).toFixed(2);
@@ -6496,7 +6527,13 @@ function impRenderGDRecon() {
       } else if (splitDiff) {
         status = '<button data-key="'+confKey+'" onclick="event.stopPropagation();gdConfirm(this.dataset.key)" style="border:1px solid #B45309;color:#B45309;background:none;'+btnBase+'">確認沒問題</button>';
       } else if (missing) {
-        status = '<span style="color:#B83010;font-weight:700;font-size:10px">✗ GD無此筆</span>';
+        var payKey2 = confKey + '_pay';
+        var markedPay2 = gdConfirmed[payKey2];
+        if (markedPay2) {
+          status = '<span style="color:var(--ok);font-size:12px">✓</span>';
+        } else {
+          status = '<span style="color:#B83010;font-weight:700;font-size:10px">✗ GD無此筆</span>';
+        }
       } else {
         status = '<span style="color:var(--ok);font-size:12px">✓</span>';
       }
