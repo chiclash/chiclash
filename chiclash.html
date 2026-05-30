@@ -4643,17 +4643,40 @@ function fillClientNames() {
   readFile(txnFile, function(txnText) {
     readFile(itemsFile, function(itemsText) {
       // ── Build txnId → { customer, tech } map from Items CSV ──
+      // Also build direct time+tech → customer lookup from Items CSV
       var txnTechMap = {};
+      var itemsLookup = {};
       if (itemsText) {
         var iLines = itemsText.split('\n');
         var iHeaders = parseCsvLine(iLines[0]).map(function(h){return h.trim();});
         var iiTxn = iHeaders.indexOf('Transaction ID');
         var iiEmp = iHeaders.indexOf('Employee');
+        var iiCust = iHeaders.indexOf('Customer Name');
+        var iiDate = iHeaders.indexOf('Date');
+        var iiTime = iHeaders.indexOf('Time');
+        var iiLoc = iHeaders.indexOf('Location');
+        var iiNet = iHeaders.indexOf('Net Sales');
         for (var i=1;i<iLines.length;i++) {
           var ic = parseCsvLine(iLines[i]);
           var txnId = (ic[iiTxn]||'').trim();
           var emp = (ic[iiEmp]||'').trim();
+          var cust2 = iiCust>=0 ? (ic[iiCust]||'').trim() : '';
+          var dateRaw2 = iiDate>=0 ? (ic[iiDate]||'') : '';
+          var timeRaw2 = iiTime>=0 ? (ic[iiTime]||'') : '';
+          var loc2 = (iiLoc>=0?(ic[iiLoc]||''):'').toLowerCase();
+          var store2 = loc2.indexOf('san rafael')>=0 ? 'sr' : 'mv';
+          var net2 = parseFloat((iiNet>=0?(ic[iiNet]||''):'').replace(/[$,]/g,''))||0;
           if (txnId && emp && !txnTechMap[txnId]) txnTechMap[txnId] = emp;
+          if (!cust2) continue;
+          var dateStr2 = '';
+          if (/^\d{4}-\d{2}-\d{2}/.test(dateRaw2)) dateStr2 = dateRaw2.slice(0,10);
+          var timeStr2 = timeRaw2.slice(0,5);
+          if (!dateStr2) continue;
+          // Build customer lookup from Items CSV
+          if (timeStr2 && emp) { var ki1=store2+'_'+dateStr2+'_'+timeStr2+'_'+emp; if(!itemsLookup[ki1])itemsLookup[ki1]={customer:cust2,tech:emp}; }
+          if (timeStr2) { var ki2=store2+'_'+dateStr2+'_'+timeStr2; if(!itemsLookup[ki2])itemsLookup[ki2]={customer:cust2,tech:emp}; }
+          if (emp) { var ki3=store2+'_'+dateStr2+'_'+emp+'_'+net2; if(!itemsLookup[ki3])itemsLookup[ki3]={customer:cust2,tech:emp}; }
+          var ki4='any_'+dateStr2+'_'+net2; if(!itemsLookup[ki4])itemsLookup[ki4]={customer:cust2,tech:emp};
         }
       }
 
@@ -4748,30 +4771,31 @@ function fillClientNames() {
               var tip2 = parseFloat(c.tip)||0;
               var tech2 = (c.tech||'').trim();
               var dateStr2 = month+'-'+String(day).padStart(2,'0');
-              // Also try with sqNameMap reverse lookup (Square name → staff name)
               var sqMap = _D.sqNameMap||{};
               var revSqMap = {};
               Object.keys(sqMap).forEach(function(sqN){ revSqMap[sqMap[sqN]]=sqN; });
-              var techSq = revSqMap[tech2] || tech2; // staff name → Square name
+              var techSq = revSqMap[tech2] || tech2;
               var entry = null;
-              // 1. time + tech (Square name) + svc
-              if (timeStr2 && techSq) entry = lookup[store+'_'+dateStr2+'_'+timeStr2+'_'+techSq+'_'+svc] || lookup[store+'_'+dateStr2+'_'+timeStr2+'_'+techSq+'_'+(svc+tip2)];
-              // 2. time + tech (staff name) + svc
-              if (!entry && timeStr2 && tech2 && tech2!==techSq) entry = lookup[store+'_'+dateStr2+'_'+timeStr2+'_'+tech2+'_'+svc];
-              // 3. time + tech only (ClassPass — svc doesn't match net)
-              if (!entry && timeStr2 && techSq) entry = lookup[store+'_'+dateStr2+'_'+timeStr2+'_'+techSq];
-              if (!entry && timeStr2 && tech2 && tech2!==techSq) entry = lookup[store+'_'+dateStr2+'_'+timeStr2+'_'+tech2];
-              // 4. time only (fallback when tech name doesn't match at all)
-              if (!entry && timeStr2) entry = lookup[store+'_'+dateStr2+'_'+timeStr2];
-              // 5. date + tech + svc (no time)
-              if (!entry && techSq) entry = lookup[store+'_'+dateStr2+'_'+techSq+'_'+svc];
-              if (!entry && tech2 && tech2!==techSq) entry = lookup[store+'_'+dateStr2+'_'+tech2+'_'+svc];
-              // 6. time + svc (no tech)
-              if (!entry && timeStr2) entry = lookup[store+'_'+dateStr2+'_'+timeStr2+'_'+svc] || lookup[store+'_'+dateStr2+'_'+timeStr2+'_'+(svc+tip2)];
-              // 7. cash amount match
-              if (!entry) entry = lookup[store+'_'+dateStr2+'_'+timeStr2+'_'+svc] || lookup['any_'+dateStr2+'_'+svc];
-              // 8. date + svc only (last resort)
-              if (!entry) entry = lookup['any_'+dateStr2+'_'+svc] || lookup['any_'+dateStr2+'_'+(svc+tip2)];
+
+              // Try itemsLookup first (direct from Items CSV — most accurate for customer name)
+              if (timeStr2 && techSq) entry = itemsLookup[store+'_'+dateStr2+'_'+timeStr2+'_'+techSq];
+              if (!entry && timeStr2 && tech2 && tech2!==techSq) entry = itemsLookup[store+'_'+dateStr2+'_'+timeStr2+'_'+tech2];
+              if (!entry && timeStr2) entry = itemsLookup[store+'_'+dateStr2+'_'+timeStr2];
+              if (!entry && techSq) entry = itemsLookup[store+'_'+dateStr2+'_'+techSq+'_'+svc];
+              if (!entry) entry = itemsLookup['any_'+dateStr2+'_'+svc];
+
+              // Fall back to txn lookup
+              if (!entry) {
+                if (timeStr2 && techSq) entry = lookup[store+'_'+dateStr2+'_'+timeStr2+'_'+techSq+'_'+svc] || lookup[store+'_'+dateStr2+'_'+timeStr2+'_'+techSq+'_'+(svc+tip2)];
+                if (!entry && timeStr2 && tech2 && tech2!==techSq) entry = lookup[store+'_'+dateStr2+'_'+timeStr2+'_'+tech2+'_'+svc];
+                if (!entry && timeStr2 && techSq) entry = lookup[store+'_'+dateStr2+'_'+timeStr2+'_'+techSq];
+                if (!entry && timeStr2 && tech2 && tech2!==techSq) entry = lookup[store+'_'+dateStr2+'_'+timeStr2+'_'+tech2];
+                if (!entry && timeStr2) entry = lookup[store+'_'+dateStr2+'_'+timeStr2];
+                if (!entry && techSq) entry = lookup[store+'_'+dateStr2+'_'+techSq+'_'+svc];
+                if (!entry && tech2 && tech2!==techSq) entry = lookup[store+'_'+dateStr2+'_'+tech2+'_'+svc];
+                if (!entry && timeStr2) entry = lookup[store+'_'+dateStr2+'_'+timeStr2+'_'+svc] || lookup[store+'_'+dateStr2+'_'+timeStr2+'_'+(svc+tip2)];
+                if (!entry) entry = lookup['any_'+dateStr2+'_'+svc] || lookup['any_'+dateStr2+'_'+(svc+tip2)];
+              }
               if (entry) {
                 if (!hasName && entry.customer) { c.clientName = entry.customer; filledName++; }
                 if (!hasTech && entry.tech) { c.tech = entry.tech; filledTech++; }
