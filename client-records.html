@@ -534,8 +534,14 @@ function importSqCustomers(){
       // Check if already in allRecords by phone
       var existing=allRecords.find(r=>(r.phone||'').replace(/\D/g,'')==phone);
       if(existing){
-        // Update email/name if missing
-        if(!existing.email&&iEmail>=0)existing.email=cols[iEmail]||'';
+        // Update email/name if missing, AND update lastVisit date
+        if(!existing.email&&iEmail>=0) existing.email=cols[iEmail]||'';
+        if(lastVisit) {
+          existing.lastVisit = lastVisit;
+          existing.firstVisit = firstVisit;
+          existing.submittedAt = new Date(lastVisit).toISOString();
+          try{ await window._fb.update(existing.id, {lastVisit, firstVisit, submittedAt: existing.submittedAt}); }catch(err){}
+        }
         continue;
       }
       // Use Last Visit for sorting (most recent activity), fallback to First Visit or now
