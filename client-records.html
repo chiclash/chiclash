@@ -360,6 +360,12 @@ function weeksAgo(dateStr) {
   return Math.floor((Date.now() - new Date(dateStr).getTime()) / (7*24*3600*1000));
 }
 
+function getLastActivity(r) {
+  // For Square customers, use lastVisit if available
+  if (r._source === 'sq' && r.lastVisit) return r.lastVisit;
+  return r.submittedAt;
+}
+
 function fmtDate(dateStr) {
   if (!dateStr) return '—';
   // Convert to LA time
@@ -372,7 +378,7 @@ function updateStats() {
   var moStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
   document.getElementById('stat-total').textContent = allRecords.length;
   document.getElementById('stat-new').textContent = allRecords.filter(r=>r.submittedAt>=moStart).length;
-  document.getElementById('stat-lapsed').textContent = allRecords.filter(r=>(weeksAgo(r.submittedAt)||0)>=8).length;
+  document.getElementById('stat-lapsed').textContent = allRecords.filter(r=>(weeksAgo(getLastActivity(r))||0)>=8).length;
   document.getElementById('stat-email').textContent = allRecords.filter(r=>r.email&&r.email.includes('@')).length;
 }
 
@@ -398,16 +404,16 @@ function applyFilters() {
     var ok1 = !q || name.includes(q)||(r.phone||'').includes(q)||(r.email||'').toLowerCase().includes(q);
     var ok2 = !svc || r.service===svc;
     var ok3 = !storeF || r.store===storeF;
-    var ok4 = !lw || (weeksAgo(r.submittedAt)||0)>=lw;
+    var ok4 = !lw || (weeksAgo(getLastActivity(r))||0)>=lw;
     return ok1&&ok2&&ok3&&ok4;
   });
   filtered.sort((a,b)=>{
     var av,bv;
     if(sortKey==='name'){av=(a.firstName||'')+(a.lastName||'');bv=(b.firstName||'')+(b.lastName||'');}
-    else if(sortKey==='date'){av=a.submittedAt||'';bv=b.submittedAt||'';}
+    else if(sortKey==='date'){av=getLastActivity(a)||'';bv=getLastActivity(b)||'';}
     else if(sortKey==='svc'){av=a.service||'';bv=b.service||'';}
     else if(sortKey==='email'){av=a.email||'';bv=b.email||'';}
-    else if(sortKey==='weeks'){av=weeksAgo(a.submittedAt)||0;bv=weeksAgo(b.submittedAt)||0;}
+    else if(sortKey==='weeks'){av=weeksAgo(a.submittedAt)||0;bv=weeksAgo(getLastActivity(b))||0;}
     else{av='';bv='';}
     return av<bv?-sortDir:av>bv?sortDir:0;
   });
@@ -428,8 +434,8 @@ function renderTable() {
   body.innerHTML=filtered.map(r=>{
     var name=((r.firstName||'')+' '+(r.lastName||'')).trim()||'—';
     var svc=r.service||'';
-    var w=weeksAgo(r.submittedAt);
-    var dateDisp=r.submittedAt?fmtDate(r.submittedAt):'—';
+    var w=weeksAgo(getLastActivity(r));
+    var dateDisp=r.submittedAt?fmtDate(getLastActivity(r)):'—';
     var src=r._source==='sq'?'Square':'填表';
     var srcCls=r._source==='sq'?'src-sq':'src-form';
     return '<div class="tbl-row" onclick="openPanel(\''+r.id+'\')">'+
@@ -451,7 +457,7 @@ function openPanel(id) {
   var r=allRecords.find(x=>x.id===id);if(!r)return;
   var name=((r.firstName||'')+' '+(r.lastName||'')).trim()||'—';
   document.getElementById('p-name').textContent=name;
-  document.getElementById('p-svc').textContent=(SVC_LABELS[r.service]||r.service||'')+(r.submittedAt?'　'+fmtDate(r.submittedAt):'');
+  document.getElementById('p-svc').textContent=(SVC_LABELS[r.service]||r.service||'')+(r.submittedAt?'　'+fmtDate(getLastActivity(r)):'');
   var resp=r.responses||{};
   var respHtml=Object.entries(resp).filter(([k,v])=>v&&(Array.isArray(v)?v.length:v)).map(([k,v])=>{
     var label=RESP_LABELS[k]||k;
@@ -465,6 +471,8 @@ function openPanel(id) {
       '<div class="p-row"><span class="p-lbl">Email</span><span class="p-val" id="pe-email" onclick="editField(\'email\',this)">'+( r.email||'—')+'</span></div>'+
       '<div class="p-row"><span class="p-lbl">生日</span><span class="p-val" id="pe-dob" onclick="editField(\'dob\',this)">'+( r.dob||'—')+'</span></div>'+
       '<div class="p-row"><span class="p-lbl">來源</span><span class="p-val">'+(r._source==='sq'?'Square匯入':'客人填表')+'</span></div>'+
+      (r.lastVisit?'<div class="p-row"><span class="p-lbl">最後到訪</span><span class="p-val">'+r.lastVisit+'</span></div>':'')+
+      (r.firstVisit?'<div class="p-row"><span class="p-lbl">首次到訪</span><span class="p-val">'+r.firstVisit+'</span></div>':'')+
       '<div style="margin-top:14px;display:flex;gap:8px">'+
         '<button onclick="deleteClient(\''+id+'\')" style="padding:8px 16px;background:var(--warn-bg);color:var(--warn);border:1px solid #F0B8A8;border-radius:7px;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit">🗑 刪除此客戶</button>'+
       '</div>'+
@@ -483,16 +491,16 @@ function toggleLapsed(){
   var p=document.getElementById('lapsed-panel');
   var on=p.classList.toggle('on');
   if(!on)return;
-  var lapsed=allRecords.filter(r=>(weeksAgo(r.submittedAt)||0)>=8).sort((a,b)=>(weeksAgo(b.submittedAt)||0)-(weeksAgo(a.submittedAt)||0));
+  var lapsed=allRecords.filter(r=>(weeksAgo(getLastActivity(r))||0)>=8).sort((a,b)=>(weeksAgo(getLastActivity(b))||0)-(weeksAgo(a.submittedAt)||0));
   document.getElementById('lapsed-grid').innerHTML=lapsed.length
-    ?lapsed.map(r=>'<div class="lapsed-card"><div class="lapsed-card-name">'+((r.firstName||'')+' '+(r.lastName||'')).trim()+'</div><div class="lapsed-card-sub">'+(r.phone||'—')+'</div><div class="lapsed-card-sub" style="color:var(--warn);font-weight:600">'+weeksAgo(r.submittedAt)+'週未回</div></div>').join('')
+    ?lapsed.map(r=>'<div class="lapsed-card"><div class="lapsed-card-name">'+((r.firstName||'')+' '+(r.lastName||'')).trim()+'</div><div class="lapsed-card-sub">'+(r.phone||'—')+'</div><div class="lapsed-card-sub" style="color:var(--warn);font-weight:600">'+weeksAgo(getLastActivity(r))+'週未回</div></div>').join('')
     :'<div style="color:var(--ok)">✓ 沒有超過8週未回的客戶</div>';
 }
 
 // ── EXPORT CSV ──
 function exportCSV(){
   var rows=[['First Name','Last Name','Phone','Email','DOB','Service','Source','Submitted At (LA Time)','Weeks Since']];
-  filtered.forEach(r=>rows.push([r.firstName||'',r.lastName||'',r.phone||'',r.email||'',r.dob||'',SVC_LABELS[r.service]||r.service||'',r._source==='sq'?'Square':'Form',fmtDate(r.submittedAt),weeksAgo(r.submittedAt)||'']));
+  filtered.forEach(r=>rows.push([r.firstName||'',r.lastName||'',r.phone||'',r.email||'',r.dob||'',SVC_LABELS[r.service]||r.service||'',r._source==='sq'?'Square':'Form',fmtDate(getLastActivity(r)),weeksAgo(getLastActivity(r))||'']));
   var csv=rows.map(r=>r.map(v=>'"'+String(v).replace(/"/g,'""')+'"').join(',')).join('\n');
   var a=document.createElement('a');
   a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv;charset=utf-8;'}));
@@ -509,12 +517,14 @@ function importSqCustomers(){
     var text=e.target.result;
     var lines=text.split('\n');
     var headers=parseCSVLine(lines[0]).map(h=>h.trim());
-    var iFirst=headers.findIndex(h=>/first.name/i.test(h));
-    var iLast=headers.findIndex(h=>/last.name/i.test(h));
-    var iPhone=headers.findIndex(h=>/phone/i.test(h));
-    var iEmail=headers.findIndex(h=>/email/i.test(h));
+    var iFirst=headers.findIndex(h=>/^first.name$/i.test(h));
+    var iLast=headers.findIndex(h=>/^last.name$/i.test(h));
+    var iPhone=headers.findIndex(h=>/^phone/i.test(h));
+    var iEmail=headers.findIndex(h=>/^email/i.test(h));
     var iDOB=headers.findIndex(h=>/birth|dob/i.test(h));
-    var iCreated=headers.findIndex(h=>/created|date/i.test(h));
+    var iLastVisit=headers.findIndex(h=>/last.visit/i.test(h));
+    var iFirstVisit=headers.findIndex(h=>/first.visit/i.test(h));
+    var iCreated=headers.findIndex(h=>/created|creation/i.test(h));
     var count=0;
     for(var i=1;i<lines.length;i++){
       var cols=parseCSVLine(lines[i]);
@@ -528,13 +538,20 @@ function importSqCustomers(){
         if(!existing.email&&iEmail>=0)existing.email=cols[iEmail]||'';
         continue;
       }
+      // Use Last Visit for sorting (most recent activity), fallback to First Visit or now
+      var lastVisit = iLastVisit>=0 ? cols[iLastVisit]||'' : '';
+      var firstVisit = iFirstVisit>=0 ? cols[iFirstVisit]||'' : '';
+      var dateStr = lastVisit || firstVisit || (iCreated>=0?cols[iCreated]||'':'');
+      var submittedAt = dateStr ? new Date(dateStr).toISOString() : new Date().toISOString();
       var rec={
         firstName:iFirst>=0?cols[iFirst].trim():'',
         lastName:iLast>=0?cols[iLast].trim():'',
         phone:iPhone>=0?cols[iPhone].trim():'',
         email:iEmail>=0?cols[iEmail].trim():'',
         dob:iDOB>=0?cols[iDOB].trim():'',
-        submittedAt:iCreated>=0&&cols[iCreated]?new Date(cols[iCreated]).toISOString():new Date().toISOString(),
+        submittedAt: submittedAt,
+        lastVisit: lastVisit,
+        firstVisit: firstVisit,
         service:'',_source:'sq',responses:{},_visits:[]
       };
       try{await window._fb.saveCustomer(rec);count++;}catch(err){console.error(err);}

@@ -1231,6 +1231,17 @@ input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-
       <div id="imp-commit-status" style="margin-top:8px;font-size:12px;color:var(--ok);display:none"></div>
     </div>
 
+    <!-- 補客人名字工具 -->
+    <div style="background:var(--white);border:1.5px solid var(--ok-bd);border-radius:10px;padding:16px;margin-bottom:12px">
+      <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--ok);margin-bottom:8px">🔍 補填客人名字（不影響其他資料）</div>
+      <div style="font-size:12px;color:var(--sub);margin-bottom:12px">上傳 Transactions CSV，系統根據日期+時間+金額自動比對，只補空白的客人名字欄位，不更動付款方式、小費或對帳標記。</div>
+      <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+        <input type="file" id="imp-file-names" accept=".csv" style="font-size:12px;color:var(--sub)">
+        <button onclick="fillClientNames()" style="padding:8px 16px;background:var(--ok);color:#fff;border:none;border-radius:7px;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit">補填名字</button>
+      </div>
+      <div id="fill-names-status" style="margin-top:8px;font-size:12px;color:var(--sub);display:none"></div>
+    </div>
+
     <!-- GoDaddy reconciliation summary -->
     <div id="imp-gd-recon" style="display:none;background:var(--white);border:2px solid #B45309;border-radius:10px;padding:14px;margin-bottom:12px">
       <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--sub);margin-bottom:10px">GoDaddy × Square 對帳</div>
@@ -3257,185 +3268,213 @@ function renderTipsPage(){
 }
 
 function buildTipDayBody(d){
-  // Merge both stores: card pool = all card tips from MV+SR, cash pool = all cash tips from MV+SR
-  var mapMV=calcStaffTipMapForDay('mv',d);
-  var mapSR=calcStaffTipMapForDay('sr',d);
+  var y=cur.getFullYear(),m=cur.getMonth();
+  var dateStr=y+'-'+String(m+1).padStart(2,'0')+'-'+String(d).padStart(2,'0');
+  var staff=_D.staff||[];
 
-  // Combined map: { name: {card, cash, venmo, store} }
-  var combined={};
-  function mergeMap(map,store){
-    Object.entries(map).forEach(function(e){
-      var name=e[0],t=e[1];
-      if(!combined[name])combined[name]={card:0,cash:0,venmo:0,stores:[]};
-      combined[name].card+=t.card||0;
-      combined[name].cash+=t.cash||0;
-      combined[name].venmo+=t.venmo||0;
-      if(combined[name].stores.indexOf(store)<0)combined[name].stores.push(store);
-    });
-  }
-  mergeMap(mapMV,'mv');mergeMap(mapSR,'sr');
-
-  var allEntries=Object.entries(combined);
-  if(allEntries.length===0)return'<div style="font-size:12px;color:var(--faint)">無小費記錄</div>';
-
-  var totalCard=allEntries.reduce(function(s,e){return s+e[1].card+e[1].venmo;},0);
-  var totalCash=allEntries.reduce(function(s,e){return s+e[1].cash;},0);
-  var totalAll=totalCard+totalCash;
-
-  var cardEntries=allEntries.filter(function(e){return e[1].card+e[1].venmo>0;});
-  var cashEntries=allEntries.filter(function(e){return e[1].cash>0;});
-
-  // Use a single key for the whole day (both stores combined)
-  var key='combined_'+mk()+'_'+d;
-  var dateStr=cur.getFullYear()+'-'+String(cur.getMonth()+1).padStart(2,'0')+'-'+String(d).padStart(2,'0');
-  if(!tipSplitSel[key]){
-    tipSplitSel[key]={card:new Set(),cash:new Set()};
-    // Auto-populate from weekly tip schedule, filtered by attendance times
-    var scheduled=getTipScheduleForDate(dateStr);
-    scheduled.forEach(function(name){
-      tipSplitSel[key].card.add(name);
-      tipSplitSel[key].cash.add(name);
-    });
-  }
-  var sel=tipSplitSel[key];
-
-  // Build attendance time map for this day: name -> {start:'HH:MM', end:'HH:MM'}
+  // Build attendance time map for this day
+  var attD=attData();
   var attTimeMap={};
-  var attD2=attData();
-  (_D.staff||[]).forEach(function(name){
-    var recs=(attD2.records[name]||[]);
+  staff.forEach(function(name){
+    var recs=(attD.records[name]||[]);
     var rec=recs.find(function(r){return r.date===dateStr;});
     if(rec&&rec.startTime) attTimeMap[name]={start:rec.startTime,end:rec.endTime||'23:59'};
   });
-  // Helper: is a tech present at a given time HH:MM:SS?
-  function techPresentAt(name,timeStr){
-    if(!timeStr)return true; // no time info = assume present
-    var t=timeStr.slice(0,5); // HH:MM
+
+  // Helper: is staff present at a given HH:MM:SS time?
+  function presentAt(name,timeStr){
+    if(!timeStr) return true;
+    var t=timeStr.slice(0,5);
     var info=attTimeMap[name];
-    if(!info)return true; // no clock-in recorded = use schedule default
+    if(!info) return true; // no clock-in = assume present
     return info.start<=t && t<=info.end;
   }
 
-  // Check confirmed: either store confirmed = whole day confirmed
-  var confirmedMV=getTipConfirmed('mv',d);
-  var confirmedSR=getTipConfirmed('sr',d);
-  var confirmed=confirmedMV||confirmedSR||null;
-
-  var html='';
-  var storeTag='<span style="font-size:10px;color:var(--sub)">（兩店合計）</span>';
-
-  if(confirmed){
-    // Merge confirmed data from both stores
-    var mergedConf={card:{},cash:{}};
-    ['card','cash'].forEach(function(type){
-      ['mv','sr'].forEach(function(store){
-        var src=store==='mv'?confirmedMV:confirmedSR;
-        if(!src||!src[type])return;
-        Object.entries(src[type]).forEach(function(e){
-          var name=e[0],amt=e[1];
-          mergedConf[type][name]=(mergedConf[type][name]||0)+amt;
-        });
+  // Collect all clients with tips from both stores
+  var allClients=[];
+  ['mv','sr'].forEach(function(store){
+    var r=sDay(store,d);
+    (r.clients||[]).forEach(function(c,ci){
+      if(!gv(c.tip)) return;
+      allClients.push({store:store,idx:ci,c:c,
+        time:c.time||'',
+        name:c.clientName||'',
+        tech:c.tech||'',
+        tip:gv(c.tip),
+        tipPay:c.tipPay||'card',
+        svc:gv(c.svc)
       });
     });
+  });
 
-    var sections='';
-    ['card','cash'].forEach(function(type){
-      var names=Object.keys(mergedConf[type]||{});
-      if(names.length===0)return;
-      var typeLabel=type==='card'?'&#128179; 刷卡小費':'&#128181; 現金小費';
-      var typeColor=type==='card'?'var(--mv)':'var(--cash)';
-      var totalAmt=type==='card'?totalCard:totalCash;
-      var rows=names.map(function(name){
-        var amt=(mergedConf[type][name]||0).toFixed(2);
-        return '<div style="display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid var(--border)">'+
-          '<span style="font-weight:600;font-size:13px;min-width:80px">'+name+'</span>'+
-          '<input type="number" min="0" step="0.01" value="'+amt+'" style="width:90px;border:1px solid var(--border);border-radius:5px;padding:4px 8px;font-size:13px;font-family:inherit;text-align:right;outline:none" onfocus="this.style.borderColor=\'var(--ok)\'" onblur="this.style.borderColor=\'var(--border)\'" onchange="updateConfirmedTipCombined('+d+',\''+type+'\',\''+name+'\',this.value)">'+
-          '<span style="font-size:11px;color:var(--faint)">（改完自動存）</span>'+
-        '</div>';
-      }).join('');
-      var allocTotal=names.reduce(function(s,n){return s+(mergedConf[type][n]||0);},0);
-      var diff=Math.abs(allocTotal-totalAmt);
-      var diffColor=diff<0.02?'var(--ok)':'var(--warn)';
-      var diffNote=diff>=0.02?'<span style="color:var(--warn);margin-left:6px">&#9888; 差 '+$f(diff)+'</span>':'';
-      sections+='<div style="margin-bottom:10px">'+
-        '<div style="font-size:10px;font-weight:700;color:'+typeColor+';text-transform:uppercase;letter-spacing:.08em;margin-bottom:6px">'+typeLabel+' 合計 '+$f(totalAmt)+'</div>'+
-        '<div style="background:var(--white);border:1px solid var(--border);border-radius:7px;padding:4px 10px 0">'+rows+
-          '<div style="display:flex;justify-content:flex-end;padding:6px 0;font-size:12px;color:var(--sub)">已分配：<strong style="color:'+diffColor+';font-size:13px">'+$f(allocTotal)+'</strong>'+diffNote+'</div>'+
-        '</div></div>';
-    });
-    html='<div>'+
-      '<div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">'+
-        '<span style="font-size:13px;font-weight:700">當日總小費 '+$f(totalAll)+' '+storeTag+'</span>'+
-        '<span style="font-size:11px;font-weight:600;color:var(--ok);background:var(--ok-bg);border:1px solid var(--ok-bd);border-radius:6px;padding:2px 8px">&#10003; 已確認</span>'+
-      '</div>'+
-      sections+
-      '<button onclick="resetTipSplitCombined('+d+')" style="margin-top:4px;padding:7px 16px;background:var(--bg);color:var(--warn);border:1.5px solid var(--warn-bd);border-radius:7px;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit">&#8617; 重設分配</button>'+
-    '</div>';
-  } else {
-    // Build attendance time summary for display
-    var attTimeSummary='';
-    var staffWithTimes=(_D.staff||[]).filter(function(n){return attTimeMap[n];});
-    if(staffWithTimes.length>0){
-      attTimeSummary='<div style="font-size:11px;color:var(--sub);background:var(--bg);border:1px solid var(--border);border-radius:7px;padding:7px 12px;margin-bottom:10px;display:flex;flex-wrap:wrap;gap:8px">'
-        +'<span style="font-weight:600;color:var(--text)">⏰ 今日打卡</span>'
-        +staffWithTimes.map(function(n){
-          var t=attTimeMap[n];
-          return '<span>'+n+'：<b>'+t.start+'</b>–<b>'+t.end+'</b></span>';
-        }).join(' &nbsp;·&nbsp; ')
-        +'<span style="color:var(--faint)">（無記錄=視為整天在場）</span>'
-        +'</div>';
-    }
+  // Sort by time
+  allClients.sort(function(a,b){return a.time<b.time?-1:a.time>b.time?1:0;});
 
-    var sections='';
-    if(cardEntries.length>0){
-      // Show ALL staff for card split (same as cash), not just those with card tips
-      var allStaffForCard=(_D.staff||[]).length>0?(_D.staff||[]):cardEntries.map(function(e){return e[0];});
-      var chips=allStaffForCard.map(function(name){
-        var on=sel.card.has(name);
-        var t=combined[name]||{card:0,venmo:0};
-        var cardAmt=(t.card||0)+(t.venmo||0);
-        var amtHint=cardAmt>0?' <span style="font-weight:400;font-size:11px;margin-left:4px">'+$f(cardAmt)+'</span>':'';
-        var timeInfo=attTimeMap[name]?'<span style="font-size:9px;opacity:.7;margin-left:4px">'+attTimeMap[name].start+'–'+attTimeMap[name].end+'</span>':'';
-        return '<span onclick="toggleTipChipCombined('+d+',\''+name+'\',\'card\',this)" style="display:inline-flex;align-items:center;padding:5px 12px;font-size:12px;font-weight:500;border:1.5px solid '+(on?'var(--warn-bd)':'var(--border)')+';border-radius:20px;cursor:pointer;background:'+(on?'var(--warn-bg)':'var(--bg)')+';color:'+(on?'var(--warn)':'var(--sub)')+';margin:2px">'+
-          name+timeInfo+amtHint+
-        '</span>';
-      }).join('');
-      sections+='<div style="margin-bottom:10px">'+
-        '<div style="font-size:10px;font-weight:700;color:var(--mv);text-transform:uppercase;letter-spacing:.08em;margin-bottom:5px">&#128179; 刷卡小費 合計 '+$f(totalCard)+' <span style="font-weight:400;text-transform:none;letter-spacing:0;color:var(--sub)">— 選取多人即平分</span></div>'+
-        '<div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:8px" id="chips-card-combined-'+d+'">'+chips+
-          '<button onclick="selAllTipChipsCombined('+d+',\'card\')" style="font-size:11px;color:var(--mv);background:none;border:none;cursor:pointer;padding:2px 6px;border-radius:4px;font-family:inherit">全選</button>'+
-        '</div>'+
-        '<div id="tip-result-card-combined-'+d+'" style="padding:10px 14px;background:var(--gold-bg);border:1px solid #DDD0A0;border-radius:7px;font-size:13px;color:var(--gold);font-weight:600;line-height:1.8">'+calcTipResultCombined(d,'card',combined)+'</div>'+
-      '</div>';
-    }
-    if(cashEntries.length>0){
-      // Cash chips show ALL staff, so you can split among anyone
-      var allStaffForCash=(_D.staff||[]).length>0?(_D.staff||[]):cashEntries.map(function(e){return e[0];});
-      var chips=allStaffForCash.map(function(name){
-        var on=sel.cash.has(name);
-        var t=combined[name]||{cash:0};
-        var amtHint=t.cash>0?' <span style="font-weight:400;font-size:11px;margin-left:4px">'+$f(t.cash)+'</span>':'';
-        var timeInfo=attTimeMap[name]?'<span style="font-size:9px;opacity:.7;margin-left:4px">'+attTimeMap[name].start+'–'+attTimeMap[name].end+'</span>':'';
-        return '<span onclick="toggleTipChipCombined('+d+',\''+name+'\',\'cash\',this)" style="display:inline-flex;align-items:center;padding:5px 12px;font-size:12px;font-weight:500;border:1.5px solid '+(on?'var(--warn-bd)':'var(--border)')+';border-radius:20px;cursor:pointer;background:'+(on?'var(--warn-bg)':'var(--bg)')+';color:'+(on?'var(--warn)':'var(--sub)')+';margin:2px">'+
-          name+timeInfo+amtHint+
-        '</span>';
-      }).join('');
-      sections+='<div style="margin-bottom:10px">'+
-        '<div style="font-size:10px;font-weight:700;color:var(--cash);text-transform:uppercase;letter-spacing:.08em;margin-bottom:5px">&#128181; 現金小費 合計 '+$f(totalCash)+' <span style="font-weight:400;text-transform:none;letter-spacing:0;color:var(--sub)">— 選取要平分的人</span></div>'+
-        '<div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:8px" id="chips-cash-combined-'+d+'">'+chips+
-          '<button onclick="selAllTipChipsCombinedCash('+d+')" style="font-size:11px;color:var(--mv);background:none;border:none;cursor:pointer;padding:2px 6px;border-radius:4px;font-family:inherit">全選</button>'+
-        '</div>'+
-        '<div id="tip-result-cash-combined-'+d+'" style="padding:10px 14px;background:var(--gold-bg);border:1px solid #DDD0A0;border-radius:7px;font-size:13px;color:var(--gold);font-weight:600;line-height:1.8">'+calcTipResultCombinedCash(d,combined)+'</div>'+
-      '</div>';
-    }
-    html='<div>'+
-      '<div style="font-size:13px;font-weight:700;margin-bottom:8px">當日總小費 '+$f(totalAll)+' '+storeTag+'</div>'+
-      attTimeSummary+
-      sections+
-      '<button onclick="confirmTipSplitCombined('+d+')" style="margin-top:4px;padding:8px 18px;background:var(--ok);color:#fff;border:none;border-radius:7px;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit">&#10003; 確認分配（儲存至月結）</button>'+
-    '</div>';
+  if(!allClients.length){
+    return '<div style="padding:20px;text-align:center;color:var(--faint);font-size:13px">本日無小費記錄</div>';
   }
-  return html;
+
+  // Get or init per-txn split data - use stable key per transaction
+  var splitKey='txnsplit_'+mk()+'_'+d;
+  if(!tipSplitSel[splitKey]){
+    tipSplitSel[splitKey]={};
+  }
+  // Init any new clients not yet in splitSel
+  allClients.forEach(function(cl,i){
+    var txnKey=cl.store+'_'+cl.idx; // stable key: store + client index in day
+    if(!tipSplitSel[splitKey][txnKey]){
+      var def=staff.filter(function(name){ return presentAt(name,cl.time); });
+      tipSplitSel[splitKey][txnKey]=new Set(def);
+    }
+  });
+
+  // Build HTML
+  var rows='';
+
+  // Attendance summary
+  var attSummary='';
+  var staffWithTimes=staff.filter(function(n){return attTimeMap[n];});
+  if(staffWithTimes.length){
+    attSummary='<div style="font-size:12px;color:var(--sub);background:var(--bg);border-radius:8px;padding:8px 12px;margin-bottom:12px;display:flex;flex-wrap:wrap;gap:10px;align-items:center">'
+      +'<span style="font-weight:600;color:var(--ink)">⏰ 今日打卡</span>'
+      +staffWithTimes.map(function(n){
+        var t=attTimeMap[n];
+        return '<span>'+n+'<span style="color:var(--faint);font-size:11px"> '+t.start+'–'+t.end+'</span></span>';
+      }).join(' · ')
+      +'</div>';
+  }
+
+  // Column header
+  rows+='<div style="display:grid;grid-template-columns:60px 1fr 70px 80px 1fr;gap:8px;padding:6px 12px;background:var(--bg);border-radius:6px;font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.07em;color:var(--sub);margin-bottom:6px">'
+    +'<div>時間</div><div>客人</div><div>技師</div><div>小費</div><div>平分對象</div>'
+    +'</div>';
+
+  allClients.forEach(function(cl,i){
+    var timeDisp=cl.time?cl.time.slice(0,5):'—';
+    var payColor=cl.tipPay==='cash'?'var(--cash)':'var(--mv)';
+    var payIcon=cl.tipPay==='cash'?'💵':'💳';
+    var txnKey=cl.store+'_'+cl.idx;
+    var selSet=tipSplitSel[splitKey][txnKey]||new Set();
+
+    var chips=staff.map(function(name){
+      var on=selSet.has(name);
+      var present=presentAt(name,cl.time);
+      var style='display:inline-flex;align-items:center;padding:3px 10px;font-size:12px;font-weight:500;border:1.5px solid '
+        +(on?'var(--rose)':'var(--border)')+';border-radius:20px;cursor:pointer;background:'
+        +(on?'var(--rose-light)':'var(--white)')+';color:'+(on?'var(--rose)':'var(--faint)')+';margin:2px;white-space:nowrap';
+      var notPresentMark=!present&&!on?'<span style="font-size:9px;opacity:.5;margin-left:2px">⚫</span>':'';
+      return '<span style="'+style+'" onclick="toggleTipTxnStaff(\''+splitKey+'\',\''+txnKey+'\',\''+name.replace(/'/g,"\\'")+'\')">'
+        +name+notPresentMark+'</span>';
+    }).join('');
+
+    // Per-person amount
+    var count=selSet.size||1;
+    var each=Math.round(cl.tip/count*100)/100;
+    var resultStr=selSet.size>1?'各 $'+each.toFixed(2):selSet.size===1?'$'+cl.tip.toFixed(2)+' → '+[...selSet][0]:'未分配';
+
+    rows+='<div style="background:var(--white);border-radius:10px;padding:10px 12px;margin-bottom:8px;box-shadow:0 1px 6px rgba(0,0,0,.05)">'
+      +'<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:8px">'
+        +'<span style="font-size:12px;color:var(--sub);font-family:monospace;min-width:40px">'+timeDisp+'</span>'
+        +(cl.name?'<span style="font-size:13px;font-weight:600">'+cl.name+'</span>':'<span style="font-size:12px;color:var(--faint)">客人</span>')
+        +(cl.tech?'<span style="font-size:11px;color:var(--sub);background:var(--bg);border-radius:10px;padding:1px 8px">'+cl.tech+'</span>':'')
+        +'<span style="margin-left:auto;font-size:14px;font-weight:700;color:'+payColor+'">'+payIcon+' $'+cl.tip.toFixed(2)+'</span>'
+      +'</div>'
+      +'<div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">'
+        +chips
+        +(selSet.size>0?'<span style="font-size:11px;color:var(--ok);margin-left:6px">→ '+resultStr+'</span>':'')
+      +'</div>'
+    +'</div>';
+  });
+
+  // Totals per staff
+  var totals={};
+  staff.forEach(function(n){totals[n]={card:0,cash:0};});
+  allClients.forEach(function(cl,i){
+    var txnKey2=cl.store+'_'+cl.idx;
+    var selSet=tipSplitSel[splitKey][txnKey2]||new Set();
+    if(!selSet.size) return;
+    var each=Math.round(cl.tip/selSet.size*100)/100;
+    selSet.forEach(function(name){
+      if(!totals[name]) totals[name]={card:0,cash:0};
+      if(cl.tipPay==='cash') totals[name].cash+=each;
+      else totals[name].card+=each;
+    });
+  });
+
+  var totalRows=staff.filter(function(n){return totals[n]&&(totals[n].card+totals[n].cash)>0;}).map(function(name){
+    var t=totals[name];
+    var total=Math.round((t.card+t.cash)*100)/100;
+    return '<div style="display:flex;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border)">'
+      +'<span style="font-weight:600;font-size:14px">'+name+'</span>'
+      +'<div style="text-align:right">'
+        +'<div style="font-size:15px;font-weight:700;color:var(--rose)">$'+total.toFixed(2)+'</div>'
+        +'<div style="font-size:11px;color:var(--sub)">'
+          +(t.card>0?'💳$'+t.card.toFixed(2):'')
+          +(t.card>0&&t.cash>0?' + ':'')
+          +(t.cash>0?'💵$'+t.cash.toFixed(2):'')
+        +'</div>'
+      +'</div>'
+    +'</div>';
+  }).join('');
+
+  var totalSection=totalRows?'<div style="background:var(--white);border-radius:10px;padding:14px 16px;margin-top:8px;box-shadow:0 1px 6px rgba(0,0,0,.05)">'
+    +'<div style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.08em;color:var(--sub);margin-bottom:10px">今日小費合計</div>'
+    +totalRows+'</div>':'';
+
+  return '<div style="padding:14px">'
+    +attSummary
+    +rows
+    +totalSection
+    +'<button onclick="confirmTipTxnSplit(\''+splitKey+'\','+d+')" style="width:100%;margin-top:12px;padding:12px;background:var(--ok);color:#fff;border:none;border-radius:10px;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit">✓ 確認分配（儲存）</button>'
+    +'</div>';
+}
+
+function toggleTipTxnStaff(splitKey,txnKey,name){
+  if(!tipSplitSel[splitKey]) tipSplitSel[splitKey]={};
+  if(!tipSplitSel[splitKey][txnKey]) tipSplitSel[splitKey][txnKey]=new Set();
+  var s=tipSplitSel[splitKey][txnKey];
+  if(s.has(name)) s.delete(name); else s.add(name);
+  var d=parseInt(splitKey.split('_').pop());
+  var body=document.getElementById('tip-body-'+d);
+  if(body){var sy=window.scrollY;body.innerHTML=buildTipDayBody(d);requestAnimationFrame(function(){window.scrollTo(0,sy);});}
+}
+window.toggleTipTxnStaff=toggleTipTxnStaff;
+window.confirmTipTxnSplit=confirmTipTxnSplit;
+
+function confirmTipTxnSplit(splitKey,d){
+  // Collect per-staff totals and save to tipConfirmed (same format as before for payroll compatibility)
+  var allClients=[];
+  ['mv','sr'].forEach(function(store){
+    var r=sDay(store,d);
+    (r.clients||[]).forEach(function(c){
+      if(!gv(c.tip)) return;
+      allClients.push({store:store,c:c,tip:gv(c.tip),tipPay:c.tipPay||'card'});
+    });
+  });
+  allClients.sort(function(a,b){return (a.c.time||'')<(b.c.time||'')?-1:1;});
+
+  var cardTotals={},cashTotals={};
+  allClients.forEach(function(cl,i){
+    var txnKey=cl.store+'_'+cl.idx;
+    var selSet=tipSplitSel[splitKey][txnKey]||new Set();
+    if(!selSet.size) return;
+    var each=Math.round(cl.tip/selSet.size*100)/100;
+    selSet.forEach(function(name){
+      if(cl.tipPay==='cash'){cashTotals[name]=(cashTotals[name]||0)+each;}
+      else{cardTotals[name]=(cardTotals[name]||0)+each;}
+    });
+  });
+
+  // Save to both stores (simplified: save under 'mv' for combined)
+  var mo=mk();
+  if(!_D.tipConfirmed)_D.tipConfirmed={};
+  if(!_D.tipConfirmed[mo])_D.tipConfirmed[mo]={};
+  if(!_D.tipConfirmed[mo]['mv'])_D.tipConfirmed[mo]['mv']={};
+  _D.tipConfirmed[mo]['mv'][d]={card:cardTotals,cash:cashTotals};
+  saveOnly();
+  var body=document.getElementById('tip-body-'+d);
+  if(body){var sy=window.scrollY;body.innerHTML=buildTipDayBody(d);requestAnimationFrame(function(){window.scrollTo(0,sy);});}
+  alert('✓ 已儲存！');
 }
 
 function getCombinedMap(d){
@@ -4556,6 +4595,103 @@ function parseSqItemsCSV(text) {
 
 // ── Parse Transactions CSV ──
 // Returns map: { txnId: {date, time, store, net, tip, cash, pay, customer, status} }
+function fillClientNames() {
+  var file = document.getElementById('imp-file-names').files[0];
+  if (!file) { alert('請先選擇 Transactions CSV 檔案'); return; }
+  var statusEl = document.getElementById('fill-names-status');
+  statusEl.style.display = 'block';
+  statusEl.textContent = '讀取中…';
+
+  var reader = new FileReader();
+  reader.onload = function(e) {
+    var text = e.target.result;
+    var lines = text.split('\n');
+    var headers = parseCsvLine(lines[0]).map(function(h){return h.trim();});
+    function fi(names){for(var i=0;i<headers.length;i++){if(names.indexOf(headers[i])>=0)return i;}return -1;}
+    var iDate=fi(['Date']),iTime=fi(['Time']),iNet=fi(['Net Sales']),iTip=fi(['Tip']);
+    var iCust=fi(['Customer Name']),iLoc=fi(['Location']),iEvt=fi(['Event Type']);
+
+    // Build lookup: dateStr + timeStr(HH:MM) + net → customer name
+    var lookup = {};
+    for (var i=1;i<lines.length;i++) {
+      var cols = parseCsvLine(lines[i]);
+      if (cols.length < 4) continue;
+      var evt = iEvt>=0?(cols[iEvt]||''):'';
+      if (evt && evt !== 'Payment') continue;
+      var dateRaw = iDate>=0?(cols[iDate]||''):'';
+      var timeRaw = iTime>=0?(cols[iTime]||''):'';
+      var net = parseFloat((iNet>=0?(cols[iNet]||''):'').replace(/[$,]/g,''))||0;
+      var tip = parseFloat((iTip>=0?(cols[iTip]||''):'').replace(/[$,]/g,''))||0;
+      var cust = iCust>=0?(cols[iCust]||'').trim():'';
+      var loc = (iLoc>=0?(cols[iLoc]||''):'').toLowerCase();
+      var store = loc.indexOf('san rafael')>=0?'sr':'mv';
+
+      if (!dateRaw || !timeRaw || !cust) continue;
+
+      // Parse date → YYYY-MM-DD
+      var dp = dateRaw.match(/(\d+)[\/\-](\d+)[\/\-](\d+)/);
+      if (!dp) continue;
+      var yr=dp[3].length===4?dp[3]:'20'+dp[3];
+      var mo=dp[1].padStart(2,'0'),dy=dp[2].padStart(2,'0');
+      var dateStr=yr+'-'+mo+'-'+dy;
+      var timeStr=timeRaw.slice(0,5); // HH:MM
+
+      // Key: store_date_time_net
+      var key=store+'_'+dateStr+'_'+timeStr+'_'+net;
+      if (!lookup[key]) lookup[key]=cust;
+      // Also try with tip added (in case net=0 for free items)
+      var key2=store+'_'+dateStr+'_'+timeStr+'_'+(net+tip);
+      if (!lookup[key2]) lookup[key2]=cust;
+    }
+
+    // Now scan all daily records and fill empty clientName
+    var filled=0, skipped=0, notFound=0;
+    ['mv','sr'].forEach(function(store){
+      var storeData = _D[store]||{};
+      Object.keys(storeData).forEach(function(month){
+        var monthData = storeData[month]||{};
+        Object.keys(monthData).forEach(function(day){
+          var dayData = monthData[day]||{};
+          (dayData.clients||[]).forEach(function(c){
+            if (c.clientName) { skipped++; return; } // already has name
+            var timeStr = (c.time||'').slice(0,5);
+            var svc = parseFloat(c.svc)||0;
+            var dateStr = month+'-'+String(day).padStart(2,'0');
+            var key = store+'_'+dateStr+'_'+timeStr+'_'+svc;
+            var name = lookup[key];
+            if (!name) {
+              // Try with tip
+              var tip = parseFloat(c.tip)||0;
+              var key2 = store+'_'+dateStr+'_'+timeStr+'_'+(svc+tip);
+              name = lookup[key2];
+            }
+            if (name) { c.clientName=name; filled++; }
+            else notFound++;
+          });
+        });
+      });
+    });
+
+    saveOnly();
+    renderAll();
+    statusEl.textContent = '✓ 完成！補填 '+filled+' 筆，已有名字跳過 '+skipped+' 筆，找不到匹配 '+notFound+' 筆';
+    statusEl.style.color = filled>0?'var(--ok)':'var(--sub)';
+  };
+  reader.readAsText(file);
+}
+
+function parseCsvLine(line){
+  var cols=[],cur='',inQ=false;
+  for(var i=0;i<(line||'').length;i++){
+    var ch=line[i];
+    if(ch==='"')inQ=!inQ;
+    else if(ch===','&&!inQ){cols.push(cur.replace(/^"|"$/g,''));cur='';}
+    else cur+=ch;
+  }
+  cols.push(cur.replace(/^"|"$/g,''));
+  return cols;
+}
+
 function parseSqTxnCSV(text) {
   var lines = sqSplitCSV(text);
   if (lines.length < 2) return {};
@@ -6661,7 +6797,7 @@ function impCommitDailyForce(doReplace) {
       dayData.clients.push({
         svc: t.gross, pay: t.pay, cp: t.cp||false, gcAmt:'', topup:'', topupPay:'card',
         tip: t.tip > 0 ? t.tip : '', tipPay: t.pay === 'cash' ? 'cash' : 'card',
-        tech: t.tech || '', time: t.time || ''
+        tech: t.tech || '', time: t.time || '', clientName: t.customer || ''
       });
     });
   });
@@ -6727,7 +6863,8 @@ function impCommitDaily(doReplace) {
         tip: t.tip > 0 ? t.tip : '',
         tipPay: t.pay === 'cash' ? 'cash' : 'card',
         tech: t.tech || '',
-        time: t.time || ''
+        time: t.time || '',
+        clientName: t.customer || ''
       });
     });
   });
@@ -7542,10 +7679,13 @@ function renderPayrollPage() {
   var lnS=0,ltS=0,lcS=0,laS=0,lutnS=0,lutS=0,lutcS=0,lutaS=0,bossS=0,bossDays=0,ctS=0;
   var tbody=document.getElementById('pr-tbody'); tbody.innerHTML='';
   DATA.forEach(function(r){
+    var dt=new Date(r.date+'T12:00:00');
+    var dowNum=dt.getDay();
+    var isWk=dowNum===0||dowNum===6;
     var lc=Math.round(r.lucy_net*rate*100)/100;
     var ltc=Math.round(r.luter_net*rate*100)/100;
     var ct=Math.round((lc+ltc)*100)/100;
-    var boss=Math.max(0,Math.round((thresh-ct)*100)/100);
+    var boss=isWk?0:Math.max(0,Math.round((thresh-ct)*100)/100);
     var adj=getAdj(r.date);
     lnS+=r.lucy_net;ltS+=r.lucy_tip;lcS+=lc;laS+=adj.lucy;
     lutnS+=r.luter_net;lutS+=r.luter_tip;lutcS+=ltc;lutaS+=adj.luter;
@@ -7553,10 +7693,7 @@ function renderPayrollPage() {
     var adjHTML='';
     if(adj.lucy!==0)adjHTML+='<span style="font-size:10px;padding:1px 5px;border-radius:3px;margin:1px;background:'+(adj.lucy<0?'var(--warn-bg)':'var(--ok-bg)')+';color:'+(adj.lucy<0?'var(--warn)':'var(--ok)')+'">Lucy '+(adj.lucy>0?'+':'')+adj.lucy.toFixed(2)+'</span>';
     if(adj.luter!==0)adjHTML+='<span style="font-size:10px;padding:1px 5px;border-radius:3px;margin:1px;background:'+(adj.luter<0?'var(--warn-bg)':'var(--ok-bg)')+';color:'+(adj.luter<0?'var(--warn)':'var(--ok)')+'">Luter '+(adj.luter>0?'+':'')+adj.luter.toFixed(2)+'</span>';
-    var dt=new Date(r.date+'T12:00:00');
-    var dowNum=dt.getDay();
     var dowLabel=['日','一','二','三','四','五','六'][dowNum];
-    var isWk=dowNum===0||dowNum===6;
     var rowBg=boss>0?'background:var(--warn-bg)':isWk?'background:#FAFAF8':'';
     var tr=document.createElement('tr');
     tr.style.cssText='border-bottom:1px solid var(--border);'+rowBg;
