@@ -1217,12 +1217,33 @@ input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-
 
   <!-- 補客人名字工具 — 永遠顯示 -->
   <div style="background:var(--white);border:1.5px solid var(--ok-bd);border-radius:10px;padding:16px;margin-bottom:12px">
-    <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--ok);margin-bottom:8px">🔍 補填客人名字（不影響其他資料）</div>
-    <div style="font-size:12px;color:var(--sub);margin-bottom:12px">上傳 Transactions CSV，系統根據日期+時間+金額自動比對，只補空白的客人名字欄位，不更動付款方式、小費或對帳標記。</div>
-    <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
-      <input type="file" id="imp-file-names" accept=".csv" style="font-size:12px;color:var(--sub)">
-      <button onclick="fillClientNames()" style="padding:8px 16px;background:var(--ok);color:#fff;border:none;border-radius:7px;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit">補填名字</button>
+    <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--ok);margin-bottom:8px">🔍 補填客人名字＋技師名字（不影響其他資料）</div>
+    <div style="font-size:12px;color:var(--sub);margin-bottom:12px">同時上傳兩個 CSV，只補空白欄位，不更動付款方式、小費或對帳標記。</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">
+      <div id="fill-drop-txn" onclick="document.getElementById('imp-file-names').click()"
+        ondragover="event.preventDefault();this.style.borderColor='var(--ok)'"
+        ondragleave="this.style.borderColor='var(--ok-bd)'"
+        ondrop="event.preventDefault();this.style.borderColor='var(--ok-bd)';window._fillTxnFile=event.dataTransfer.files[0];fillDropUpdate('fill-drop-txn','fill-txn-st',window._fillTxnFile)"
+        style="border:2px dashed var(--ok-bd);border-radius:9px;padding:14px;text-align:center;cursor:pointer;transition:border-color .15s">
+        <div style="font-size:20px;margin-bottom:4px">💳</div>
+        <div style="font-size:12px;font-weight:600">Transactions CSV</div>
+        <div style="font-size:10px;color:var(--sub)">客人名字</div>
+        <div id="fill-txn-st" style="font-size:11px;color:var(--faint);margin-top:4px">拖拉或點擊上傳</div>
+        <input type="file" id="imp-file-names" accept=".csv" style="display:none" onchange="window._fillTxnFile=this.files[0];fillDropUpdate('fill-drop-txn','fill-txn-st',this.files[0])">
+      </div>
+      <div id="fill-drop-items" onclick="document.getElementById('imp-file-items-names').click()"
+        ondragover="event.preventDefault();this.style.borderColor='var(--ok)'"
+        ondragleave="this.style.borderColor='var(--ok-bd)'"
+        ondrop="event.preventDefault();this.style.borderColor='var(--ok-bd)';window._fillItemsFile=event.dataTransfer.files[0];fillDropUpdate('fill-drop-items','fill-items-st',window._fillItemsFile)"
+        style="border:2px dashed var(--ok-bd);border-radius:9px;padding:14px;text-align:center;cursor:pointer;transition:border-color .15s">
+        <div style="font-size:20px;margin-bottom:4px">📋</div>
+        <div style="font-size:12px;font-weight:600">Items CSV</div>
+        <div style="font-size:10px;color:var(--sub)">技師名字</div>
+        <div id="fill-items-st" style="font-size:11px;color:var(--faint);margin-top:4px">拖拉或點擊上傳</div>
+        <input type="file" id="imp-file-items-names" accept=".csv" style="display:none" onchange="window._fillItemsFile=this.files[0];fillDropUpdate('fill-drop-items','fill-items-st',this.files[0])">
+      </div>
     </div>
+    <button onclick="fillClientNames()" style="padding:8px 16px;background:var(--ok);color:#fff;border:none;border-radius:7px;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit">補填名字</button>
     <div id="fill-names-status" style="margin-top:8px;font-size:12px;color:var(--sub);display:none"></div>
   </div>
 
@@ -4595,89 +4616,154 @@ function parseSqItemsCSV(text) {
 
 // ── Parse Transactions CSV ──
 // Returns map: { txnId: {date, time, store, net, tip, cash, pay, customer, status} }
+function fillDropUpdate(dropId, stId, file) {
+  var st = document.getElementById(stId);
+  var drop = document.getElementById(dropId);
+  if (!file) return;
+  if (st) { st.textContent = '✓ ' + file.name; st.style.color = 'var(--ok)'; }
+  if (drop) drop.style.borderColor = 'var(--ok)';
+}
+window.fillDropUpdate = fillDropUpdate;
+
 function fillClientNames() {
-  var file = document.getElementById('imp-file-names').files[0];
-  if (!file) { alert('請先選擇 Transactions CSV 檔案'); return; }
+  var txnFile = window._fillTxnFile || document.getElementById('imp-file-names').files[0];
+  var itemsFile = window._fillItemsFile || document.getElementById('imp-file-items-names').files[0];
+  if (!txnFile) { alert('請先上傳 Transactions CSV'); return; }
   var statusEl = document.getElementById('fill-names-status');
   statusEl.style.display = 'block';
   statusEl.textContent = '讀取中…';
 
-  var reader = new FileReader();
-  reader.onload = function(e) {
-    var text = e.target.result;
-    var lines = text.split('\n');
-    var headers = parseCsvLine(lines[0]).map(function(h){return h.trim();});
-    function fi(names){for(var i=0;i<headers.length;i++){if(names.indexOf(headers[i])>=0)return i;}return -1;}
-    var iDate=fi(['Date']),iTime=fi(['Time']),iNet=fi(['Net Sales']),iTip=fi(['Tip']);
-    var iCust=fi(['Customer Name']),iLoc=fi(['Location']),iEvt=fi(['Event Type']);
+  function readFile(file, cb) {
+    if (!file) { cb(null); return; }
+    var r = new FileReader();
+    r.onload = function(e) { cb(e.target.result); };
+    r.readAsText(file);
+  }
 
-    // Build lookup: dateStr + timeStr(HH:MM) + net → customer name
-    var lookup = {};
-    for (var i=1;i<lines.length;i++) {
-      var cols = parseCsvLine(lines[i]);
-      if (cols.length < 4) continue;
-      var evt = iEvt>=0?(cols[iEvt]||''):'';
-      if (evt && evt !== 'Payment') continue;
-      var dateRaw = iDate>=0?(cols[iDate]||''):'';
-      var timeRaw = iTime>=0?(cols[iTime]||''):'';
-      var net = parseFloat((iNet>=0?(cols[iNet]||''):'').replace(/[$,]/g,''))||0;
-      var tip = parseFloat((iTip>=0?(cols[iTip]||''):'').replace(/[$,]/g,''))||0;
-      var cust = iCust>=0?(cols[iCust]||'').trim():'';
-      var loc = (iLoc>=0?(cols[iLoc]||''):'').toLowerCase();
-      var store = loc.indexOf('san rafael')>=0?'sr':'mv';
+  readFile(txnFile, function(txnText) {
+    readFile(itemsFile, function(itemsText) {
+      // ── Build txnId → { customer, tech } map from Items CSV ──
+      var txnTechMap = {};
+      if (itemsText) {
+        var iLines = itemsText.split('\n');
+        var iHeaders = parseCsvLine(iLines[0]).map(function(h){return h.trim();});
+        var iiTxn = iHeaders.indexOf('Transaction ID');
+        var iiEmp = iHeaders.indexOf('Employee');
+        for (var i=1;i<iLines.length;i++) {
+          var ic = parseCsvLine(iLines[i]);
+          var txnId = (ic[iiTxn]||'').trim();
+          var emp = (ic[iiEmp]||'').trim();
+          if (txnId && emp && !txnTechMap[txnId]) txnTechMap[txnId] = emp;
+        }
+      }
 
-      if (!dateRaw || !timeRaw || !cust) continue;
+      // ── Build lookup from Transactions CSV ──
+      var tLines = txnText.split('\n');
+      var tHeaders = parseCsvLine(tLines[0]).map(function(h){return h.trim();});
+      function fi(n){for(var i=0;i<tHeaders.length;i++){if(tHeaders[i]===n)return i;}return -1;}
+      var iDate=fi('Date'),iTime=fi('Time'),iNet=fi('Net Sales'),iTip=fi('Tip');
+      var iCust=fi('Customer Name'),iLoc=fi('Location'),iEvt=fi('Event Type');
+      var iTxnId=fi('Transaction ID');
 
-      // Parse date → YYYY-MM-DD
-      var dp = dateRaw.match(/(\d+)[\/\-](\d+)[\/\-](\d+)/);
-      if (!dp) continue;
-      var yr=dp[3].length===4?dp[3]:'20'+dp[3];
-      var mo=dp[1].padStart(2,'0'),dy=dp[2].padStart(2,'0');
-      var dateStr=yr+'-'+mo+'-'+dy;
-      var timeStr=timeRaw.slice(0,5); // HH:MM
+      // lookup key → { customer, tech }
+      var lookup = {};
+      for (var i=1;i<tLines.length;i++) {
+        var cols = parseCsvLine(tLines[i]);
+        if (cols.length < 4) continue;
+        if ((cols[iEvt]||'') !== 'Payment') continue;
+        var cust = iCust>=0 ? (cols[iCust]||'').trim() : '';
+        var txnId = iTxnId>=0 ? (cols[iTxnId]||'').trim() : '';
+        var tech = txnTechMap[txnId] || '';
+        var dateRaw = iDate>=0 ? (cols[iDate]||'') : '';
+        var timeRaw = iTime>=0 ? (cols[iTime]||'') : '';
+        var net = parseFloat((iNet>=0?(cols[iNet]||''):'').replace(/[$,]/g,''))||0;
+        var tip = parseFloat((iTip>=0?(cols[iTip]||''):'').replace(/[$,]/g,''))||0;
+        var loc = (iLoc>=0?(cols[iLoc]||''):'').toLowerCase();
+        var store = loc.indexOf('san rafael')>=0 ? 'sr' : 'mv';
 
-      // Key: store_date_time_net
-      var key=store+'_'+dateStr+'_'+timeStr+'_'+net;
-      if (!lookup[key]) lookup[key]=cust;
-      // Also try with tip added (in case net=0 for free items)
-      var key2=store+'_'+dateStr+'_'+timeStr+'_'+(net+tip);
-      if (!lookup[key2]) lookup[key2]=cust;
-    }
+        var dateStr = '';
+        if (/^\d{4}-\d{2}-\d{2}/.test(dateRaw)) {
+          dateStr = dateRaw.slice(0,10);
+        } else {
+          var dp = dateRaw.match(/(\d+)[\/\-](\d+)[\/\-](\d+)/);
+          if (dp) { var yr=dp[3].length===4?dp[3]:'20'+dp[3]; dateStr=yr+'-'+dp[1].padStart(2,'0')+'-'+dp[2].padStart(2,'0'); }
+        }
+        if (!dateStr) continue;
+        var timeStr = timeRaw.slice(0,5);
+        var entry = {customer: cust, tech: tech};
 
-    // Now scan all daily records and fill empty clientName
-    var filled=0, skipped=0, notFound=0;
-    ['mv','sr'].forEach(function(store){
-      var storeData = _D[store]||{};
-      Object.keys(storeData).forEach(function(month){
-        var monthData = storeData[month]||{};
-        Object.keys(monthData).forEach(function(day){
-          var dayData = monthData[day]||{};
-          (dayData.clients||[]).forEach(function(c){
-            if (c.clientName) { skipped++; return; } // already has name
-            var timeStr = (c.time||'').slice(0,5);
-            var svc = parseFloat(c.svc)||0;
-            var dateStr = month+'-'+String(day).padStart(2,'0');
-            var key = store+'_'+dateStr+'_'+timeStr+'_'+svc;
-            var name = lookup[key];
-            if (!name) {
-              // Try with tip
-              var tip = parseFloat(c.tip)||0;
-              var key2 = store+'_'+dateStr+'_'+timeStr+'_'+(svc+tip);
-              name = lookup[key2];
-            }
-            if (name) { c.clientName=name; filled++; }
-            else notFound++;
+        // Key 1: store+date+time+tech+net (most precise)
+        if (tech) {
+          var k1t = store+'_'+dateStr+'_'+timeStr+'_'+tech+'_'+net;
+          if (!lookup[k1t]) lookup[k1t] = entry;
+          var k1t2 = store+'_'+dateStr+'_'+timeStr+'_'+tech+'_'+(net+tip);
+          if (!lookup[k1t2]) lookup[k1t2] = entry;
+          // date+tech+net (no time)
+          var k3t = store+'_'+dateStr+'_'+tech+'_'+net;
+          if (!lookup[k3t]) lookup[k3t] = entry;
+        }
+        // Key 2: store+date+time+net (no tech)
+        var k1 = store+'_'+dateStr+'_'+timeStr+'_'+net;
+        if (!lookup[k1]) lookup[k1] = entry;
+        var k2 = store+'_'+dateStr+'_'+timeStr+'_'+(net+tip);
+        if (!lookup[k2]) lookup[k2] = entry;
+        // Key 3: date+net fallback (no time)
+        var k3 = 'any_'+dateStr+'_'+net;
+        if (!lookup[k3]) lookup[k3] = entry;
+        var k4 = 'any_'+dateStr+'_'+(net+tip);
+        if (!lookup[k4]) lookup[k4] = entry;
+      }
+
+      // ── Scan daily records and fill ──
+      var filledName=0, filledTech=0, skipped=0, notFound=0;
+      ['mv','sr'].forEach(function(store){
+        var storeData = _D[store]||{};
+        Object.keys(storeData).forEach(function(month){
+          Object.keys(storeData[month]||{}).forEach(function(day){
+            var dayData = (storeData[month][day])||{};
+            (dayData.clients||[]).forEach(function(c){
+              var hasName = !!c.clientName;
+              var hasTech = !!c.tech;
+              if (hasName && hasTech) { skipped++; return; }
+              var timeStr2 = (c.time||'').slice(0,5);
+              var svc = parseFloat(c.svc)||0;
+              var tip2 = parseFloat(c.tip)||0;
+              var tech2 = (c.tech||'').trim();
+              var dateStr2 = month+'-'+String(day).padStart(2,'0');
+              // Also try with sqNameMap reverse lookup (Square name → staff name)
+              var sqMap = _D.sqNameMap||{};
+              var revSqMap = {};
+              Object.keys(sqMap).forEach(function(sqN){ revSqMap[sqMap[sqN]]=sqN; });
+              var techSq = revSqMap[tech2] || tech2; // staff name → Square name
+              var entry = null;
+              // 1. time + tech (Square name) + svc
+              if (timeStr2 && techSq) entry = lookup[store+'_'+dateStr2+'_'+timeStr2+'_'+techSq+'_'+svc] || lookup[store+'_'+dateStr2+'_'+timeStr2+'_'+techSq+'_'+(svc+tip2)];
+              // 2. time + tech (staff name) + svc
+              if (!entry && timeStr2 && tech2 && tech2!==techSq) entry = lookup[store+'_'+dateStr2+'_'+timeStr2+'_'+tech2+'_'+svc];
+              // 3. date + tech + svc (no time)
+              if (!entry && techSq) entry = lookup[store+'_'+dateStr2+'_'+techSq+'_'+svc];
+              if (!entry && tech2 && tech2!==techSq) entry = lookup[store+'_'+dateStr2+'_'+tech2+'_'+svc];
+              // 4. time + svc (no tech)
+              if (!entry && timeStr2) entry = lookup[store+'_'+dateStr2+'_'+timeStr2+'_'+svc] || lookup[store+'_'+dateStr2+'_'+timeStr2+'_'+(svc+tip2)];
+              // 5. date + svc only (last resort)
+              if (!entry) entry = lookup['any_'+dateStr2+'_'+svc] || lookup['any_'+dateStr2+'_'+(svc+tip2)];
+              if (entry) {
+                if (!hasName && entry.customer) { c.clientName = entry.customer; filledName++; }
+                if (!hasTech && entry.tech) { c.tech = entry.tech; filledTech++; }
+              } else {
+                if (!hasName || !hasTech) notFound++;
+              }
+            });
           });
         });
       });
-    });
 
-    saveOnly();
-    renderAll();
-    statusEl.textContent = '✓ 完成！補填 '+filled+' 筆，已有名字跳過 '+skipped+' 筆，找不到匹配 '+notFound+' 筆';
-    statusEl.style.color = filled>0?'var(--ok)':'var(--sub)';
-  };
-  reader.readAsText(file);
+      saveOnly();
+      renderAll();
+      statusEl.textContent = '✓ 完成！補填客人名字 '+filledName+' 筆、技師名字 '+filledTech+' 筆，已有資料跳過 '+skipped+' 筆，找不到匹配 '+notFound+' 筆';
+      statusEl.style.color = (filledName+filledTech)>0 ? 'var(--ok)' : 'var(--sub)';
+    });
+  });
 }
 
 function parseCsvLine(line){
