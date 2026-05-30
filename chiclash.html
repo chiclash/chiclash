@@ -4661,7 +4661,7 @@ function fillClientNames() {
       var tLines = txnText.split('\n');
       var tHeaders = parseCsvLine(tLines[0]).map(function(h){return h.trim();});
       function fi(n){for(var i=0;i<tHeaders.length;i++){if(tHeaders[i]===n)return i;}return -1;}
-      var iDate=fi('Date'),iTime=fi('Time'),iNet=fi('Net Sales'),iTip=fi('Tip');
+      var iDate=fi('Date'),iTime=fi('Time'),iNet=fi('Net Sales'),iTip=fi('Tip'),iCash=fi('Cash');
       var iCust=fi('Customer Name'),iLoc=fi('Location'),iEvt=fi('Event Type');
       var iTxnId=fi('Transaction ID');
 
@@ -4707,11 +4707,29 @@ function fillClientNames() {
         if (!lookup[k1]) lookup[k1] = entry;
         var k2 = store+'_'+dateStr+'_'+timeStr+'_'+(net+tip);
         if (!lookup[k2]) lookup[k2] = entry;
-        // Key 3: date+net fallback (no time)
+        // Key 3: store+date+time ONLY (for ClassPass where net != svc)
+        if (timeStr) {
+          var kTime = store+'_'+dateStr+'_'+timeStr;
+          if (!lookup[kTime]) lookup[kTime] = entry;
+          // with tech
+          if (tech) {
+            var kTimeTech = store+'_'+dateStr+'_'+timeStr+'_'+tech;
+            if (!lookup[kTimeTech]) lookup[kTimeTech] = entry;
+          }
+        }
+        // Key 4: date+net fallback (no time)
         var k3 = 'any_'+dateStr+'_'+net;
         if (!lookup[k3]) lookup[k3] = entry;
         var k4 = 'any_'+dateStr+'_'+(net+tip);
         if (!lookup[k4]) lookup[k4] = entry;
+        // Key 5: cash amount (for cash payments where net=svc)
+        var cashAmt = parseFloat((iCash>=0?(cols[iCash]||''):'').replace(/[$,]/g,''))||0;
+        if (cashAmt > 0) {
+          var kCash = store+'_'+dateStr+'_'+timeStr+'_'+cashAmt;
+          if (!lookup[kCash]) lookup[kCash] = entry;
+          var kCashD = 'any_'+dateStr+'_'+cashAmt;
+          if (!lookup[kCashD]) lookup[kCashD] = entry;
+        }
       }
 
       // ── Scan daily records and fill ──
@@ -4740,12 +4758,19 @@ function fillClientNames() {
               if (timeStr2 && techSq) entry = lookup[store+'_'+dateStr2+'_'+timeStr2+'_'+techSq+'_'+svc] || lookup[store+'_'+dateStr2+'_'+timeStr2+'_'+techSq+'_'+(svc+tip2)];
               // 2. time + tech (staff name) + svc
               if (!entry && timeStr2 && tech2 && tech2!==techSq) entry = lookup[store+'_'+dateStr2+'_'+timeStr2+'_'+tech2+'_'+svc];
-              // 3. date + tech + svc (no time)
+              // 3. time + tech only (ClassPass — svc doesn't match net)
+              if (!entry && timeStr2 && techSq) entry = lookup[store+'_'+dateStr2+'_'+timeStr2+'_'+techSq];
+              if (!entry && timeStr2 && tech2 && tech2!==techSq) entry = lookup[store+'_'+dateStr2+'_'+timeStr2+'_'+tech2];
+              // 4. time only (fallback when tech name doesn't match at all)
+              if (!entry && timeStr2) entry = lookup[store+'_'+dateStr2+'_'+timeStr2];
+              // 5. date + tech + svc (no time)
               if (!entry && techSq) entry = lookup[store+'_'+dateStr2+'_'+techSq+'_'+svc];
               if (!entry && tech2 && tech2!==techSq) entry = lookup[store+'_'+dateStr2+'_'+tech2+'_'+svc];
-              // 4. time + svc (no tech)
+              // 6. time + svc (no tech)
               if (!entry && timeStr2) entry = lookup[store+'_'+dateStr2+'_'+timeStr2+'_'+svc] || lookup[store+'_'+dateStr2+'_'+timeStr2+'_'+(svc+tip2)];
-              // 5. date + svc only (last resort)
+              // 7. cash amount match
+              if (!entry) entry = lookup[store+'_'+dateStr2+'_'+timeStr2+'_'+svc] || lookup['any_'+dateStr2+'_'+svc];
+              // 8. date + svc only (last resort)
               if (!entry) entry = lookup['any_'+dateStr2+'_'+svc] || lookup['any_'+dateStr2+'_'+(svc+tip2)];
               if (entry) {
                 if (!hasName && entry.customer) { c.clientName = entry.customer; filledName++; }
