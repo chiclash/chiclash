@@ -1215,6 +1215,17 @@ input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-
     </div>
   </div>
 
+  <!-- 補客人名字工具 — 永遠顯示 -->
+  <div style="background:var(--white);border:1.5px solid var(--ok-bd);border-radius:10px;padding:16px;margin-bottom:12px">
+    <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--ok);margin-bottom:8px">🔍 補填客人名字（不影響其他資料）</div>
+    <div style="font-size:12px;color:var(--sub);margin-bottom:12px">上傳 Transactions CSV，系統根據日期+時間+金額自動比對，只補空白的客人名字欄位，不更動付款方式、小費或對帳標記。</div>
+    <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+      <input type="file" id="imp-file-names" accept=".csv" style="font-size:12px;color:var(--sub)">
+      <button onclick="fillClientNames()" style="padding:8px 16px;background:var(--ok);color:#fff;border:none;border-radius:7px;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit">補填名字</button>
+    </div>
+    <div id="fill-names-status" style="margin-top:8px;font-size:12px;color:var(--sub);display:none"></div>
+  </div>
+
   <!-- Step 2: Preview + Actions -->
   <div id="imp-preview" style="display:none">
 
@@ -1229,17 +1240,6 @@ input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-
         <button onclick="impCommitGD()" style="padding:7px 14px;background:#FEF9EE;color:#B45309;border:1.5px solid #F0D9A0;border-radius:7px;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit">📄 寫入 GoDaddy Payout</button>
       </div>
       <div id="imp-commit-status" style="margin-top:8px;font-size:12px;color:var(--ok);display:none"></div>
-    </div>
-
-    <!-- 補客人名字工具 -->
-    <div style="background:var(--white);border:1.5px solid var(--ok-bd);border-radius:10px;padding:16px;margin-bottom:12px">
-      <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--ok);margin-bottom:8px">🔍 補填客人名字（不影響其他資料）</div>
-      <div style="font-size:12px;color:var(--sub);margin-bottom:12px">上傳 Transactions CSV，系統根據日期+時間+金額自動比對，只補空白的客人名字欄位，不更動付款方式、小費或對帳標記。</div>
-      <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
-        <input type="file" id="imp-file-names" accept=".csv" style="font-size:12px;color:var(--sub)">
-        <button onclick="fillClientNames()" style="padding:8px 16px;background:var(--ok);color:#fff;border:none;border-radius:7px;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit">補填名字</button>
-      </div>
-      <div id="fill-names-status" style="margin-top:8px;font-size:12px;color:var(--sub);display:none"></div>
     </div>
 
     <!-- GoDaddy reconciliation summary -->
