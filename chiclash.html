@@ -1985,7 +1985,8 @@ function addClient(d){
 function delClient(d,i){sDay(activeStore,d).clients.splice(i,1);save();renderClientTable(d);updateDaySummary(d);updateAll();}
 function updC(d,i,f,v){
   const c=sDay(activeStore,d).clients[i];if(!c)return;
-  c[f]=typeof v==='boolean'?v:v===''?'':f==='tech'?v:parseFloat(v)||0;save();
+  var stringFields=['tech','clientName'];
+  c[f]=typeof v==='boolean'?v:v===''?'':stringFields.indexOf(f)>=0?v:parseFloat(v)||0;save();
   if(f==='tech')renderClientTable(d);
   updateDaySummary(d);updateAll();
 }
