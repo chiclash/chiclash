@@ -4377,147 +4377,82 @@ function buildStaffCardHTML(d,moLabel,isPreview,note){
 }
 
 function downloadAllPDFs(){
-  var btn=document.getElementById('dl-all-btn');
-  if(btn){btn.textContent='⏳ 生成中…';btn.disabled=true;}
   var moLabel=cur.toLocaleDateString('zh-TW',{year:'numeric',month:'long'});
   var allData=buildStaffReportData();
-
-  // Load jsPDF then generate
-  if(typeof window.jspdf==='undefined'){
-    var s=document.createElement('script');
-    s.src='https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js';
-    s.onload=function(){doGeneratePDFs(allData,moLabel,btn);};
-    s.onerror=function(){alert('無法載入 PDF 庫，請確認網路連線');if(btn){btn.textContent='⬇ 下載全部 PDF';btn.disabled=false;}};
-    document.head.appendChild(s);
-  } else {
-    doGeneratePDFs(allData,moLabel,btn);
-  }
-}
-
-function doGeneratePDFs(allData,moLabel,btn){
-  var jsPDF=window.jspdf.jsPDF;
-  var delay=0;
   var notes=reportNotes();
-  allData.forEach(function(d,i){
-    setTimeout(function(){
-      var note=notes[d.name]||'';
-      var doc=new jsPDF({orientation:'portrait',unit:'mm',format:'a4'});
-      var W=210,M=20,y=M,lineH=7,col2=W-M;
 
-      // Header block
-      doc.setFillColor(247,247,247);
-      doc.rect(0,0,W,36,'F');
-      doc.setFontSize(8);doc.setTextColor(150);
-      doc.text('Chic Lash Studio',M,12);
-      doc.setFontSize(16);doc.setTextColor(30);doc.setFont(undefined,'bold');
-      doc.text(d.name,M,22);
-      doc.setFontSize(9);doc.setTextColor(100);doc.setFont(undefined,'normal');
-      doc.text(moLabel+' 月結報表',M,29);
-      // Grand total top-right
-      doc.setFontSize(10);doc.setTextColor(100);
-      doc.text('本月應得',col2,14,'right');
-      doc.setFontSize(20);doc.setFont(undefined,'bold');
-      doc.setTextColor(d.grand>=0?26:184,d.grand>=0?122:48,d.grand>=0?69:16);
-      doc.text('$'+d.grand.toFixed(2),col2,25,'right');
+  function $f2(n){return n>=0?'$'+n.toFixed(2):'-$'+Math.abs(n).toFixed(2);}
 
-      y=44;
-      doc.setDrawColor(220);doc.line(M,y,col2,y);y+=6;
+  var pages=allData.map(function(d){
+    var note=notes[d.name]||'';
+    var tipRows='';
+    if(d.mvTip>0){
+      tipRows+='<tr><td>MV 小費</td><td style="color:#1656A0;font-weight:600">$'+d.mvTip.toFixed(2)+'</td></tr>';
+      if(d.mvTipCard>0) tipRows+='<tr class="sub"><td>&nbsp;&nbsp;&nbsp;💳 刷卡</td><td>$'+d.mvTipCard.toFixed(2)+'</td></tr>';
+      if(d.mvTipCash>0) tipRows+='<tr class="sub"><td>&nbsp;&nbsp;&nbsp;💵 現金</td><td style="color:#B45309">$'+d.mvTipCash.toFixed(2)+'</td></tr>';
+    }
+    if(d.srTip>0){
+      tipRows+='<tr><td>SR 小費</td><td style="color:#5E35B1;font-weight:600">$'+d.srTip.toFixed(2)+'</td></tr>';
+      if(d.srTipCard>0) tipRows+='<tr class="sub"><td>&nbsp;&nbsp;&nbsp;💳 刷卡</td><td>$'+d.srTipCard.toFixed(2)+'</td></tr>';
+      if(d.srTipCash>0) tipRows+='<tr class="sub"><td>&nbsp;&nbsp;&nbsp;💵 現金</td><td style="color:#B45309">$'+d.srTipCash.toFixed(2)+'</td></tr>';
+    }
+    var penRows='';
+    d.pens.forEach(function(p){
+      var isB=p.type==='bonus';
+      penRows+='<tr><td>'+p.date.slice(5).replace('-','/')+' ['+(isB?'獎勵':'扣款')+'] '+p.desc+'</td>'
+        +'<td style="color:'+(isB?'#1A7A45':'#B83010')+';font-weight:600">'+(isB?'+':'-')+'$'+Math.abs(p.amt).toFixed(2)+'</td></tr>';
+    });
+    var grandColor=d.grand>=0?'#1A7A45':'#B83010';
+    return '<div class="pg">'+
+      '<div class="hdr">'+
+        '<div><div class="studio">Chic Lash Studio</div>'+
+        '<div class="staff-name">'+d.name+'</div>'+
+        '<div class="mo-label">'+moLabel+' 月結報表</div></div>'+
+        '<div class="grand" style="color:'+grandColor+'">'+$f2(d.grand)+'</div>'+
+      '</div>'+
+      '<table>'+
+        (d.totalNetMins>0?'<tr><td>出勤工時</td><td>'+d.hoursStr+'（'+d.workDays+' 天）</td></tr>':'')+
+        '<tr><td>服務費</td><td>$'+d.totalSales.toFixed(2)+'</td></tr>'+
+        '<tr><td>'+d.baseLabel+'</td><td style="color:#1656A0;font-weight:600">$'+d.basePay.toFixed(2)+'</td></tr>'+
+        tipRows+
+        (d.mvRev>0?'<tr><td>MV 評論獎勵</td><td style="color:#7A5A10">$'+d.mvRev.toFixed(2)+'</td></tr>':'')+
+        (d.srRev>0?'<tr><td>SR 評論獎勵</td><td style="color:#7A5A10">$'+d.srRev.toFixed(2)+'</td></tr>':'')+
+        penRows+
+        (d.bossSupp>0?'<tr><td>老闆補款</td><td style="color:#B45309;font-weight:600">$'+d.bossSupp.toFixed(2)+'</td></tr>':'')+
+        '<tr class="total"><td>合計應得</td><td style="color:'+grandColor+'">'+$f2(d.grand)+'</td></tr>'+
+      '</table>'+
+      (note?'<div class="note"><strong>備註：</strong>'+note+'</div>':'')+
+      '<div class="footer">Chic Lash Studio · '+moLabel+' · 列印日期：'+new Date().toLocaleDateString('zh-TW')+'</div>'+
+    '</div>';
+  }).join('');
 
-      function row(label,amt,labelColor,amtColor,indent,small){
-        var fs=small?8:10;
-        doc.setFontSize(fs);
-        doc.setFont(undefined,'normal');
-        doc.setTextColor(labelColor[0],labelColor[1],labelColor[2]);
-        doc.text((indent?'    ':'')+label,M+(indent?4:0),y);
-        doc.setFont(undefined,'bold');
-        doc.setTextColor(amtColor[0],amtColor[1],amtColor[2]);
-        doc.text(amt,col2,y,'right');
-        y+=small?5:lineH;
-      }
+  var html='<!DOCTYPE html><html><head><meta charset="utf-8">'+
+    '<style>'+
+    'body{font-family:"Helvetica Neue",Arial,"PingFang TC","Heiti TC",sans-serif;font-size:12px;margin:0;padding:0}'+
+    '.pg{padding:28px 32px;page-break-after:always;min-height:100vh;box-sizing:border-box}'+
+    '.pg:last-child{page-break-after:auto}'+
+    '.hdr{display:flex;justify-content:space-between;align-items:flex-start;background:#f7f7f7;padding:16px 20px;border-radius:8px;margin-bottom:20px}'+
+    '.studio{font-size:10px;color:#999;margin-bottom:4px}'+
+    '.staff-name{font-size:22px;font-weight:700;color:#1a1a1a}'+
+    '.mo-label{font-size:11px;color:#666;margin-top:4px}'+
+    '.grand{font-size:28px;font-weight:700;text-align:right}'+
+    'table{width:100%;border-collapse:collapse;margin-bottom:16px}'+
+    'tr{border-bottom:1px solid #eee}'+
+    'td{padding:8px 4px;font-size:12px}'+
+    'td:last-child{text-align:right;font-weight:500}'+
+    'tr.sub td{font-size:11px;color:#888;padding:4px 4px}'+
+    'tr.total{background:#fdf8ee;border-top:2px solid #ddd}'+
+    'tr.total td{font-size:14px;font-weight:700;padding:10px 4px}'+
+    '.note{background:#fffdf5;border:1px solid #e8e0c8;border-radius:6px;padding:10px 14px;font-size:11px;margin-bottom:12px}'+
+    '.footer{font-size:9px;color:#aaa;position:fixed;bottom:20px;left:32px}'+
+    '@media print{.pg{padding:16px 20px}.footer{position:fixed;bottom:10px}}'+
+    '</style>'+
+    '<script>window.onload=function(){window.print();}<\/script>'+
+    '</head><body>'+pages+'</body></html>';
 
-      var gray=[100,100,100],blue=[22,86,160],purple=[94,53,177],gold=[122,90,16],green=[26,122,69],red=[184,48,22],lt=[170,170,170];
-
-      // Hours summary
-      if(d.totalNetMins>0){
-        doc.setFillColor(247,247,247);
-        doc.rect(M-2,y-5,W-M*2+4,12,'F');
-        doc.setFontSize(10);doc.setFont(undefined,'bold');doc.setTextColor(60);
-        doc.text('\u672c\u6708\u5de5\u6642',M,y);
-        doc.setTextColor(30);
-        doc.text(d.hoursStr,col2,y,'right');
-        y+=lineH;
-        doc.setFontSize(8);doc.setFont(undefined,'normal');doc.setTextColor(170);
-        doc.text('\u51fa\u52e4 '+d.workDays+' \u5929',M+4,y);
-        y+=6;
-        doc.setDrawColor(200);doc.setLineDashPattern([1,2],0);
-        doc.line(M,y,col2,y);doc.setLineDashPattern([],0);
-        y+=5;
-      }
-
-      if(d.mvTip>0){
-        row('MV 小費','$'+d.mvTip.toFixed(2),gray,blue,false,false);
-        if(d.mvTipCard>0&&d.mvTipCash>0){
-          row('刷卡  $'+d.mvTipCard.toFixed(2)+'    現金  $'+d.mvTipCash.toFixed(2),'',lt,lt,true,true);y-=5;y+=5;
-        }
-      }
-      if(d.srTip>0){
-        row('SR 小費','$'+d.srTip.toFixed(2),gray,purple,false,false);
-        if(d.srTipCard>0&&d.srTipCash>0){
-          row('刷卡  $'+d.srTipCard.toFixed(2)+'    現金  $'+d.srTipCash.toFixed(2),'',lt,lt,true,true);y-=5;y+=5;
-        }
-      }
-      if(d.mvRev>0)row('MV 評論獎勵','$'+d.mvRev.toFixed(2),gray,gold,false,false);
-      if(d.srRev>0)row('SR 評論獎勵','$'+d.srRev.toFixed(2),gray,gold,false,false);
-
-      if(d.pens.length>0){
-        y+=2;
-        doc.setFontSize(8);doc.setFont(undefined,'normal');doc.setTextColor(150);
-        doc.text('出勤獎懲',M,y);y+=5;
-        doc.setDrawColor(230);doc.line(M,y,col2,y);y+=4;
-        d.pens.forEach(function(p){
-          var isB=p.type==='bonus';
-          var label=p.date.slice(5).replace('-','/')+' ['+(isB?'獎勵':'扣款')+'] '+p.desc;
-          var amtStr=(isB?'+':'-')+'$'+Math.abs(p.amt).toFixed(2);
-          row(label,amtStr,gray,isB?green:red,false,false);
-        });
-      }
-
-      // Total line
-      y+=3;
-      doc.setFillColor(253,248,238);
-      doc.rect(M-2,y-5,W-M*2+4,10,'F');
-      doc.setDrawColor(200);doc.line(M,y-5,col2,y-5);
-      doc.setFontSize(11);doc.setFont(undefined,'bold');doc.setTextColor(80);
-      doc.text('合計應得',M,y+1);
-      doc.setFontSize(16);
-      doc.setTextColor(d.grand>=0?26:184,d.grand>=0?122:48,d.grand>=0?69:16);
-      doc.text('$'+d.grand.toFixed(2),col2,y+1,'right');
-
-      // Note
-      if(note){
-        y+=4;
-        doc.setFillColor(255,253,245);
-        var noteLines=doc.splitTextToSize(note,W-M*2-4);
-        var noteH=noteLines.length*5+10;
-        doc.rect(M-2,y-5,W-M*2+4,noteH,'F');
-        doc.setDrawColor(220);doc.rect(M-2,y-5,W-M*2+4,noteH,'S');
-        doc.setFontSize(8);doc.setFont(undefined,'bold');doc.setTextColor(120);
-        doc.text('Note',M,y);y+=5;
-        doc.setFont(undefined,'normal');doc.setTextColor(60);
-        noteLines.forEach(function(line){doc.text(line,M,y);y+=5;});
-      }
-      // Footer
-      doc.setFontSize(7);doc.setFont(undefined,'normal');doc.setTextColor(180);
-      doc.text('Chic Lash Studio · '+moLabel+' · 列印日期：'+new Date().toLocaleDateString('zh-TW'),M,285);
-
-      doc.save(moLabel+'_'+d.name+'.pdf');
-
-      if(i===allData.length-1){
-        if(btn){btn.textContent='⬇ 下載全部 PDF';btn.disabled=false;}
-      }
-    },delay);
-    delay+=300;
-  });
+  var w=window.open('','_blank');
+  if(w){w.document.write(html);w.document.close();}
+  else{alert('請允許彈出視窗');}
 }
 
 // ── SQUARE IMPORT ──
