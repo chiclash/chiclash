@@ -3350,7 +3350,10 @@ function buildTipDayBody(d){
   allClients.forEach(function(cl,i){
     var txnKey=cl.store+'_'+cl.idx; // stable key: store + client index in day
     if(!tipSplitSel[splitKey][txnKey]){
-      tipSplitSel[splitKey][txnKey]=new Set(); // start empty, user selects manually
+      // Auto-select if client has exactly one tech
+      var autoSet=new Set();
+      if(cl.tech) autoSet.add(cl.tech);
+      tipSplitSel[splitKey][txnKey]=autoSet;
     }
   });
 
@@ -3382,15 +3385,14 @@ function buildTipDayBody(d){
     var txnKey=cl.store+'_'+cl.idx;
     var selSet=tipSplitSel[splitKey][txnKey]||new Set();
 
-    var chips=staff.map(function(name){
+    var chips=staff.filter(function(name){return presentAt(name,cl.time)||selSet.has(name);}).map(function(name){
       var on=selSet.has(name);
-      var present=presentAt(name,cl.time);
+      var present=true;
       var style='display:inline-flex;align-items:center;padding:3px 10px;font-size:12px;font-weight:500;border:1.5px solid '
         +(on?'var(--rose)':'var(--border)')+';border-radius:20px;cursor:pointer;background:'
         +(on?'var(--rose-light)':'var(--white)')+';color:'+(on?'var(--rose)':'var(--faint)')+';margin:2px;white-space:nowrap';
-      var notPresentMark=!present&&!on?'<span style="font-size:9px;opacity:.5;margin-left:2px">⚫</span>':'';
       return '<span style="'+style+'" onclick="toggleTipTxnStaff(\''+splitKey+'\',\''+txnKey+'\',\''+name.replace(/'/g,"\\'")+'\')">'
-        +name+notPresentMark+'</span>';
+        +name+'</span>';
     }).join('');
 
     // Per-person amount
