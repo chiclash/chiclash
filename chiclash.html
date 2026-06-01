@@ -4120,8 +4120,7 @@ function buildStaffReportData(){
       }
     } else if(cfg.bonusType==='group'&&cfg.bonusGroup){
       var pairKey=[name,cfg.bonusGroup].sort().join('|');
-      bossSupp=groupBonusMap[pairKey]||0;
-      // Each person in the pair gets the full supplement (the group supplement IS the total)
+      bossSupp=Math.round((groupBonusMap[pairKey]||0)/2*100)/100; // split equally between the two
       bossSuppLabel='與 '+cfg.bonusGroup+' 合計抽成不足 $'+(cfg.bonusThreshold||160);
     }
 
