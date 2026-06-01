@@ -3474,9 +3474,9 @@ function confirmTipTxnSplit(splitKey,d){
   var allClients=[];
   ['mv','sr'].forEach(function(store){
     var r=sDay(store,d);
-    (r.clients||[]).forEach(function(c){
+    (r.clients||[]).forEach(function(c,ci){
       if(!gv(c.tip)) return;
-      allClients.push({store:store,c:c,tip:gv(c.tip),tipPay:c.tipPay||'card'});
+      allClients.push({store:store,c:c,idx:ci,tip:gv(c.tip),tipPay:c.tipPay||'card'});
     });
   });
   allClients.sort(function(a,b){return (a.c.time||'')<(b.c.time||'')?-1:1;});
