@@ -3313,7 +3313,7 @@ function buildTipDayBody(d){
     if(!timeStr) return true;
     var t=timeStr.slice(0,5);
     var info=attTimeMap[name];
-    if(!info) return true; // no clock-in = assume present
+    if(!info) return false; // no clock-in = not present, exclude from split
     return info.start<=t && t<=info.end;
   }
 
@@ -3350,8 +3350,7 @@ function buildTipDayBody(d){
   allClients.forEach(function(cl,i){
     var txnKey=cl.store+'_'+cl.idx; // stable key: store + client index in day
     if(!tipSplitSel[splitKey][txnKey]){
-      var def=staff.filter(function(name){ return presentAt(name,cl.time); });
-      tipSplitSel[splitKey][txnKey]=new Set(def);
+      tipSplitSel[splitKey][txnKey]=new Set(); // start empty, user selects manually
     }
   });
 
@@ -3403,7 +3402,7 @@ function buildTipDayBody(d){
       +'<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:8px">'
         +'<span style="font-size:12px;color:var(--sub);font-family:monospace;min-width:40px">'+timeDisp+'</span>'
         +(cl.name?'<span style="font-size:13px;font-weight:600">'+cl.name+'</span>':'<span style="font-size:12px;color:var(--faint)">客人</span>')
-        +(cl.tech?'<span style="font-size:11px;color:var(--sub);background:var(--bg);border-radius:10px;padding:1px 8px">'+cl.tech+'</span>':'')
+        +(cl.tech?(function(){var sc=getStaffColor(cl.tech);return '<span style="font-size:13px;font-weight:700;color:'+sc.hex+';background:'+sc.bg+';border:1.5px solid '+sc.border+';border-radius:10px;padding:2px 10px">'+cl.tech+'</span>';}()):'<span style="font-size:12px;color:var(--faint)">—</span>')
         +'<span style="margin-left:auto;font-size:14px;font-weight:700;color:'+payColor+'">'+payIcon+' $'+cl.tip.toFixed(2)+'</span>'
       +'</div>'
       +'<div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">'
@@ -5304,6 +5303,18 @@ function toggleBreak(name,idx){
   }
   renderAttSummary();
 }
+function setAllNoBreak(name){
+  var recs=attRec(name);
+  recs.forEach(function(r,idx){
+    r.breakDeducted=false;
+    var safeId=name.replace(/[^a-zA-Z0-9]/g,'_');
+    var netEl=document.getElementById('att-net-'+safeId+'-'+idx);
+    if(netEl)netEl.textContent=minsToHrs(netMins(r.rawMins,false));
+    var btnEl=document.getElementById('att-brk-'+safeId+'-'+idx);
+    if(btnEl){btnEl.textContent='不扣';btnEl.style.background='var(--bg)';btnEl.style.color='var(--sub)';btnEl.style.borderColor='var(--border)';}
+  });
+  saveOnly();renderAttSummary();
+}
 function addPenalty(){
   var staff=document.getElementById('pen-staff').value;
   var dateEl=document.getElementById('pen-date');
@@ -5536,6 +5547,7 @@ function buildStaffCard(name){
         '<button class="att-add-btn" onclick="addAttRow(\''+esc+'\')">&#65291; 新增一天</button>'+
         '<div style="width:1px;background:var(--border);margin:0 2px"></div>'+
         '<button class="att-add-btn" style="background:var(--ok-bg);color:var(--ok);border-color:var(--ok-bd)" onclick="genMonthRows(\''+esc+'\',\'all\')">&#9889; 一鍵生成整月</button>'+
+        '<button class="att-add-btn" style="background:var(--bg);color:var(--sub);border-color:var(--border)" onclick="setAllNoBreak(\''+esc+'\')">&#10003; 全部不扣</button>'+
       '</div>'+
       // Inline penalty section
       '<div class="att-pen-inline">'+
@@ -7715,10 +7727,11 @@ function prRebuildFromDaily(mo) {
       clients.forEach(function(c){
         var tech=(c.tech||'').trim();
         if(!tech.includes('Lucy')&&!tech.includes('Luter')) return;
-        if(!byDate[dateStr]) byDate[dateStr]={lucy_net:0,lucy_tip:0,luter_net:0,luter_tip:0};
-        var d=byDate[dateStr];
         var svc=parseFloat(c.svc)||0;
         var tip=parseFloat(c.tip)||0;
+        if(svc===0&&tip===0) return; // skip completely empty rows
+        if(!byDate[dateStr]) byDate[dateStr]={lucy_net:0,lucy_tip:0,luter_net:0,luter_tip:0};
+        var d=byDate[dateStr];
         if(tech.includes('Lucy')){d.lucy_net+=svc;d.lucy_tip+=tip;}
         else{d.luter_net+=svc;d.luter_tip+=tip;}
       });
@@ -7782,10 +7795,12 @@ function prExtractFromSqRows(mo) {
   sqRows.forEach(function(r) {
     var tech = (r.tech || '').trim();
     if (!tech.includes('Lucy') && !tech.includes('Luter')) return;
+    var svc = r.gross||0, tip = r.tip||0;
+    if(svc===0&&tip===0) return;
     if (!byDate[r.date]) byDate[r.date]={lucy_net:0,lucy_tip:0,luter_net:0,luter_tip:0};
     var d=byDate[r.date];
-    if(tech.includes('Lucy')){d.lucy_net+=r.gross||0;d.lucy_tip+=r.tip||0;}
-    else{d.luter_net+=r.gross||0;d.luter_tip+=r.tip||0;}
+    if(tech.includes('Lucy')){d.lucy_net+=svc;d.lucy_tip+=tip;}
+    else{d.luter_net+=svc;d.luter_tip+=tip;}
   });
   var newRows=Object.keys(byDate).sort().map(function(date){
     var v=byDate[date];
