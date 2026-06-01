@@ -638,6 +638,7 @@ input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-
         <span>%</span>
       </div>
       <div id="pr-save-status" style="font-size:11px;color:var(--sub)"></div>
+      <button onclick="prRebuildFromDaily()" style="padding:5px 12px;background:var(--ok-bg);color:var(--ok);border:1px solid var(--ok-bd);border-radius:6px;font-size:11px;font-weight:600;cursor:pointer;font-family:inherit">🔄 從每日記帳重建</button>
     </div>
   </div>
 
@@ -7703,6 +7704,48 @@ async function ldgImportFromBilling(btn) {
 // ══ LUCY & LUTER PAYROLL ═════════════════════════════════════════
 var prAdjId = 0;
 
+function prRebuildFromDaily(mo) {
+  if (!mo) mo = mk();
+  var byDate = {};
+  ['mv','sr'].forEach(function(store){
+    var storeData = (_D[store]||{})[mo]||{};
+    Object.keys(storeData).forEach(function(day){
+      var clients = (storeData[day].clients||[]);
+      var dateStr = mo+'-'+String(day).padStart(2,'0');
+      clients.forEach(function(c){
+        var tech=(c.tech||'').trim();
+        if(!tech.includes('Lucy')&&!tech.includes('Luter')) return;
+        if(!byDate[dateStr]) byDate[dateStr]={lucy_net:0,lucy_tip:0,luter_net:0,luter_tip:0};
+        var d=byDate[dateStr];
+        var svc=parseFloat(c.svc)||0;
+        var tip=parseFloat(c.tip)||0;
+        if(tech.includes('Lucy')){d.lucy_net+=svc;d.lucy_tip+=tip;}
+        else{d.luter_net+=svc;d.luter_tip+=tip;}
+      });
+    });
+  });
+  var newRows=Object.keys(byDate).sort().map(function(date){
+    var v=byDate[date];
+    return{date:date,
+      lucy_net:Math.round(v.lucy_net*100)/100,
+      lucy_tip:Math.round(v.lucy_tip*100)/100,
+      luter_net:Math.round(v.luter_net*100)/100,
+      luter_tip:Math.round(v.luter_tip*100)/100};
+  });
+  if(!_D.payroll)_D.payroll={};
+  var existing=_D.payroll[mo]||{data:[],adjustments:[]};
+  // Merge: rebuild overwrites all dates
+  var existingMap={};
+  (existing.data||[]).forEach(function(r){ existingMap[r.date]=r; });
+  newRows.forEach(function(r){ existingMap[r.date]=r; });
+  existing.data=Object.keys(existingMap).sort().map(function(d){ return existingMap[d]; });
+  _D.payroll[mo]=existing;
+  prSave(mo);
+  renderPayrollPage();
+  alert('✓ 已從每日記帳重建 '+newRows.length+' 天的薪資資料！');
+}
+window.prRebuildFromDaily=prRebuildFromDaily;
+
 function prGetMonthData(mo) {
   if (!_D.payroll) _D.payroll = {};
   if (!mo) mo = mk();
@@ -7744,15 +7787,19 @@ function prExtractFromSqRows(mo) {
     if(tech.includes('Lucy')){d.lucy_net+=r.gross||0;d.lucy_tip+=r.tip||0;}
     else{d.luter_net+=r.gross||0;d.luter_tip+=r.tip||0;}
   });
-  var rows=Object.keys(byDate).sort().map(function(date){
+  var newRows=Object.keys(byDate).sort().map(function(date){
     var v=byDate[date];
     return{date:date,lucy_net:Math.round(v.lucy_net*100)/100,lucy_tip:Math.round(v.lucy_tip*100)/100,
            luter_net:Math.round(v.luter_net*100)/100,luter_tip:Math.round(v.luter_tip*100)/100};
   });
-  if(!rows.length)return false;
+  if(!newRows.length)return false;
   if(!_D.payroll)_D.payroll={};
   var existing=_D.payroll[mo]||{data:[],adjustments:[]};
-  existing.data=rows;
+  // MERGE: update existing rows, add new ones, keep old ones
+  var existingMap={};
+  (existing.data||[]).forEach(function(r){ existingMap[r.date]=r; });
+  newRows.forEach(function(r){ existingMap[r.date]=r; }); // new rows overwrite same dates
+  existing.data=Object.keys(existingMap).sort().map(function(d){ return existingMap[d]; });
   _D.payroll[mo]=existing;
   prSave(mo);
   return true;
