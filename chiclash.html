@@ -3314,7 +3314,7 @@ function buildTipDayBody(d){
     var t=timeStr.slice(0,5);
     var info=attTimeMap[name];
     if(!info) return false; // no clock-in = not present, exclude from split
-    return info.start<=t && t<=info.end;
+    return true; // show anyone who clocked in that day, regardless of time
   }
 
   // Collect all clients with tips from both stores
