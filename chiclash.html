@@ -1380,7 +1380,7 @@ input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-
           </select></div>
         <div><div style="font-size:10px;color:var(--sub);margin-bottom:3px">付款方式</div>
           <select id="lf-platform" style="width:100%;border:1.5px solid var(--border);border-radius:7px;padding:7px 9px;font-size:12px;outline:none;background:var(--white);font-family:inherit">
-            <option>現金</option><option>信用卡</option><option>Venmo</option><option>Zelle</option><option>支票</option><option>其他</option>
+            <option>現金</option><option>信用卡-Chase</option><option>信用卡2-Costco</option><option>儲蓄卡</option><option>Venmo</option><option>Zelle</option><option>支票</option><option>其他</option>
           </select></div>
         <div><div style="font-size:10px;color:var(--sub);margin-bottom:3px">類別</div>
           <select id="lf-cat" style="width:100%;border:1.5px solid var(--border);border-radius:7px;padding:7px 9px;font-size:12px;outline:none;background:var(--white);font-family:inherit">
@@ -1429,25 +1429,7 @@ input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-
         </div>
       </div>
 
-      <!-- 信用卡 -->
-      <div style="background:var(--sr-bg);border:1.5px solid var(--sr-bd);border-radius:10px;padding:14px 16px">
-        <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:var(--sr);margin-bottom:10px">💜 信用卡 Credit</div>
-        <div style="display:flex;flex-direction:column;gap:7px">
-          <div style="display:flex;align-items:center;gap:8px">
-            <label style="font-size:11px;color:var(--sub);white-space:nowrap;min-width:64px">上月結餘</label>
-            <input type="text" id="bnk-credit-open" inputmode="decimal" placeholder="0.00"
-              style="flex:1;border:1px solid var(--sr-bd);border-radius:6px;padding:6px 9px;font-size:14px;font-weight:700;font-family:monospace;color:var(--sr);background:var(--white);outline:none"
-              onchange="bnkSaveBal('credit_open',this.value);renderBnkPage()">
-          </div>
-          <div style="display:flex;align-items:center;gap:8px">
-            <label style="font-size:11px;color:var(--sub);white-space:nowrap;min-width:64px">本月帳單</label>
-            <input type="text" id="bnk-credit-close" inputmode="decimal" placeholder="從信用卡查"
-              style="flex:1;border:1px solid var(--sr-bd);border-radius:6px;padding:6px 9px;font-size:14px;font-weight:700;font-family:monospace;color:var(--sr);background:var(--white);outline:none"
-              onchange="bnkSaveBal('credit_close',this.value);renderBnkPage()">
-          </div>
-          <div id="bnk-credit-calc" style="font-size:11px;color:var(--sub);min-height:16px"></div>
-        </div>
-      </div>
+
     </div>
 
     <!-- 說明 -->
@@ -7437,8 +7419,8 @@ function bnkSaveBal(field, val) {
 function bnkLoadBal() {
   var mo = mk2();
   var bal = (_D.bnkBal && _D.bnkBal[mo]) ? _D.bnkBal[mo] : {};
-  var fields = ['debit_open','debit_close','credit_open','credit_close'];
-  var ids = ['bnk-debit-open','bnk-debit-close','bnk-credit-open','bnk-credit-close'];
+  var fields = ['debit_open','debit_close'];
+  var ids = ['bnk-debit-open','bnk-debit-close'];
   fields.forEach(function(f,i){
     var el = document.getElementById(ids[i]);
     if (el) el.value = bal[f] !== undefined ? bal[f] : '';
@@ -7581,27 +7563,7 @@ function renderBnkPage() {
   }
 
   // Credit card calc label
-  const creditCalcEl = document.getElementById('bnk-credit-calc');
-  if (creditCalcEl) {
-    const creditOpen = balCfg.credit_open !== undefined ? balCfg.credit_open : null;
-    const creditClose = balCfg.credit_close !== undefined ? balCfg.credit_close : null;
-    // credit expenses = ledger expenses paid by credit card
-    const creditExp = ldgData
-      .filter(r => r.date.startsWith(mo) && r.type === 'expense' && r.platform === '信用卡')
-      .reduce((s,r) => s + r.amount, 0);
-    if (creditOpen !== null || creditClose !== null || creditExp > 0) {
-      let html = '';
-      if (creditExp > 0) html += '本月刷卡支出：<strong style="font-family:monospace;color:var(--sr)">$' + creditExp.toFixed(2) + '</strong>';
-      if (creditOpen !== null && creditClose !== null) {
-        const cdiff = Math.round((creditClose - creditOpen) * 100) / 100;
-        const cdColor = Math.abs(cdiff) < 5 ? '#1A7A45' : '#B83010';
-        html += (html?'　':'') + '帳單差：<strong style="color:' + cdColor + ';font-family:monospace">' + (cdiff>=0?'+':'') + cdiff.toFixed(2) + '</strong>';
-      }
-      creditCalcEl.innerHTML = html || '填好上月結餘和本月帳單後自動比對';
-    } else {
-      creditCalcEl.innerHTML = '<span style="color:var(--faint)">↑ 填好後自動比對</span>';
-    }
-  }
+
 
   const bankEl = document.getElementById('bnk-table');
   if (!bankEl) return;
