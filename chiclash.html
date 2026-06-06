@@ -558,7 +558,7 @@ input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-
         </div>
         <div style="display:flex;flex-direction:column;gap:3px">
           <label style="font-size:10px;color:var(--sub)">獎勵金額 $</label>
-          <input type="number" id="rev-mv-amt" min="0" step="0.01" placeholder="0.00" style="width:80px;border:1px solid var(--mv-bd);border-radius:6px;padding:7px 8px;font-size:12px;font-family:inherit;color:var(--text);background:var(--white);outline:none;text-align:right">
+          <input type="text" inputmode="decimal" id="rev-mv-amt" min="0" step="0.01" placeholder="0.00" style="width:80px;border:1px solid var(--mv-bd);border-radius:6px;padding:7px 8px;font-size:12px;font-family:inherit;color:var(--text);background:var(--white);outline:none;text-align:right">
         </div>
         <div style="display:flex;flex-direction:column;gap:3px;flex:1;min-width:80px">
           <label style="font-size:10px;color:var(--sub)">備註（選填）</label>
@@ -589,7 +589,7 @@ input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-
         </div>
         <div style="display:flex;flex-direction:column;gap:3px">
           <label style="font-size:10px;color:var(--sub)">獎勵金額 $</label>
-          <input type="number" id="rev-sr-amt" min="0" step="0.01" placeholder="0.00" style="width:80px;border:1px solid var(--sr-bd);border-radius:6px;padding:7px 8px;font-size:12px;font-family:inherit;color:var(--text);background:var(--white);outline:none;text-align:right">
+          <input type="text" inputmode="decimal" id="rev-sr-amt" min="0" step="0.01" placeholder="0.00" style="width:80px;border:1px solid var(--sr-bd);border-radius:6px;padding:7px 8px;font-size:12px;font-family:inherit;color:var(--text);background:var(--white);outline:none;text-align:right">
         </div>
         <div style="display:flex;flex-direction:column;gap:3px;flex:1;min-width:80px">
           <label style="font-size:10px;color:var(--sub)">備註（選填）</label>
@@ -630,10 +630,10 @@ input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-
     <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
       <div style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--sub)">
         <span>門檻</span>
-        <input type="number" id="pr-threshold" value="160" min="0" step="10" onchange="renderPayrollPage()"
+        <input type="text" inputmode="decimal" id="pr-threshold" value="160" min="0" step="10" onchange="renderPayrollPage()"
           style="width:70px;border:1px solid var(--border);border-radius:5px;padding:4px 6px;font-size:12px;font-family:inherit;outline:none">
         <span>元 &nbsp;|&nbsp; 抽成</span>
-        <input type="number" id="pr-rate" value="50" min="1" max="100" step="1" onchange="renderPayrollPage()"
+        <input type="text" inputmode="decimal" id="pr-rate" value="50" min="1" max="100" step="1" onchange="renderPayrollPage()"
           style="width:55px;border:1px solid var(--border);border-radius:5px;padding:4px 6px;font-size:12px;font-family:inherit;outline:none">
         <span>%</span>
       </div>
@@ -672,7 +672,7 @@ input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-
       <select id="pr-adj-type" style="border:1px solid var(--border);border-radius:5px;padding:5px 8px;font-size:12px;font-family:inherit;color:var(--text);background:var(--white);outline:none">
         <option value="over">收多了（退還）</option><option value="under">收少了（補收）</option>
       </select>
-      <input type="number" id="pr-adj-amt" placeholder="金額" min="0" step="0.01" style="width:90px;border:1px solid var(--border);border-radius:5px;padding:5px 8px;font-size:12px;font-family:inherit;outline:none">
+      <input type="text" inputmode="decimal" id="pr-adj-amt" placeholder="金額" min="0" step="0.01" style="width:90px;border:1px solid var(--border);border-radius:5px;padding:5px 8px;font-size:12px;font-family:inherit;outline:none">
       <input type="text" id="pr-adj-note" placeholder="備注（選填）" style="flex:1;min-width:120px;border:1px solid var(--border);border-radius:5px;padding:5px 8px;font-size:12px;font-family:inherit;outline:none">
       <button onclick="prAddAdj()" style="padding:6px 14px;background:var(--ok);color:#fff;border:none;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit">+ 新增</button>
     </div>
@@ -831,7 +831,7 @@ input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-
     <div class="gc-form-title">＋ 新增 Gift Card（售出時登記）</div>
     <div class="gc-form-row">
       <div class="gc-ff"><label>卡號</label><input type="text" id="gcf-code" class="gc-field" placeholder="例：GC-001" style="width:110px"></div>
-      <div class="gc-ff"><label>面額</label><input type="number" id="gcf-amt" class="gc-field" placeholder="0.00" min="0" step="0.01" style="width:90px"></div>
+      <div class="gc-ff"><label>面額</label><input type="text" inputmode="decimal" id="gcf-amt" class="gc-field" placeholder="0.00" min="0" step="0.01" style="width:90px"></div>
       <div class="gc-ff"><label>售出日期</label><input type="date" id="gcf-date" class="gc-field" style="width:140px"></div>
       <div class="gc-ff"><label>哪家店</label>
         <select id="gcf-store" class="gc-field" style="width:120px">
@@ -945,7 +945,7 @@ input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-
           <option value="deduct">&#9888; 扣款</option>
         </select>
       </div>
-      <div class="pen-ff"><label>金額 ($)</label><input type="number" id="pen-amt" class="pen-field" placeholder="0.00" min="0" step="0.01" style="width:100px"></div>
+      <div class="pen-ff"><label>金額 ($)</label><input type="text" inputmode="decimal" id="pen-amt" class="pen-field" placeholder="0.00" min="0" step="0.01" style="width:100px"></div>
       <div class="pen-ff"><label>說明</label><input type="text" id="pen-desc" class="pen-field" placeholder="輸入說明…" style="min-width:180px"></div>
       <div class="pen-ff"><button class="pen-add-btn" onclick="addPenalty()">新增</button></div>
     </div>
@@ -978,7 +978,7 @@ input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-
       <div id="boss-recon-mv" style="font-size:11px;font-weight:600;margin-top:8px;color:#888">—</div>
       <div style="border-top:1px solid var(--mv-bd);margin-top:10px;padding-top:10px;display:flex;gap:6px;align-items:center">
         <span style="font-size:9px;color:var(--mv);font-weight:600;white-space:nowrap">手動更正餘額</span>
-        <input type="number" id="cd-manual-mv" step="0.01" placeholder="輸入實際金額…"
+        <input type="text" inputmode="decimal" id="cd-manual-mv" step="0.01" placeholder="輸入實際金額…"
           style="flex:1;border:1.5px solid var(--mv-bd);border-radius:6px;padding:5px 8px;font-size:13px;font-weight:700;font-family:monospace;color:var(--mv);background:var(--white);outline:none"
           onchange="cdSaveManual('mv',this.value)">
         <button onclick="cdClearManual('mv')" style="padding:5px 10px;background:var(--white);border:1px solid var(--mv-bd);border-radius:6px;font-size:11px;color:var(--mv);cursor:pointer;font-family:inherit">清除</button>
@@ -1005,7 +1005,7 @@ input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-
       <div id="boss-recon-sr" style="font-size:11px;font-weight:600;margin-top:8px;color:#888">—</div>
       <div style="border-top:1px solid var(--sr-bd);margin-top:10px;padding-top:10px;display:flex;gap:6px;align-items:center">
         <span style="font-size:9px;color:var(--sr);font-weight:600;white-space:nowrap">手動更正餘額</span>
-        <input type="number" id="cd-manual-sr" step="0.01" placeholder="輸入實際金額…"
+        <input type="text" inputmode="decimal" id="cd-manual-sr" step="0.01" placeholder="輸入實際金額…"
           style="flex:1;border:1.5px solid var(--sr-bd);border-radius:6px;padding:5px 8px;font-size:13px;font-weight:700;font-family:monospace;color:var(--sr);background:var(--white);outline:none"
           onchange="cdSaveManual('sr',this.value)">
         <button onclick="cdClearManual('sr')" style="padding:5px 10px;background:var(--white);border:1px solid var(--sr-bd);border-radius:6px;font-size:11px;color:var(--sr);cursor:pointer;font-family:inherit">清除</button>
@@ -1071,7 +1071,7 @@ input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-
               <option value="expense">🧾 支出</option>
             </select>
           </div>
-          <div class="cd-ff"><label>金額 ($)</label><input type="number" id="cd-amt-mv" class="cd-field" placeholder="自動加總" min="0" step="0.01" style="width:110px"></div>
+          <div class="cd-ff"><label>金額 ($)</label><input type="text" inputmode="decimal" id="cd-amt-mv" class="cd-field" placeholder="自動加總" min="0" step="0.01" style="width:110px"></div>
           <div class="cd-ff"><label>備註</label><input type="text" id="cd-note-mv" class="cd-field" placeholder="說明…" style="min-width:150px"></div>
           <div class="cd-ff"><button class="cd-add-btn" onclick="addCDEntry('mv')">新增</button></div>
         </div>
@@ -1137,7 +1137,7 @@ input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-
               <option value="expense">🧾 支出</option>
             </select>
           </div>
-          <div class="cd-ff"><label>金額 ($)</label><input type="number" id="cd-amt-sr" class="cd-field" placeholder="自動加總" min="0" step="0.01" style="width:110px"></div>
+          <div class="cd-ff"><label>金額 ($)</label><input type="text" inputmode="decimal" id="cd-amt-sr" class="cd-field" placeholder="自動加總" min="0" step="0.01" style="width:110px"></div>
           <div class="cd-ff"><label>備註</label><input type="text" id="cd-note-sr" class="cd-field" placeholder="說明…" style="min-width:150px"></div>
           <div class="cd-ff"><button class="cd-add-btn" onclick="addCDEntry('sr')">新增</button></div>
         </div>
@@ -1369,7 +1369,7 @@ input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-
       </div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px">
         <div><div style="font-size:10px;color:var(--sub);margin-bottom:3px">金額 ($)</div>
-          <input type="number" id="lf-amount" placeholder="0.00" step="0.01" style="width:100%;border:1.5px solid var(--border);border-radius:7px;padding:7px 9px;font-size:13px;outline:none;font-family:inherit"></div>
+          <input type="text" inputmode="decimal" id="lf-amount" placeholder="0.00" step="0.01" style="width:100%;border:1.5px solid var(--border);border-radius:7px;padding:7px 9px;font-size:13px;outline:none;font-family:inherit"></div>
         <div><div style="font-size:10px;color:var(--sub);margin-bottom:3px">日期</div>
           <input type="date" id="lf-date" style="width:100%;border:1.5px solid var(--border);border-radius:7px;padding:7px 9px;font-size:12px;outline:none;font-family:inherit"></div>
       </div>
@@ -1417,13 +1417,13 @@ input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-
             <label style="font-size:11px;color:var(--sub);white-space:nowrap;min-width:64px">月初餘額</label>
             <input type="text" id="bnk-debit-open" inputmode="decimal" placeholder="0.00"
               style="flex:1;border:1px solid var(--mv-bd);border-radius:6px;padding:6px 9px;font-size:14px;font-weight:700;font-family:monospace;color:var(--mv);background:var(--white);outline:none"
-              oninput="bnkSaveBal('debit_open',this.value);renderBnkPage()">
+              onchange="bnkSaveBal('debit_open',this.value);renderBnkPage()">
           </div>
           <div style="display:flex;align-items:center;gap:8px">
             <label style="font-size:11px;color:var(--sub);white-space:nowrap;min-width:64px">月底實際</label>
             <input type="text" id="bnk-debit-close" inputmode="decimal" placeholder="從銀行查"
               style="flex:1;border:1px solid var(--mv-bd);border-radius:6px;padding:6px 9px;font-size:14px;font-weight:700;font-family:monospace;color:var(--mv);background:var(--white);outline:none"
-              oninput="bnkSaveBal('debit_close',this.value);renderBnkPage()">
+              onchange="bnkSaveBal('debit_close',this.value);renderBnkPage()">
           </div>
           <div id="bnk-debit-calc" style="font-size:11px;color:var(--sub);min-height:16px"></div>
         </div>
@@ -1437,13 +1437,13 @@ input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-
             <label style="font-size:11px;color:var(--sub);white-space:nowrap;min-width:64px">上月結餘</label>
             <input type="text" id="bnk-credit-open" inputmode="decimal" placeholder="0.00"
               style="flex:1;border:1px solid var(--sr-bd);border-radius:6px;padding:6px 9px;font-size:14px;font-weight:700;font-family:monospace;color:var(--sr);background:var(--white);outline:none"
-              oninput="bnkSaveBal('credit_open',this.value);renderBnkPage()">
+              onchange="bnkSaveBal('credit_open',this.value);renderBnkPage()">
           </div>
           <div style="display:flex;align-items:center;gap:8px">
             <label style="font-size:11px;color:var(--sub);white-space:nowrap;min-width:64px">本月帳單</label>
             <input type="text" id="bnk-credit-close" inputmode="decimal" placeholder="從信用卡查"
               style="flex:1;border:1px solid var(--sr-bd);border-radius:6px;padding:6px 9px;font-size:14px;font-weight:700;font-family:monospace;color:var(--sr);background:var(--white);outline:none"
-              oninput="bnkSaveBal('credit_close',this.value);renderBnkPage()">
+              onchange="bnkSaveBal('credit_close',this.value);renderBnkPage()">
           </div>
           <div id="bnk-credit-calc" style="font-size:11px;color:var(--sub);min-height:16px"></div>
         </div>
@@ -1776,11 +1776,11 @@ function renderDay(d,dow){
       <div class='sq-rec'>
         <div class='sq-rec-title'>Square 報告核對（直接從 Square 複製）</div>
         <div class='sq-rec-row'>
-          <div class='sq-f'><label>Other（刷卡）</label><input type="number" class='sq-ti' placeholder="0.00" min="0" step="0.01" value="${gv(r.sqOther)||''}" oninput="updSq(${d},'sqOther',this.value)"></div>
-          <div class='sq-f'><label>Cash</label><input type="number" class='sq-ti' placeholder="0.00" min="0" step="0.01" value="${gv(r.sqCash)||''}" oninput="updSq(${d},'sqCash',this.value)"></div>
-          <div class='sq-f'><label>Gift Card</label><input type="number" class='sq-ti' placeholder="0.00" min="0" step="0.01" value="${gv(r.sqGC)||''}" oninput="updSq(${d},'sqGC',this.value)"></div>
-          <div class='sq-f'><label>Tip</label><input type="number" class='sq-ti' placeholder="0.00" min="0" step="0.01" value="${gv(r.sqTip)||''}" oninput="updSq(${d},'sqTip',this.value)"></div>
-          <div class='sq-f'><label>報告總額</label><input type="number" class='sq-ti tot' placeholder="0.00" min="0" step="0.01" value="${gv(r.sqTotal)||''}" oninput="updSq(${d},'sqTotal',this.value)"></div>
+          <div class='sq-f'><label>Other（刷卡）</label><input type="text" inputmode="decimal" class='sq-ti' placeholder="0.00" min="0" step="0.01" value="${gv(r.sqOther)||''}" oninput="updSq(${d},'sqOther',this.value)"></div>
+          <div class='sq-f'><label>Cash</label><input type="text" inputmode="decimal" class='sq-ti' placeholder="0.00" min="0" step="0.01" value="${gv(r.sqCash)||''}" oninput="updSq(${d},'sqCash',this.value)"></div>
+          <div class='sq-f'><label>Gift Card</label><input type="text" inputmode="decimal" class='sq-ti' placeholder="0.00" min="0" step="0.01" value="${gv(r.sqGC)||''}" oninput="updSq(${d},'sqGC',this.value)"></div>
+          <div class='sq-f'><label>Tip</label><input type="text" inputmode="decimal" class='sq-ti' placeholder="0.00" min="0" step="0.01" value="${gv(r.sqTip)||''}" oninput="updSq(${d},'sqTip',this.value)"></div>
+          <div class='sq-f'><label>報告總額</label><input type="text" inputmode="decimal" class='sq-ti tot' placeholder="0.00" min="0" step="0.01" value="${gv(r.sqTotal)||''}" oninput="updSq(${d},'sqTotal',this.value)"></div>
           <div class='sq-f'><label>與客人記錄差異</label>
             <div class="sq-diff ${t.sqDiff===null?'muted':Math.abs(t.sqDiff)<0.05?'ok':'warn'}" id="sqdiff-${d}">
               ${t.sqDiff===null?'—':t.sqDiff===0?'✓ 相符':(t.sqDiff>=0?'+':'')+$f(t.sqDiff)}
@@ -1816,7 +1816,7 @@ function renderClientTable(d){
       <td style="color:var(--faint);font-size:11px;text-align:center;width:24px">${i+1}</td>
       <td><input type="text" class='ti' placeholder="客人名字" value="${(c.clientName||'').replace(/"/g,'&quot;')}" oninput="updC(${d},${i},'clientName',this.value)" style="width:88px;font-size:12px;color:var(--sub);${!c.clientName?'border-color:#F0A090;background:#FFF5F3;':''}"></td>
       <td>${buildTechSel(d,i,c)}</td>
-      <td><input type="number" class='ti' placeholder="服務費" min="0" step="0.01" value="${c.svc||''}" oninput="updC(${d},${i},'svc',this.value)" style="width:80px"></td>
+      <td><input type="text" inputmode="decimal" class='ti' placeholder="服務費" min="0" step="0.01" value="${c.svc||''}" oninput="updC(${d},${i},'svc',this.value)" style="width:80px"></td>
       <td>
         <div class='tgl-grp'>
           ${isGC?`<button class='tgl on-gc' onclick="setPay(${d},${i},'card',this)" title="點擊切換為刷卡">✓ GC</button>`:`
@@ -1830,12 +1830,12 @@ function renderClientTable(d){
         <button class="tgl ${c.cp?'on-cp':''}" onclick="toggleCP(${d},${i},this)">${c.cp?'✓ CP':'CP'}</button>
       </td>
       <td>
-        ${isGC?`<input type="number" class='ti' placeholder="GC金額" min="0" step="0.01" value="${c.gcAmt||''}" oninput="updC(${d},${i},'gcAmt',this.value)" style="width:72px" title="Gift Card 使用金額">`:`<span style="color:var(--faint);font-size:11px">—</span>`}
+        ${isGC?`<input type="text" inputmode="decimal" class='ti' placeholder="GC金額" min="0" step="0.01" value="${c.gcAmt||''}" oninput="updC(${d},${i},'gcAmt',this.value)" style="width:72px" title="Gift Card 使用金額">`:`<span style="color:var(--faint);font-size:11px">—</span>`}
       </td>
       <td>
-        ${isGC?`<div class='tgl-grp'><input type="number" class='ti' placeholder="0.00" min="0" step="0.01" value="${c.topup||''}" oninput="updC(${d},${i},'topup',this.value)" style="width:60px" title="補差額"><button class='tgl ${c.topupPay==="card"?"on-card":""}' onclick="setTopup(${d},${i},'card',this)">刷卡</button><button class='tgl ${c.topupPay==="cash"?"on-cash":""}' onclick="setTopup(${d},${i},'cash',this)">現金</button></div>`:`<span style="color:var(--faint);font-size:11px">—</span>`}
+        ${isGC?`<div class='tgl-grp'><input type="text" inputmode="decimal" class='ti' placeholder="0.00" min="0" step="0.01" value="${c.topup||''}" oninput="updC(${d},${i},'topup',this.value)" style="width:60px" title="補差額"><button class='tgl ${c.topupPay==="card"?"on-card":""}' onclick="setTopup(${d},${i},'card',this)">刷卡</button><button class='tgl ${c.topupPay==="cash"?"on-cash":""}' onclick="setTopup(${d},${i},'cash',this)">現金</button></div>`:`<span style="color:var(--faint);font-size:11px">—</span>`}
       </td>
-      <td><input type="number" class='ti' placeholder="Tip" min="0" step="0.01" value="${c.tip||''}" oninput="updC(${d},${i},'tip',this.value)" style="width:65px"></td>
+      <td><input type="text" inputmode="decimal" class='ti' placeholder="Tip" min="0" step="0.01" value="${c.tip||''}" oninput="updC(${d},${i},'tip',this.value)" style="width:65px"></td>
       <td>
         <div class='tgl-grp'>
           <button class="tgl ${c.tipPay==='card'?'on-card':''}" onclick="setTipPay(${d},${i},'card',this)">刷卡</button>
@@ -1870,8 +1870,8 @@ function renderClientTable(d){
         <td colspan="9">
           <div class='corr-block'>
             <span class='corr-lbl'>正確金額：</span>
-            <div class='corr-field'><label>服務費</label><input type="number" class='corr-inp' placeholder="0.00" value="${corrSvc}" oninput="updCorr(${d},${i},'corrSvc',this.value,this)"></div>
-            <div class='corr-field'><label>小費</label><input type="number" class='corr-inp' placeholder="0.00" value="${corrTip}" oninput="updCorr(${d},${i},'corrTip',this.value,this)"></div>
+            <div class='corr-field'><label>服務費</label><input type="text" inputmode="decimal" class='corr-inp' placeholder="0.00" value="${corrSvc}" oninput="updCorr(${d},${i},'corrSvc',this.value,this)"></div>
+            <div class='corr-field'><label>小費</label><input type="text" inputmode="decimal" class='corr-inp' placeholder="0.00" value="${corrTip}" oninput="updCorr(${d},${i},'corrTip',this.value,this)"></div>
             <div class='corr-gd' id="corr-gd-${d}-${i}">${corrGD!==null?`GoDaddy 應收：<strong>$${corrGD.toFixed(2)}</strong>`:'填入正確金額後顯示 GoDaddy 應收'}</div>
           </div>
           <div class='corr-staff-row'>
@@ -2432,7 +2432,7 @@ function buildGDTable(){
       '<div><div style="font-weight:600;font-size:12px">'+String(m+1).padStart(2,'0')+'/'+String(d).padStart(2,'0')+'</div>'+
         '<div style="font-size:10px;color:'+(isWk?'var(--warn)':'var(--sub)')+'">'+DAYS[dt2.getDay()]+'</div></div>'+
       '<span style="color:var(--ok);font-weight:600">'+(due>0?$f(due):'—')+'</span>'+
-      '<input type="number" style="width:120px;border:1px solid '+(warn?'var(--warn-bd)':'var(--border)')+';border-radius:5px;padding:5px 8px;font-size:13px;font-family:inherit;text-align:right;outline:none;background:var(--white)" placeholder="填入 Payout" min="0" step="0.01" value="'+(actVal!==null?actVal:'')+'" onchange="updGD('+d+',this.value)">'+
+      '<input type="text" inputmode="decimal" style="width:120px;border:1px solid '+(warn?'var(--warn-bd)':'var(--border)')+';border-radius:5px;padding:5px 8px;font-size:13px;font-family:inherit;text-align:right;outline:none;background:var(--white)" placeholder="填入 Payout" min="0" step="0.01" value="'+(actVal!==null?actVal:'')+'" onchange="updGD('+d+',this.value)">'+
       '<div style="text-align:center;font-size:14px">'+
         (actVal===null?'<span style="color:var(--faint)">—</span>':
          ok?'<span style="color:var(--ok);font-size:18px">✓</span>':
@@ -2580,21 +2580,21 @@ function renderStaffPage(){
     // Dynamic fields based on payType
     var commField = (cfg.payType==='commission'||cfg.payType==='mixed') ?
       '<div style="display:flex;align-items:center;gap:6px"><label style="font-size:11px;color:var(--sub);white-space:nowrap">抽成比例</label>'+
-      '<input type="number" min="0" max="100" step="1" value="'+cfg.commRate+'" onchange="saveStaffPay(\''+esc+'\',\'commRate\',this.value)" '+
+      '<input type="text" inputmode="decimal" min="0" max="100" step="1" value="'+cfg.commRate+'" onchange="saveStaffPay(\''+esc+'\',\'commRate\',this.value)" '+
       'style="width:60px;border:1px solid var(--border);border-radius:5px;padding:3px 6px;font-size:12px;font-family:\'DM Mono\',monospace;outline:none">'+
       '<span style="font-size:11px;color:var(--sub)">%</span></div>' : '';
 
     var hourlyField = (cfg.payType==='hourly'||cfg.payType==='mixed') ?
       '<div style="display:flex;align-items:center;gap:6px"><label style="font-size:11px;color:var(--sub);white-space:nowrap">時薪</label>'+
       '<span style="font-size:11px;color:var(--sub)">$</span>'+
-      '<input type="number" min="0" step="0.5" value="'+cfg.hourlyRate+'" onchange="saveStaffPay(\''+esc+'\',\'hourlyRate\',this.value)" '+
+      '<input type="text" inputmode="decimal" min="0" step="0.5" value="'+cfg.hourlyRate+'" onchange="saveStaffPay(\''+esc+'\',\'hourlyRate\',this.value)" '+
       'style="width:70px;border:1px solid var(--border);border-radius:5px;padding:3px 6px;font-size:12px;font-family:\'DM Mono\',monospace;outline:none">'+
       '<span style="font-size:11px;color:var(--sub)">/小時</span></div>' : '';
 
     var salaryField = cfg.payType==='salary' ?
       '<div style="display:flex;align-items:center;gap:6px"><label style="font-size:11px;color:var(--sub);white-space:nowrap">固定月薪</label>'+
       '<span style="font-size:11px;color:var(--sub)">$</span>'+
-      '<input type="number" min="0" step="100" value="'+cfg.salary+'" onchange="saveStaffPay(\''+esc+'\',\'salary\',this.value)" '+
+      '<input type="text" inputmode="decimal" min="0" step="100" value="'+cfg.salary+'" onchange="saveStaffPay(\''+esc+'\',\'salary\',this.value)" '+
       'style="width:90px;border:1px solid var(--border);border-radius:5px;padding:3px 6px;font-size:12px;font-family:\'DM Mono\',monospace;outline:none">'+
       '</div>' : '';
 
@@ -2604,13 +2604,13 @@ function renderStaffPage(){
       bonusExtra='<div style="display:flex;align-items:center;gap:6px;margin-top:6px">'+
         '<label style="font-size:11px;color:var(--sub);white-space:nowrap">最低抽成門檻</label>'+
         '<span style="font-size:11px;color:var(--sub)">$</span>'+
-        '<input type="number" min="0" step="10" value="'+cfg.bonusThreshold+'" onchange="saveStaffPay(\''+esc+'\',\'bonusThreshold\',this.value)" '+
+        '<input type="text" inputmode="decimal" min="0" step="10" value="'+cfg.bonusThreshold+'" onchange="saveStaffPay(\''+esc+'\',\'bonusThreshold\',this.value)" '+
         'style="width:80px;border:1px solid var(--border);border-radius:5px;padding:3px 6px;font-size:12px;font-family:\'DM Mono\',monospace;outline:none">'+
         '<span style="font-size:11px;color:var(--sub)">（個人抽成不足此金額，老闆補差額）</span></div>';
     } else if(cfg.bonusType==='minTip'){
       bonusExtra='<div style="display:flex;align-items:center;gap:6px;margin-top:6px">'+
         '<label style="font-size:11px;color:var(--sub);white-space:nowrap">小費最低佔服務費</label>'+
-        '<input type="number" min="0" max="100" step="1" value="'+cfg.bonusThreshold+'" onchange="saveStaffPay(\''+esc+'\',\'bonusThreshold\',this.value)" '+
+        '<input type="text" inputmode="decimal" min="0" max="100" step="1" value="'+cfg.bonusThreshold+'" onchange="saveStaffPay(\''+esc+'\',\'bonusThreshold\',this.value)" '+
         'style="width:60px;border:1px solid var(--border);border-radius:5px;padding:3px 6px;font-size:12px;font-family:\'DM Mono\',monospace;outline:none">'+
         '<span style="font-size:11px;color:var(--sub)">%（小費不足，老闆補差額）</span></div>';
     } else if(cfg.bonusType==='group'){
@@ -2620,7 +2620,7 @@ function renderStaffPage(){
         'style="border:1px solid var(--border);border-radius:5px;padding:3px 6px;font-size:12px;font-family:inherit;outline:none">'+partnerOpts+'</select>'+
         '<label style="font-size:11px;color:var(--sub);white-space:nowrap">合計抽成不足</label>'+
         '<span style="font-size:11px;color:var(--sub)">$</span>'+
-        '<input type="number" min="0" step="10" value="'+cfg.bonusThreshold+'" onchange="saveStaffPay(\''+esc+'\',\'bonusThreshold\',this.value)" '+
+        '<input type="text" inputmode="decimal" min="0" step="10" value="'+cfg.bonusThreshold+'" onchange="saveStaffPay(\''+esc+'\',\'bonusThreshold\',this.value)" '+
         'style="width:80px;border:1px solid var(--border);border-radius:5px;padding:3px 6px;font-size:12px;font-family:\'DM Mono\',monospace;outline:none">'+
         '<span style="font-size:11px;color:var(--sub)">補齊</span></div>';
     }
@@ -3090,7 +3090,7 @@ function renderGCPage(){
           `<span style="font-size:11px;color:var(--ok)">✓ 已兌現</span>
            <span style="font-size:11px;color:var(--sub)">${c.useDate||''}</span>`:
           `<span class='gc-remain ${balance<c.amt?"partial":"full"}'>餘 $${balance.toFixed(2)}</span>
-           <input type="number" style="width:72px;padding:3px 6px;border:1px solid var(--border);border-radius:4px;font-size:11px;font-family:inherit;text-align:right" 
+           <input type="text" inputmode="decimal" style="width:72px;padding:3px 6px;border:1px solid var(--border);border-radius:4px;font-size:11px;font-family:inherit;text-align:right" 
              placeholder="剩餘" value="${balance.toFixed(2)}" 
              onchange="updGCBalance(${c.id},this.value)" title="更新剩餘金額">
            <input type="date" class='gc-use-date' value="${c.useDate||''}" onchange="updGCUseDate(${c.id},this.value)" title="最後使用日期">`
@@ -3867,7 +3867,7 @@ function renderReviewsPage(){
             '<span style="flex:1;color:var(--sub);font-size:11px">'+r.note+'</span>'+
             '<div style="display:flex;align-items:center;gap:4px">'+
               '<span style="font-size:11px;color:var(--sub)">$</span>'+
-              '<input type="number" value="'+(r.amt||0)+'" min="0" step="0.01" onchange="updateReviewAmt(\''+store+'\','+r.id+',this.value)" style="width:70px;border:1px solid var(--border);border-radius:5px;padding:3px 6px;font-size:12px;font-family:inherit;text-align:right;outline:none" onfocus="this.style.borderColor=\''+storeColor+'\'" onblur="this.style.borderColor=\'var(--border)\'">'+
+              '<input type="text" inputmode="decimal" value="'+(r.amt||0)+'" min="0" step="0.01" onchange="updateReviewAmt(\''+store+'\','+r.id+',this.value)" style="width:70px;border:1px solid var(--border);border-radius:5px;padding:3px 6px;font-size:12px;font-family:inherit;text-align:right;outline:none" onfocus="this.style.borderColor=\''+storeColor+'\'" onblur="this.style.borderColor=\'var(--border)\'">'+
             '</div>'+
             '<button onclick="deleteReview(\''+store+'\','+r.id+')" style="background:none;border:none;color:var(--faint);font-size:14px;cursor:pointer;padding:2px 5px;border-radius:4px;line-height:1;flex-shrink:0">×</button>'+
           '</div>';
@@ -4278,7 +4278,7 @@ function renderReportPage(){
         'style="flex:1;border:1px solid var(--border);border-radius:5px;padding:5px 9px;font-size:12px;font-family:inherit;color:var(--text);background:var(--white);outline:none">'+
         '<div style="display:flex;align-items:center;gap:6px;flex-shrink:0">'+
           '<span style="font-size:11px;color:var(--warn);font-weight:600;white-space:nowrap">老闆補差額</span>'+
-          '<input type="number" step="0.01" value="'+(adj||'')+'" placeholder="0.00" '+
+          '<input type="text" inputmode="decimal" step="0.01" value="'+(adj||'')+'" placeholder="0.00" '+
           'onchange="saveReportAdj(\''+adjEsc+'\',this.value)" '+
           'style="width:80px;border:1px solid var(--warn-bd);border-radius:5px;padding:5px 9px;font-size:12px;font-family:inherit;color:var(--warn);background:var(--warn-bg);outline:none">'+
         '</div>'+
@@ -5435,7 +5435,7 @@ function buildStaffCard(name){
           '<div>'+
             '<div style="font-size:9px;color:var(--sub);text-transform:uppercase;letter-spacing:.06em;margin-bottom:3px">時數</div>'+
             '<div style="display:flex;align-items:center;gap:4px">'+
-              '<input type="number" id="att-hrs-'+safeId+'-'+idx+'" value="'+rawHrs+'" min="0" max="24" step="0.5" style="'+inpStyle+';width:58px;text-align:right" onchange="updAttField('+q+esc+q+','+idx+','+q+'rawMins'+q+',this.value)">'+
+              '<input type="text" inputmode="decimal" id="att-hrs-'+safeId+'-'+idx+'" value="'+rawHrs+'" min="0" max="24" step="0.5" style="'+inpStyle+';width:58px;text-align:right" onchange="updAttField('+q+esc+q+','+idx+','+q+'rawMins'+q+',this.value)">'+
               '<span style="font-size:12px;color:var(--sub)">時</span>'+
             '</div>'+
           '</div>'+
@@ -5518,7 +5518,7 @@ function buildStaffCard(name){
         '<div class="att-pen-inline-row">'+
           '<select id="ipen-type-'+safeId+'"><option value="bonus">&#11088; 獎勵</option><option value="deduct">&#9888; 扣款</option></select>'+
           '<input type="date" id="ipen-date-'+safeId+'" style="width:130px">'+
-          '<input type="number" id="ipen-amt-'+safeId+'" placeholder="金額" min="0" step="0.01" style="width:80px">'+
+          '<input type="text" inputmode="decimal" id="ipen-amt-'+safeId+'" placeholder="金額" min="0" step="0.01" style="width:80px">'+
           '<input type="text" id="ipen-desc-'+safeId+'" placeholder="說明…" style="min-width:150px;flex:1">'+
           '<button class="att-pen-add" onclick="addInlinePenalty(\''+esc+'\')">新增</button>'+
         '</div>'+
@@ -5851,7 +5851,7 @@ function initCDDenoms(store){
     return '<div style="display:flex;align-items:center;gap:4px;background:var(--white);border-radius:6px;padding:5px 8px">'+
       '<span style="font-size:11px;font-weight:600;color:var(--sub);min-width:28px">$'+d+'</span>'+
       '<span style="font-size:11px;color:var(--faint)">×</span>'+
-      '<input type="number" id="cd-d-'+store+'-'+d+'" min="0" step="1" value="0" style="width:48px;border:1px solid var(--border);border-radius:4px;padding:3px 6px;font-size:12px;font-family:inherit;text-align:right;outline:none" oninput="updateCDCount(\''+store+'\')">'+
+      '<input type="text" inputmode="decimal" id="cd-d-'+store+'-'+d+'" min="0" step="1" value="0" style="width:48px;border:1px solid var(--border);border-radius:4px;padding:3px 6px;font-size:12px;font-family:inherit;text-align:right;outline:none" oninput="updateCDCount(\''+store+'\')">'+
     '</div>';
   }).join('');
 }
@@ -5862,7 +5862,7 @@ function initCDFormDenoms(store){
     return '<div style="display:flex;align-items:center;gap:4px;background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:5px 10px">'+
       '<span style="font-size:12px;font-weight:600;color:var(--sub);min-width:30px">$'+d+'</span>'+
       '<span style="color:var(--faint);font-size:11px">×</span>'+
-      '<input type="number" id="cd-form-d-'+store+'-'+d+'" min="0" step="1" value="" placeholder="0" style="width:50px;border:1px solid var(--border);border-radius:4px;padding:4px 6px;font-size:13px;font-family:inherit;text-align:right;outline:none" oninput="calcCDFormTotal(\''+store+'\')">'+
+      '<input type="text" inputmode="decimal" id="cd-form-d-'+store+'-'+d+'" min="0" step="1" value="" placeholder="0" style="width:50px;border:1px solid var(--border);border-radius:4px;padding:4px 6px;font-size:13px;font-family:inherit;text-align:right;outline:none" oninput="calcCDFormTotal(\''+store+'\')">'+
     '</div>';
   }).join('');
 }
@@ -6011,6 +6011,12 @@ function renderCDReconPanel(store, selMonth){
   if(!panel)return;
   var storeColor=store==='mv'?'var(--mv)':'var(--sr)';
   var moLabel=selMonth.slice(0,4)+'年'+parseInt(selMonth.slice(5,7))+'月';
+  // If manual balance is set, skip recon panel
+  var manualBal=cdGetManual(store);
+  if(manualBal!==null){
+    panel.innerHTML='';
+    return;
+  }
   // 每日記帳現金收入（sqCash 合計）
   var sqCashRev=calcStoreCashRevForMonth(store, selMonth);
   // 點鈔推算現金收入（兩次點鈔差 - 放入 + 取出）
@@ -6181,8 +6187,14 @@ function renderCDPage(){
     if(cashEl)cashEl.textContent=$f(cash);
     if(outEl)outEl.textContent=$f(out);
     if(reconEl){
-      reconEl.textContent=impl===null?'尚無點鈔記錄':reconOk?'✓ 對帳正確':'⚠ 點鈔與記帳差了 '+$f(Math.abs(Math.round((impl-cash)*100)/100));
-      reconEl.style.color=impl===null?'#aaa':reconOk?'#1A7A45':'#B83010';
+      var manBal=cdGetManual(store);
+      if(manBal!==null){
+        reconEl.textContent='✓ 手動餘額已設定';
+        reconEl.style.color='#1A7A45';
+      } else {
+        reconEl.textContent=impl===null?'尚無點鈔記錄':reconOk?'✓ 對帳正確':'⚠ 點鈔與記帳差了 '+$f(Math.abs(Math.round((impl-cash)*100)/100));
+        reconEl.style.color=impl===null?'#aaa':reconOk?'#1A7A45':'#B83010';
+      }
     }
   });
 }
@@ -7530,7 +7542,7 @@ function renderBnkPage() {
       // GoDaddy (with override input)
       + '<div>'
         + '<div style="font-family:monospace;color:' + (gdOvr!==null?'#B45309':'#1A7A45') + ';font-weight:600">' + (gdDisp>0?'$'+gdDisp.toFixed(2):'—') + (gdOvr!==null?' <span style="font-size:9px">[改]</span>':'') + '</div>'
-        + '<input type="number" step="0.01" placeholder="手改" data-date="' + dateStr + '" data-field="gdOverride" value="' + (gdOvr!==null?gdOvr:'') + '" onchange="bnkUpd(this.dataset.date,this.dataset.field,this.value)" onblur="renderBnkPage()" style="width:78px;border:1px solid var(--border);border-radius:3px;padding:2px 3px;font-size:10px;margin-top:1px;outline:none;color:#B45309;font-family:monospace">'
+        + '<input type="text" inputmode="decimal" placeholder="手改" data-date="' + dateStr + '" data-field="gdOverride" value="' + (gdOvr!==null?gdOvr:'') + '" onchange="bnkUpd(this.dataset.date,this.dataset.field,this.value)" onblur="renderBnkPage()" style="width:78px;border:1px solid var(--border);border-radius:3px;padding:2px 3px;font-size:10px;margin-top:1px;outline:none;color:#B45309;font-family:monospace">'
       + '</div>'
       // other income
       + '<div style="font-family:monospace;color:#1A7A45">' + (dayInc>0?'+$'+dayInc.toFixed(2):'—') + '</div>'
