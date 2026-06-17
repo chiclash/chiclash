@@ -226,7 +226,7 @@ input[type=file]{font-size:12px;font-family:'Inter',sans-serif;color:var(--sub)}
       <p style="font-size:12px;color:var(--sub);margin-bottom:12px">從匯入中心上傳的 Items CSV，可以分析各月各店服務項目人氣</p>
       <div class="import-row">
         <span class="import-label">Items CSV</span>
-        <input type="file" id="sq-items-file" accept=".csv">
+        <input type="file" id="sq-items-file" accept=".csv" multiple>
         <button class="tb-btn primary" onclick="importSqItems()">匯入項目</button>
       </div>
       <div id="sq-items-status" style="margin-top:10px;font-size:12px;color:var(--sub)"></div>
@@ -476,8 +476,8 @@ function openPanel(id) {
       '<div class="p-row"><span class="p-lbl">Email</span><span class="p-val" id="pe-email" onclick="editField(\'email\',this)">'+( r.email||'—')+'</span></div>'+
       '<div class="p-row"><span class="p-lbl">生日</span><span class="p-val" id="pe-dob" onclick="editField(\'dob\',this)">'+( r.dob||'—')+'</span></div>'+
       '<div class="p-row"><span class="p-lbl">來源</span><span class="p-val">'+(r._source==='sq'?'Square匯入':'客人填表')+'</span></div>'+
-      (r.lastVisit?'<div class="p-row"><span class="p-lbl">最後到訪</span><span class="p-val">'+r.lastVisit+'</span></div>':'')+
-      (r.firstVisit?'<div class="p-row"><span class="p-lbl">首次到訪</span><span class="p-val">'+r.firstVisit+'</span></div>':'')+
+      (r.lastVisit?'<div class="p-row"><span class="p-lbl">最後到訪</span><span class="p-val">'+fmtDate(r.lastVisit)+'</span></div>':'')+
+      (r.firstVisit?'<div class="p-row"><span class="p-lbl">首次到訪</span><span class="p-val">'+fmtDate(r.firstVisit)+'</span></div>':'')+
       '<div style="margin-top:14px;display:flex;gap:8px">'+
         '<button onclick="deleteClient(\''+id+'\')" style="padding:8px 16px;background:var(--warn-bg);color:var(--warn);border:1px solid #F0B8A8;border-radius:7px;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit">🗑 刪除此客戶</button>'+
       '</div>'+
@@ -514,9 +514,14 @@ function exportCSV(){
 }
 
 // ── IMPORT SQUARE CUSTOMERS ──
-function importSqCustomers(){
+async function importSqCustomers(){
+  // Wait for Firebase to be ready (up to 5 seconds)
+  var waited=0;
+  while(!window._fb && waited<50){await new Promise(r=>setTimeout(r,100));waited++;}
+  if(!window._fb){alert('Firebase 連線失敗，請重新整理頁面');return;}
   var file=document.getElementById('sq-customer-file').files[0];
   if(!file){alert('請選擇 CSV 檔案');return;}
+  document.getElementById('sq-customer-status').textContent='匯入中，請稍候…';
   var reader=new FileReader();
   reader.onload=async function(e){
     var text=e.target.result;
@@ -525,39 +530,41 @@ function importSqCustomers(){
     var iFirst=headers.findIndex(h=>/^first.name$/i.test(h));
     var iLast=headers.findIndex(h=>/^last.name$/i.test(h));
     var iPhone=headers.findIndex(h=>/^phone/i.test(h));
-    var iEmail=headers.findIndex(h=>/^email/i.test(h));
+    var iEmail=headers.findIndex(h=>/^email.address$/i.test(h));  // exact match to avoid 'Email Subscription Status'
     var iDOB=headers.findIndex(h=>/birth|dob/i.test(h));
-    var iLastVisit=headers.findIndex(h=>/last.visit/i.test(h));
-    var iFirstVisit=headers.findIndex(h=>/first.visit/i.test(h));
-    var iCreated=headers.findIndex(h=>/created|creation/i.test(h));
+    var iLastVisit=headers.findIndex(h=>/^last.visit$/i.test(h));
+    var iFirstVisit=headers.findIndex(h=>/^first.visit$/i.test(h));
+    // iCreated removed — 'Creation Source' is text like 'Appointments', not a date
     var count=0;
     for(var i=1;i<lines.length;i++){
       var cols=parseCSVLine(lines[i]);
       if(cols.length<3)continue;
       var phone=(iPhone>=0?cols[iPhone]:'').replace(/\D/g,'');
       if(!phone)continue;
+      // Parse visit dates first (before the existing check)
+      var lastVisit = iLastVisit>=0 ? cols[iLastVisit]||'' : '';
+      var firstVisit = iFirstVisit>=0 ? cols[iFirstVisit]||'' : '';
+      var dateStr = lastVisit || firstVisit; // Only use actual visit dates (Creation Source is text, not a date)
+      var submittedAt = dateStr ? new Date(dateStr).toISOString() : new Date().toISOString();
       // Check if already in allRecords by phone
-      var existing=allRecords.find(r=>(r.phone||'').replace(/\D/g,'')==phone);
+      // Match by last 10 digits to handle 1XXXXXXXXXX vs XXXXXXXXXX differences
+      var phone10=phone.slice(-10);
+      var existing=allRecords.find(r=>(r.phone||'').replace(/\D/g,'').slice(-10)===phone10);
       if(existing){
         // Update email/name if missing, AND update lastVisit date
         if(!existing.email&&iEmail>=0) existing.email=cols[iEmail]||'';
         if(lastVisit) {
           existing.lastVisit = lastVisit;
           existing.firstVisit = firstVisit;
-          existing.submittedAt = new Date(lastVisit).toISOString();
+          existing.submittedAt = submittedAt;
           try{ await window._fb.update(existing.id, {lastVisit, firstVisit, submittedAt: existing.submittedAt}); }catch(err){}
         }
         continue;
       }
-      // Use Last Visit for sorting (most recent activity), fallback to First Visit or now
-      var lastVisit = iLastVisit>=0 ? cols[iLastVisit]||'' : '';
-      var firstVisit = iFirstVisit>=0 ? cols[iFirstVisit]||'' : '';
-      var dateStr = lastVisit || firstVisit || (iCreated>=0?cols[iCreated]||'':'');
-      var submittedAt = dateStr ? new Date(dateStr).toISOString() : new Date().toISOString();
       var rec={
         firstName:iFirst>=0?cols[iFirst].trim():'',
         lastName:iLast>=0?cols[iLast].trim():'',
-        phone:iPhone>=0?cols[iPhone].trim():'',
+        phone:iPhone>=0?(cols[iPhone]||'').replace(/\D/g,'').slice(-10):'',  // store as 10-digit
         email:iEmail>=0?cols[iEmail].trim():'',
         dob:iDOB>=0?cols[iDOB].trim():'',
         submittedAt: submittedAt,
@@ -567,7 +574,7 @@ function importSqCustomers(){
       };
       try{await window._fb.saveCustomer(rec);count++;}catch(err){console.error(err);}
     }
-    document.getElementById('sq-customer-status').textContent='✓ 匯入完成，新增 '+count+' 筆客戶';
+    document.getElementById('sq-customer-status').textContent='✓ 匯入完成，新增 '+count+' 筆新客戶（已有資料者自動更新到訪日期）';
     reloadAll();
   };
   reader.readAsText(file);
@@ -575,17 +582,32 @@ function importSqCustomers(){
 
 // ── IMPORT SQUARE ITEMS (local only) ──
 function importSqItems(){
-  var file=document.getElementById('sq-items-file').files[0];
-  if(!file){alert('請選擇 CSV 檔案');return;}
-  var reader=new FileReader();
-  reader.onload=function(e){
-    sqItems=parseSqItems(e.target.result);
-    buildMonthOptions();
-    renderAnalytics();
-    document.getElementById('sq-items-status').textContent='✓ 匯入 '+sqItems.length+' 筆項目記錄，數據分析已更新';
-    showTab('analytics');
-  };
-  reader.readAsText(file);
+  var files=document.getElementById('sq-items-file').files;
+  if(!files.length){alert('請選擇 CSV 檔案');return;}
+  sqItems=[];
+  var pending=files.length;
+  Array.from(files).forEach(function(file){
+    var reader=new FileReader();
+    reader.onload=function(e){
+      var parsed=parseSqItems(e.target.result);
+      sqItems=sqItems.concat(parsed);
+      pending--;
+      if(pending===0){
+        // Remove duplicates by transaction+item combo
+        var seen=new Set();
+        sqItems=sqItems.filter(function(r){
+          var key=r.date+'|'+r.time+'|'+r.item+'|'+r.store;
+          if(seen.has(key))return false;
+          seen.add(key);return true;
+        });
+        buildMonthOptions();
+        renderAnalytics();
+        document.getElementById('sq-items-status').textContent='✓ 匯入 '+files.length+' 個檔案，共 '+sqItems.length+' 筆項目記錄，數據分析已更新';
+        showTab('analytics');
+      }
+    };
+    reader.readAsText(file);
+  });
 }
 
 function parseSqItems(text){
