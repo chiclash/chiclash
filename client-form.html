@@ -112,8 +112,8 @@ body{background:var(--cream);font-family:'Inter',sans-serif;color:var(--ink);min
 <!-- STEP 0: Store Selection (Staff) -->
 <div id="step-store" style="padding:32px 20px;max-width:500px;margin:0 auto">
   <div style="text-align:center;margin-bottom:28px">
-    <div style="font-size:22px;font-weight:600;margin-bottom:6px">選擇分店</div>
-    <div style="font-size:14px;color:var(--sub)">請員工選擇今天的分店</div>
+    <div style="font-size:22px;font-weight:600;margin-bottom:6px">Select Location</div>
+    <div style="font-size:14px;color:var(--sub)">Please select today's location</div>
   </div>
   <div style="display:flex;gap:16px;max-width:400px;margin:0 auto">
     <div onclick="pickStore('mv',this)" style="flex:1;background:var(--white);border:2px solid var(--border);border-radius:16px;padding:32px 16px;cursor:pointer;text-align:center;transition:all .2s">
@@ -174,7 +174,7 @@ body{background:var(--cream);font-family:'Inter',sans-serif;color:var(--ink);min
     <div style="background:var(--rose);color:#fff;padding:20px 24px">
       <div style="font-size:11px;letter-spacing:.12em;text-transform:uppercase;opacity:.8;margin-bottom:4px">Staff Review — <span id="review-store-label"></span></div>
       <div style="font-size:20px;font-weight:600">Staff: Please Review Client Info
-请工作人员确认客户信息</div>
+Please confirm client information</div>
     </div>
     <!-- Client info summary -->
     <div style="padding:20px 24px" id="review-body"></div>
@@ -244,12 +244,27 @@ function commonInfo() {
   return `<div class="sec">
     <div class="sec-title">Personal Information</div>
     <div class="field-row">
-      <div class="field"><label>First Name *</label><input type="text" id="f-first" placeholder="First name" autocomplete="off"></div>
-      <div class="field"><label>Last Name *</label><input type="text" id="f-last" placeholder="Last name" autocomplete="off"></div>
+      <div class="field"><label>First Name *</label><input type="text" id="f-first" placeholder="First name" autocomplete="off" oninput="autoFillPrintName()"></div>
+      <div class="field"><label>Last Name *</label><input type="text" id="f-last" placeholder="Last name" autocomplete="off" oninput="autoFillPrintName()"></div>
     </div>
     <div class="field"><label>Phone Number *</label><input type="tel" id="f-phone" placeholder="(415) 000-0000" autocomplete="off"></div>
     <div class="field"><label>E-mail</label><input type="email" id="f-email" placeholder="email@example.com" autocomplete="off"></div>
-    <div class="field"><label>Date of Birth (MM/DD)</label><input type="text" id="f-dob" placeholder="MM/DD" maxlength="5" autocomplete="off"></div>
+    <div class="field"><label>Date of Birth</label>
+<div style="display:flex;gap:8px;align-items:center">
+  <select id="f-dob-m" style="flex:1;padding:10px;border:1.5px solid var(--border);border-radius:9px;font-size:15px;background:var(--card);color:var(--txt);font-family:inherit">
+    <option value="">Month</option>
+    <option value="01">01 - January</option><option value="02">02 - February</option>
+    <option value="03">03 - March</option><option value="04">04 - April</option>
+    <option value="05">05 - May</option><option value="06">06 - June</option>
+    <option value="07">07 - July</option><option value="08">08 - August</option>
+    <option value="09">09 - September</option><option value="10">10 - October</option>
+    <option value="11">11 - November</option><option value="12">12 - December</option>
+  </select>
+  <select id="f-dob-d" style="flex:1;padding:10px;border:1.5px solid var(--border);border-radius:9px;font-size:15px;background:var(--card);color:var(--txt);font-family:inherit">
+    <option value="">Day</option>
+    ${Array.from({length:31},(_,i)=>`<option value="${String(i+1).padStart(2,'0')}">${String(i+1).padStart(2,'0')}</option>`).join('')}
+  </select>
+</div></div>
     <div class="field">
       <label>How did you hear about us?</label>
       ${checkbox('hear',['Google','Yelp','Friend','Pass By'],true)}
@@ -261,7 +276,7 @@ function commonInfo() {
 function sigSection() {
   return `<div class="sec">
     <div class="sec-title">Signature</div>
-    <div class="field"><label>Print Name</label><input type="text" id="f-print-name" placeholder="Your full name" autocomplete="off"></div>
+    <div class="field"><label>Print Name</label><input type="text" id="f-print-name" placeholder="Auto-filled from name above" autocomplete="off" readonly style="background:var(--rose-light);color:var(--sub);cursor:default"></div>
     <div class="field"><label>Date</label><input type="text" id="f-date" value="${new Date().toLocaleDateString('en-US')}" readonly style="color:var(--sub)"></div>
     <div class="field">
       <label>Signature</label>
@@ -368,37 +383,16 @@ function buildFacial() {
       <input type="text" id="f-massage-intensity" placeholder="e.g. 5">
     </div>
   </div>
-  <div class="sec">
-    <div class="sec-title">Facial Services Selection</div>
-    <table class="svc-table">
-      <thead><tr><th>Service</th><th>Time</th><th class="price">Price</th><th class="sel-col">Select</th></tr></thead>
-      <tbody>
-        ${[
-          ['Signature (Gypsum Mask)','1h 30m','$295'],
-          ['Pola Anti-Aging (Gypsum Mask)','1h 15m','$325'],
-          ['Acne Care (Antibacterial Mask)','1h 30m','$285'],
-          ['Hydro Facial (Hydro Mask)','1h','$225'],
-          ['Hydro Lux (Hydro Mask)','1h 20m','$265'],
-          ['Prenatal Care (Hydro Mask)','1h 15m','$225'],
-          ['Teen Care / Hydro Mask','1h','$150'],
-          ['Gentle Men (Hydro Mask)','1h','$175'],
-        ].map(([n,t,p])=>`<tr>
-          <td>${n}</td><td style="color:var(--sub);font-size:12px">${t}</td>
-          <td class="price">${p}</td>
-          <td class="sel-col"><div class="opt-btn" style="padding:6px;justify-content:center" data-name="facial-svc" data-val="${n}" onclick="pickOpt(this,'radio')"><span class="dot"></span></div></td>
-        </tr>`).join('')}
-      </tbody>
-    </table>
-  </div>
+
   <div class="sec">
     <div class="sec-title">Add-ons & Waxing</div>
     <div class="field">
       <div class="ql">Add-ons:</div>
-      ${checkbox('addons',['Ultrasonic Cleaning ($25)','Eye Treatment (Reg $10 / Pola $35)'],true)}
+      ${checkbox('addons',['Ultrasonic Cleaning ($25)','Eye Treatment Device ($45)','Eye Treatment Upgrade Pola ($25)'],true)}
     </div>
     <div class="field">
       <div class="ql">Waxing:</div>
-      ${checkbox('waxing',['Brow ($30)','Full Face ($55)','Lip/Chin ($15)'],true)}
+      ${checkbox('waxing',['Brow ($30)','Full Face ($55)','Chin Lip ($15)','Under Arm ($40)','Brow Lip ($40)'],true)}
     </div>
   </div>
   <div class="sec">
@@ -595,7 +589,7 @@ function collectFormData() {
     lastName: document.getElementById('f-last')?.value.trim() || '',
     phone: document.getElementById('f-phone')?.value.trim() || '',
     email: document.getElementById('f-email')?.value.trim() || '',
-    dob: document.getElementById('f-dob')?.value.trim() || '',
+    dob: (()=>{var m=document.getElementById('f-dob-m')?.value,d=document.getElementById('f-dob-d')?.value;return(m&&d)?m+'/'+d:'';})(),
     printName: document.getElementById('f-print-name')?.value.trim() || '',
     date: document.getElementById('f-date')?.value || '',
     signature: getSigDataURL(),
@@ -733,7 +727,6 @@ async function submitForm() {
   if(resp['water-pref']) prefs.push('Water temp 水温：'+trArr(resp['water-pref']));
   if(resp['focus-areas']?.length) prefs.push('Focus areas 重点部位：'+trArr(resp['focus-areas']));
   if(resp['massageIntensity']) prefs.push('Massage intensity 按摩强度：'+resp.massageIntensity+'/10');
-  if(resp['facial-svc']?.length) prefs.push('Service selected 选择服务：'+trArr(resp['facial-svc']));
   if(resp['addons']?.length) prefs.push('Add-ons 加购：'+trArr(resp['addons']));
   if(resp['waxing']?.length) prefs.push('Waxing 蜜蜡：'+trArr(resp['waxing']));
 
@@ -889,6 +882,12 @@ window.toggleClaus = toggleClaus;
 window.clearSig = clearSig;
 window.submitForm = submitForm;
 window.resetForm = resetForm;
+window.autoFillPrintName = function(){
+  var first=(document.getElementById('f-first')?.value||'').trim();
+  var last=(document.getElementById('f-last')?.value||'').trim();
+  var pn=document.getElementById('f-print-name');
+  if(pn) pn.value=[first,last].filter(Boolean).join(' ');
+};
 </script>
 </body>
 </html>
