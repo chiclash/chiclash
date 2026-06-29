@@ -1475,28 +1475,44 @@ input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-
 
   try {
     const snap = await getDoc(doc(db, 'chic lash', 'data'));
+    const local = JSON.parse(localStorage.getItem('rev19') || '{}');
+
     if (snap.exists()) {
       const cloudData = snap.data();
-      const local = JSON.parse(localStorage.getItem('rev19') || '{}');
-      // 合併策略：雲端為主，但保留本機才有的新欄位（staffPay、payroll、sqNameMap等）
-      const newFields = ['staffPay','payroll','sqNameMap','tipConfirmed','reviewSel','reviews','att','penalties','bnkBal','cdManual','tipSchedule'];
-      const merged = Object.assign({}, cloudData);
-      newFields.forEach(function(key){
-        // 如果本機有、雲端沒有 → 保留本機的
-        if(local[key] !== undefined && (cloudData[key] === undefined || cloudData[key] === null)){
-          merged[key] = local[key];
-        }
-        // 如果兩邊都有且是物件 → 深度合併（雲端優先，本機補缺）
-        else if(local[key] && cloudData[key] && typeof local[key]==='object' && typeof cloudData[key]==='object' && !Array.isArray(local[key])){
-          merged[key] = Object.assign({}, local[key], cloudData[key]);
+
+      // 比較時間戳：哪邊比較新就用哪邊
+      const cloudTs = cloudData._savedAt || 0;
+      const localTs  = local._savedAt || 0;
+
+      let base, other;
+      if (localTs >= cloudTs) {
+        // 本機比較新（或一樣新）→ 本機為主，同步到雲端
+        base  = local;
+        other = cloudData;
+        setSyncStatus('⟳ 本機較新，同步中…', '#7A746C');
+        await setDoc(doc(db, 'chic lash', 'data'), JSON.parse(JSON.stringify(local)));
+      } else {
+        // 雲端比較新 → 雲端為主
+        base  = cloudData;
+        other = local;
+      }
+
+      // 不管哪邊為主，都補上另一邊獨有的 key（以防萬一）
+      const safeKeys = ['staffPay','payroll','sqNameMap','tipConfirmed','reviewSel','reviews','att','penalties','bnkBal','cdManual','tipSchedule'];
+      const merged = Object.assign({}, base);
+      safeKeys.forEach(function(key){
+        if(other[key] !== undefined && base[key] === undefined){
+          merged[key] = other[key];
         }
       });
+
       window._D = merged;
       localStorage.setItem('rev19', JSON.stringify(merged));
       if (typeof renderAll === 'function') renderAll();
-      setSyncStatus('✓ 已從雲端載入', '#1A7A45');
+      setSyncStatus('✓ 資料已同步', '#1A7A45');
+
     } else {
-      // 雲端還沒有資料，把本機資料上傳
+      // 雲端沒有資料 → 上傳本機
       if (window._D) {
         await setDoc(doc(db, 'chic lash', 'data'), JSON.parse(JSON.stringify(window._D)));
         setSyncStatus('✓ 本機資料已上傳雲端', '#1A7A45');
@@ -1543,6 +1559,7 @@ let activeStore='mv';
 
 // ── FIREBASE SAVE ──
 const saveOnly=()=>{
+  _D._savedAt = Date.now();
   localStorage.setItem('rev19',JSON.stringify(_D));
   if(window._db){
     import('https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js').then(({doc,setDoc})=>{
@@ -2524,6 +2541,18 @@ function saveStaffPay(name,field,val){
   renderStaffPage();
 }
 
+function toggleTipPoolPartner(name,partner){
+  var cfg=staffPayCfg(name);
+  var pool=(cfg.bonusGroup||'').split(',').map(function(n){return n.trim();}).filter(Boolean);
+  var idx=pool.indexOf(partner);
+  if(idx>=0)pool.splice(idx,1);else pool.push(partner);
+  cfg.bonusGroup=pool.join(',');
+  if(!_D.staffPay)_D.staffPay={};
+  _D.staffPay[name]=cfg;
+  saveOnly();
+  renderStaffPage();
+}
+
 function renderStaffPage(){
   var staff=_D.staff||[];
   var wrap=document.getElementById('staff-list');if(!wrap)return;
@@ -2546,7 +2575,8 @@ function renderStaffPage(){
     var bonusOpts=[
       'none:無補款',
       'minComm:抽成不足固定金額補齊',
-      'minTip:小費不足服務費%補齊',
+      'minTip:小費不足服務費%補齊（個人）',
+      'minTipPooled:小費不足服務費%補齊＋與他人平分',
       'group:與他人合計抽成不足補齊'
     ].map(function(o){
       var parts=o.split(':');
@@ -2595,6 +2625,26 @@ function renderStaffPage(){
         '<input type="text" inputmode="decimal" min="0" max="100" step="1" value="'+cfg.bonusThreshold+'" onchange="saveStaffPay(\''+esc+'\',\'bonusThreshold\',this.value)" '+
         'style="width:60px;border:1px solid var(--border);border-radius:5px;padding:3px 6px;font-size:12px;font-family:\'DM Mono\',monospace;outline:none">'+
         '<span style="font-size:11px;color:var(--sub)">%（小費不足，老闆補差額）</span></div>';
+    } else if(cfg.bonusType==='minTipPooled'){
+      // Multi-select pool partners (comma-separated names stored in bonusGroup)
+      var poolPartners2=(cfg.bonusGroup||'').split(',').map(function(n){return n.trim();}).filter(Boolean);
+      var partnerChips=staff.filter(function(n){return n!==name;}).map(function(n){
+        var on=poolPartners2.indexOf(n)>=0;
+        return '<span onclick="toggleTipPoolPartner(\''+esc+'\',\''+n.replace(/\\/g,'\\\\').replace(/'/g,"\\'")+'\')" '+
+          'style="display:inline-flex;padding:3px 9px;font-size:11px;font-weight:500;border:1.5px solid '+(on?'var(--ok)':'var(--border)')+
+          ';border-radius:14px;cursor:pointer;background:'+(on?'var(--ok-bg)':'var(--bg)')+
+          ';color:'+(on?'var(--ok)':'var(--faint)')+';margin:2px;transition:all .12s">'+n+'</span>';
+      }).join('');
+      bonusExtra='<div style="margin-top:6px">'+
+        '<div style="display:flex;align-items:center;gap:6px;margin-bottom:5px">'+
+          '<label style="font-size:11px;color:var(--sub);white-space:nowrap">小費最低佔服務費</label>'+
+          '<input type="text" inputmode="decimal" min="0" max="100" step="1" value="'+(cfg.bonusThreshold||15)+'" onchange="saveStaffPay(\''+esc+'\',\'bonusThreshold\',this.value)" '+
+          'style="width:60px;border:1px solid var(--border);border-radius:5px;padding:3px 6px;font-size:12px;font-family:\'DM Mono\',monospace;outline:none">'+
+          '<span style="font-size:11px;color:var(--sub)">%，不足老闆先補，再與以下成員平分：</span>'+
+        '</div>'+
+        '<div style="display:flex;flex-wrap:wrap;gap:2px;margin-top:3px">'+partnerChips+'</div>'+
+        '<div style="font-size:10px;color:var(--faint);margin-top:4px">勾選要一起平分的夥伴（不含自己）</div>'+
+      '</div>';
     } else if(cfg.bonusType==='group'){
       bonusExtra='<div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-top:6px">'+
         '<label style="font-size:11px;color:var(--sub);white-space:nowrap">與</label>'+
@@ -4092,7 +4142,7 @@ function buildStaffReportData(){
     }
 
     // ── Boss supplement ──
-    var bossSupp=0,bossSuppLabel='';
+    var bossSupp=0,bossSuppLabel='',pooledTipVal=undefined;
     if(cfg.bonusType==='minComm'){
       // Individual: monthly total commission vs threshold
       if(basePay<(cfg.bonusThreshold||0)){
@@ -4100,12 +4150,64 @@ function buildStaffReportData(){
         bossSuppLabel='抽成不足 $'+(cfg.bonusThreshold||0)+' 補差額';
       }
     } else if(cfg.bonusType==='minTip'){
-      // Tip < X% of service sales
-      var minTip=Math.round(totalSales*(cfg.bonusThreshold||15)/100*100)/100;
-      if(totalTip<minTip){
-        bossSupp=Math.round((minTip-totalTip)*100)/100;
-        bossSuppLabel='小費不足服務費 '+(cfg.bonusThreshold||15)+'%';
-      }
+      // Per-transaction: each service tip < X% → boss tops up that transaction
+      var tipPct=(cfg.bonusThreshold||15)/100;
+      var perTxnSupp=0;
+      var y2=cur.getFullYear(),m2c=cur.getMonth();
+      var days2=new Date(y2,m2c+1,0).getDate();
+      ['mv','sr'].forEach(function(store){
+        for(var d2=1;d2<=days2;d2++){
+          (sDay(store,d2).clients||[]).forEach(function(c){
+            if((c.tech||'')!==name)return;
+            var svc=gv(c.svc);if(svc<=0)return;
+            var tip=gv(c.tip);
+            var minT=Math.round(svc*tipPct*100)/100;
+            if(tip<minT)perTxnSupp+=Math.round((minT-tip)*100)/100;
+          });
+        }
+      });
+      bossSupp=Math.round(perTxnSupp*100)/100;
+      if(bossSupp>0)bossSuppLabel='逐筆小費不足 '+(cfg.bonusThreshold||15)+'% 補差額';
+    } else if(cfg.bonusType==='minTipPooled'){
+      var tipPct2=(cfg.bonusThreshold||15)/100;
+      var poolPartners=(cfg.bonusGroup||'').split(',').map(function(n){return n.trim();}).filter(Boolean);
+      var allPoolMembers=[name].concat(poolPartners);
+      var y3=cur.getFullYear(),m3c=cur.getMonth();
+      var days3=new Date(y3,m3c+1,0).getDate();
+
+      // Step 1: per-member boss top-up from raw clients (per transaction)
+      var topupByMember={};
+      allPoolMembers.forEach(function(member){
+        var memberTopUp=0;
+        ['mv','sr'].forEach(function(store){
+          for(var d3=1;d3<=days3;d3++){
+            (sDay(store,d3).clients||[]).forEach(function(c){
+              if((c.tech||'')!==member)return;
+              var svc=gv(c.svc);if(svc<=0)return;
+              var tip=gv(c.tip);
+              var minT=Math.round(svc*tipPct2*100)/100;
+              if(tip<minT)memberTopUp+=Math.round((minT-tip)*100)/100;
+            });
+          }
+        });
+        topupByMember[member]=Math.round(memberTopUp*100)/100;
+      });
+
+      // Step 2: pool (confirmedTip + topup) — tipMap already reads tipConfirmed only
+      var totalPoolPot=0;
+      allPoolMembers.forEach(function(member){
+        var mt=tipMap[member]||{mv:{card:0,cash:0},sr:{card:0,cash:0}};
+        var memberConfirmedTip=(mt.mv.card||0)+(mt.mv.cash||0)+(mt.sr.card||0)+(mt.sr.cash||0);
+        totalPoolPot+=memberConfirmedTip+(topupByMember[member]||0);
+      });
+      var eachGets=allPoolMembers.length>0?Math.round(totalPoolPot/allPoolMembers.length*100)/100:0;
+
+      var totalPoolTopUp=allPoolMembers.reduce(function(s,pm){return s+(topupByMember[pm]||0);},0);
+      bossSupp=Math.round(totalPoolTopUp/allPoolMembers.length*100)/100;
+      if(bossSupp>0||totalPoolPot>0)
+        bossSuppLabel='小費補款後與 '+poolPartners.join('、')+' 平分';
+
+      pooledTipVal=eachGets;
     } else if(cfg.bonusType==='group'&&cfg.bonusGroup){
       var pairKey=[name,cfg.bonusGroup].sort().join('|');
       bossSupp=Math.round((groupBonusMap[pairKey]||0)/2*100)/100; // split equally between the two
@@ -4113,13 +4215,16 @@ function buildStaffReportData(){
     }
 
     var adj=reportAdjs()[name]||0;
-    var grand=basePay+totalTip+penTotal+mvRev+srRev+bossSupp+adj;
+    var effectiveTip=pooledTipVal!==undefined?pooledTipVal:totalTip;
+    var bossSuppForGrand=(cfg.bonusType==='minTipPooled')?0:bossSupp;
+    var grand=basePay+effectiveTip+penTotal+mvRev+srRev+bossSuppForGrand+adj;
     return{
       name:name, cfg:cfg,
       totalSales:totalSales, basePay:basePay, baseLabel:baseLabel,
       mvTip:mvTip, srTip:srTip,
       mvTipCard:tips.mv.card||0, mvTipCash:tips.mv.cash||0,
       srTipCard:tips.sr.card||0, srTipCash:tips.sr.cash||0,
+      pooledTip:pooledTipVal,
       pens:myPens, penTotal:penTotal,
       mvRev:mvRev, srRev:srRev,
       bossSupp:bossSupp, bossSuppLabel:bossSuppLabel,
@@ -4221,16 +4326,23 @@ function renderReportPage(){
       '<td style="padding:4px 14px 4px 28px;font-size:11px;color:var(--sub)">服務費合計 '+$f(d.totalSales)+' × '+d.baseLabel+'</td>'+
       '<td colspan="'+(COLS-2)+'"></td></tr>';
     // Tips detail
-    if(d.mvTip>0) details+=
-      '<tr id="'+detailId+'-mt" style="display:none;background:var(--bg)"><td></td>'+
-      '<td style="padding:4px 14px 4px 28px;font-size:11px;color:var(--mv)">MV 小費 '+$f(d.mvTip)+
-      (d.mvTipCard>0&&d.mvTipCash>0?' <span style="color:var(--faint);font-weight:400">刷 '+$f(d.mvTipCard)+' / 現 '+$f(d.mvTipCash)+'</span>':'')+
-      '</td><td colspan="'+(COLS-2)+'"></td></tr>';
-    if(d.srTip>0) details+=
-      '<tr id="'+detailId+'-st" style="display:none;background:var(--bg)"><td></td>'+
-      '<td style="padding:4px 14px 4px 28px;font-size:11px;color:var(--sr)">SR 小費 '+$f(d.srTip)+
-      (d.srTipCard>0&&d.srTipCash>0?' <span style="color:var(--faint);font-weight:400">刷 '+$f(d.srTipCard)+' / 現 '+$f(d.srTipCash)+'</span>':'')+
-      '</td><td colspan="'+(COLS-2)+'"></td></tr>';
+    if(d.pooledTip!==undefined){
+      details+=
+        '<tr id="'+detailId+'-mt" style="display:none;background:var(--bg)"><td></td>'+
+        '<td style="padding:4px 14px 4px 28px;font-size:11px;color:var(--tip)">原始小費（MV+SR）'+$f((d.mvTip||0)+(d.srTip||0))+' → 老闆補款 '+$f(d.bossSupp)+' → 平分後 '+$f(d.pooledTip)+'</td>'+
+        '<td colspan="'+(COLS-2)+'"></td></tr>';
+    } else {
+      if(d.mvTip>0) details+=
+        '<tr id="'+detailId+'-mt" style="display:none;background:var(--bg)"><td></td>'+
+        '<td style="padding:4px 14px 4px 28px;font-size:11px;color:var(--mv)">MV 小費 '+$f(d.mvTip)+
+        (d.mvTipCard>0&&d.mvTipCash>0?' <span style="color:var(--faint);font-weight:400">刷 '+$f(d.mvTipCard)+' / 現 '+$f(d.mvTipCash)+'</span>':'')+
+        '</td><td colspan="'+(COLS-2)+'"></td></tr>';
+      if(d.srTip>0) details+=
+        '<tr id="'+detailId+'-st" style="display:none;background:var(--bg)"><td></td>'+
+        '<td style="padding:4px 14px 4px 28px;font-size:11px;color:var(--sr)">SR 小費 '+$f(d.srTip)+
+        (d.srTipCard>0&&d.srTipCash>0?' <span style="color:var(--faint);font-weight:400">刷 '+$f(d.srTipCard)+' / 現 '+$f(d.srTipCash)+'</span>':'')+
+        '</td><td colspan="'+(COLS-2)+'"></td></tr>';
+    }
     // Reviews
     if(d.mvRev>0||d.srRev>0){
       var revStr=(d.mvRev>0?'MV '+$f(d.mvRev):'')+(d.mvRev>0&&d.srRev>0?' · ':'')+(d.srRev>0?'SR '+$f(d.srRev):'');
@@ -4266,7 +4378,7 @@ function renderReportPage(){
         '</div>'+
       '</td></tr>';
 
-    var hasAny=d.totalNetMins>0||d.totalSales>0||d.mvTip>0||d.srTip>0||d.mvRev>0||d.srRev>0||d.pens.length>0||d.bossSupp>0;
+    var hasAny=d.totalNetMins>0||d.totalSales>0||d.mvTip>0||d.srTip>0||d.pooledTip>0||d.mvRev>0||d.srRev>0||d.pens.length>0||d.bossSupp>0;
 
     return '<tr style="border-bottom:1px solid var(--border);cursor:pointer;background:'+staffBg+'" onclick="rptToggle('+i+')">'+
         '<td style="padding:10px 8px 10px 14px;width:24px">'+
@@ -4281,7 +4393,19 @@ function renderReportPage(){
         '</td>'+
         '<td style="padding:10px 12px;text-align:right;font-size:12px;color:var(--sub)">'+(d.totalSales>0?$f(d.totalSales):'—')+'</td>'+
         '<td style="padding:10px 12px;text-align:right;font-size:13px;font-weight:600;color:var(--mv)">'+(d.basePay>0?$f(d.basePay):'—')+'</td>'+
-        (function(){          var totalCard=(d.mvTipCard||0)+(d.srTipCard||0);          var totalCash=(d.mvTipCash||0)+(d.srTipCash||0);          var total=totalCard+totalCash;          if(!total) return '<td style="padding:10px 12px;text-align:right;font-size:12px;color:var(--sub)">—</td>';          var lines='';          if(totalCard>0) lines+='<div style="font-size:11px;color:var(--sub)">💳 '+$f(totalCard)+'</div>';          if(totalCash>0) lines+='<div style="font-size:11px;color:var(--cash)">💵 '+$f(totalCash)+'</div>';          return '<td style="padding:6px 12px;text-align:right">'+lines+'</td>';        }())+
+        (function(){
+          if(d.pooledTip!==undefined){
+            return '<td style="padding:6px 12px;text-align:right"><div style="font-size:13px;font-weight:700;color:var(--tip)">'+$f(d.pooledTip)+'</div><div style="font-size:10px;color:var(--faint)">平分後</div></td>';
+          }
+          var totalCard=(d.mvTipCard||0)+(d.srTipCard||0);
+          var totalCash=(d.mvTipCash||0)+(d.srTipCash||0);
+          var total=totalCard+totalCash;
+          if(!total) return '<td style="padding:10px 12px;text-align:right;font-size:12px;color:var(--sub)">—</td>';
+          var lines='';
+          if(totalCard>0) lines+='<div style="font-size:11px;color:var(--sub)">💳 '+$f(totalCard)+'</div>';
+          if(totalCash>0) lines+='<div style="font-size:11px;color:var(--cash)">💵 '+$f(totalCash)+'</div>';
+          return '<td style="padding:6px 12px;text-align:right">'+lines+'</td>';
+        }())+
         '<td style="padding:10px 12px;text-align:right;font-size:12px;color:var(--gold)">'+(d.mvRev+d.srRev>0?$f(d.mvRev+d.srRev):'—')+'</td>'+
         '<td style="padding:10px 12px;text-align:right;font-size:12px;color:var(--warn);font-weight:'+(d.bossSupp>0?'700':'400')+'">'+(d.bossSupp>0?$f(d.bossSupp):'—')+'</td>'+
         '<td style="padding:10px 14px;text-align:right;font-size:16px;font-weight:700;color:'+grandColor+'">'+$f(d.grand)+'</td>'+
@@ -4343,6 +4467,10 @@ function buildStaffCardHTML(d,moLabel,isPreview,note){
       '<tr><td style="padding:2px 12px 7px 24px;font-size:10px;color:#aaa">出勤 '+d.workDays+' 天</td><td></td></tr>'+
       '<tr><td colspan="2" style="padding:0 12px 2px"><div style="border-top:1px dashed #ddd"></div></td></tr>';
   }
+  if(d.pooledTip!==undefined){
+    rows+='<tr><td style="padding:5px 12px;font-size:12px;color:#444">小費（平分後）</td><td style="padding:5px 12px;text-align:right;font-weight:600;color:#7A5A10">'+$f(d.pooledTip)+'</td></tr>';
+    rows+='<tr><td style="padding:2px 12px 4px 24px;font-size:10px;color:#aaa">原始小費 '+$f((d.mvTip||0)+(d.srTip||0))+' + 老闆補 '+$f(d.bossSupp)+' → 平分</td><td></td></tr>';
+  } else {
   if(d.mvTip>0){
     rows+='<tr><td style="padding:5px 12px;font-size:12px;color:#444">MV 小費</td><td style="padding:5px 12px;text-align:right;font-weight:600;color:#1656A0">'+$f(d.mvTip)+'</td></tr>';
     if(d.mvTipCard>0&&d.mvTipCash>0){
@@ -4356,6 +4484,7 @@ function buildStaffCardHTML(d,moLabel,isPreview,note){
       rows+='<tr><td style="padding:2px 12px 2px 24px;font-size:10px;color:#aaa">刷卡</td><td style="padding:2px 12px;text-align:right;font-size:10px;color:#aaa">'+$f(d.srTipCard)+'</td></tr>';
       rows+='<tr><td style="padding:2px 12px 4px 24px;font-size:10px;color:#aaa">現金</td><td style="padding:2px 12px;text-align:right;font-size:10px;color:#aaa">'+$f(d.srTipCash)+'</td></tr>';
     }
+  }
   }
   if(d.mvRev>0)rows+='<tr><td style="padding:5px 12px;font-size:12px;color:#444">MV 評論獎勵</td><td style="padding:5px 12px;text-align:right;font-weight:600;color:#7A5A10">'+$f(d.mvRev)+'</td></tr>';
   if(d.srRev>0)rows+='<tr><td style="padding:5px 12px;font-size:12px;color:#444">SR 評論獎勵</td><td style="padding:5px 12px;text-align:right;font-weight:600;color:#7A5A10">'+$f(d.srRev)+'</td></tr>';
