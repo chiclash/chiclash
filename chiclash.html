@@ -1476,28 +1476,31 @@ input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-
   try {
     const snap = await getDoc(doc(db, 'chic lash', 'data'));
     const local = JSON.parse(localStorage.getItem('rev19') || '{}');
+    const hasLocalData = local.mv || local.sr; // 本機有實際資料
 
     if (snap.exists()) {
       const cloudData = snap.data();
-
-      // 比較時間戳：哪邊比較新就用哪邊
       const cloudTs = cloudData._savedAt || 0;
       const localTs  = local._savedAt || 0;
 
       let base, other;
-      if (localTs >= cloudTs) {
-        // 本機比較新（或一樣新）→ 本機為主，同步到雲端
+      if (hasLocalData && localTs >= cloudTs) {
+        // 本機有資料且不比雲端舊 → 本機為主，推上雲端
         base  = local;
         other = cloudData;
         setSyncStatus('⟳ 本機較新，同步中…', '#7A746C');
         await setDoc(doc(db, 'chic lash', 'data'), JSON.parse(JSON.stringify(local)));
+      } else if (!hasLocalData) {
+        // 本機沒有資料 → 用雲端
+        base  = cloudData;
+        other = local;
       } else {
-        // 雲端比較新 → 雲端為主
+        // 雲端比較新 → 用雲端
         base  = cloudData;
         other = local;
       }
 
-      // 不管哪邊為主，都補上另一邊獨有的 key（以防萬一）
+      // 補上另一邊獨有的設定 key
       const safeKeys = ['staffPay','payroll','sqNameMap','tipConfirmed','reviewSel','reviews','att','penalties','bnkBal','cdManual','tipSchedule'];
       const merged = Object.assign({}, base);
       safeKeys.forEach(function(key){
