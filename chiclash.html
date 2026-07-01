@@ -1580,6 +1580,27 @@ const save=()=>{
 };
 const mk=()=>`${cur.getFullYear()}-${String(cur.getMonth()+1).padStart(2,'0')}`;
 const gv=v=>v!==''&&v!==undefined&&v!==null?parseFloat(v)||0:0;
+
+// 合併同天同技師同客人的多筆記錄：服務費加總，小費取最大值（通常只有一行有tip）
+function mergeClientTxns(clients){
+  var map={};
+  var order=[];
+  (clients||[]).forEach(function(c,i){
+    var techName=Array.isArray(c.staff)&&c.staff.length>0?c.staff[0]:(c.tech||'');
+    var name=(c.clientName||'').trim();
+    // 只有有名字且有技師的才合併
+    var key=name&&techName?(techName+'||'+name):('__solo__'+i);
+    if(!map[key]){
+      map[key]={techName:techName,clientName:name,svc:0,tip:0,tipPay:c.tipPay||'card',originalIdx:i};
+      order.push(key);
+    }
+    map[key].svc+=gv(c.svc);
+    map[key].tip+=gv(c.tip);
+    // 付款方式以有tip的那筆為準
+    if(gv(c.tip)>0) map[key].tipPay=c.tipPay||'card';
+  });
+  return order.map(function(k){return map[k];});
+}
 const $f=n=>`$${n.toFixed(2)}`;
 const $n=n=>`$${Math.round(n).toLocaleString()}`;
 
@@ -1844,11 +1865,34 @@ function renderClientTable(d){
           if(!techName)return '';
           const cfg=staffPayCfg(techName);
           if(cfg.bonusType!=='minTip'&&cfg.bonusType!=='minTipPooled')return '';
-          const svcAmt=gv(c.svc);if(!svcAmt)return '';
-          const tipAmt=gv(c.tip);
-          const minT=svcAmt*(cfg.bonusThreshold||15)/100;
-          if(tipAmt>=minT)return '';
-          const supp=minT-tipAmt;
+          // 合併同天同技師同客人的服務費
+          const clientName=(c.clientName||'').trim();
+          const dayClients=sDay(activeStore,d).clients||[];
+          let mergedSvc=gv(c.svc), mergedTip=gv(c.tip);
+          if(clientName&&techName){
+            mergedSvc=0; mergedTip=0;
+            dayClients.forEach(function(cc){
+              const ct=Array.isArray(cc.staff)&&cc.staff.length>0?cc.staff[0]:(cc.tech||'');
+              if(ct===techName&&(cc.clientName||'').trim()===clientName){
+                mergedSvc+=gv(cc.svc); mergedTip+=gv(cc.tip);
+              }
+            });
+            // 只在第一筆顯示（避免重複顯示）
+            let isFirst=true;
+            for(let j=0;j<dayClients.length;j++){
+              const cc=dayClients[j];
+              const ct=Array.isArray(cc.staff)&&cc.staff.length>0?cc.staff[0]:(cc.tech||'');
+              if(ct===techName&&(cc.clientName||'').trim()===clientName){
+                if(dayClients[j]!==c){isFirst=false;break;}
+                else break;
+              }
+            }
+            if(!isFirst)return '';
+          }
+          if(!mergedSvc)return '';
+          const minT=mergedSvc*(cfg.bonusThreshold||15)/100;
+          if(mergedTip>=minT)return '';
+          const supp=minT-mergedTip;
           return `<span style="color:#C0392B;font-size:11px;font-weight:600;white-space:nowrap">+$${supp.toFixed(2)}補</span>`;
         })()}
       </td>
@@ -3440,14 +3484,22 @@ function buildTipDayBody(d){
     var txnKey=cl.store+'_'+cl.idx;
     var selSet=tipSplitSel[splitKey][txnKey]||new Set();
 
-    // 補款計算
+    // 補款計算（合併同天同技師同客人的服務費）
     var techName=cl.tech||'';
     var suppAmt=0;
     if(techName){
       var cfg2=staffPayCfg(techName);
-      if((cfg2.bonusType==='minTip'||cfg2.bonusType==='minTipPooled')&&cl.svc>0){
-        var minT2=cl.svc*(cfg2.bonusThreshold||15)/100;
-        if(cl.tip<minT2)suppAmt=Math.round((minT2-cl.tip)*100)/100;
+      if(cfg2.bonusType==='minTip'||cfg2.bonusType==='minTipPooled'){
+        // 找合併後的服務費和小費
+        var mergedForCl=mergeClientTxns(
+          ['mv','sr'].reduce(function(acc,store){return acc.concat(sDay(store,d).clients||[]);},[])
+        ).find(function(mc){return mc.techName===techName&&mc.clientName===(cl.name||'');});
+        var mergedSvc2=mergedForCl?mergedForCl.svc:cl.svc;
+        var mergedTip2=mergedForCl?mergedForCl.tip:cl.tip;
+        if(mergedSvc2>0){
+          var minT2=mergedSvc2*(cfg2.bonusThreshold||15)/100;
+          if(mergedTip2<minT2)suppAmt=Math.round((minT2-mergedTip2)*100)/100;
+        }
       }
     }
     var suppTag=suppAmt>0?'<span style="color:#C0392B;font-size:11px;font-weight:700;background:#FFF0EE;border:1px solid #F5C6C0;border-radius:6px;padding:1px 6px;margin-left:4px">老闆補 +$'+suppAmt.toFixed(2)+'</span>':'';
@@ -3482,21 +3534,24 @@ function buildTipDayBody(d){
     +'</div>';
   });
 
-  // 老闆補款合計
+  // 老闆補款合計（用合併後的資料，避免重複算）
   var totalSupp2=0,suppRows2='';
-  allClients.forEach(function(cl){
-    var tn=cl.tech||'';if(!tn)return;
+  var seenMergeKeys={};
+  // 取得當天全部客人（含無tip的，為了合併服務費）
+  var allDayClients=[];
+  ['mv','sr'].forEach(function(store){allDayClients=allDayClients.concat(sDay(store,d).clients||[]);});
+  var mergedAll=mergeClientTxns(allDayClients);
+  mergedAll.forEach(function(mc){
+    var tn=mc.techName;if(!tn)return;
     var cfg3=staffPayCfg(tn);
-    if((cfg3.bonusType==='minTip'||cfg3.bonusType==='minTipPooled')&&cl.svc>0){
-      var minT3=cl.svc*(cfg3.bonusThreshold||15)/100;
-      if(cl.tip<minT3){
-        var s2=Math.round((minT3-cl.tip)*100)/100;
-        totalSupp2+=s2;
-        suppRows2+='<div style="display:flex;justify-content:space-between;font-size:12px;color:var(--sub);padding:3px 0">'
-          +'<span>'+(cl.name||'客人')+' ('+tn+')</span>'
-          +'<span style="color:#C0392B;font-weight:600">+$'+s2.toFixed(2)+'</span></div>';
-      }
-    }
+    if((cfg3.bonusType!=='minTip'&&cfg3.bonusType!=='minTipPooled')||!mc.svc)return;
+    var minT3=mc.svc*(cfg3.bonusThreshold||15)/100;
+    if(mc.tip>=minT3)return;
+    var s2=Math.round((minT3-mc.tip)*100)/100;
+    totalSupp2+=s2;
+    suppRows2+='<div style="display:flex;justify-content:space-between;font-size:12px;color:var(--sub);padding:3px 0">'
+      +'<span>'+(mc.clientName||'客人')+' ('+tn+')</span>'
+      +'<span style="color:#C0392B;font-weight:600">+$'+s2.toFixed(2)+'</span></div>';
   });
   var suppSection2=totalSupp2>0?
     '<div style="background:#FFF8F7;border:1.5px solid #F5C6C0;border-radius:10px;padding:12px 16px;margin-top:8px">'
@@ -4205,20 +4260,17 @@ function buildStaffReportData(){
         bossSuppLabel='抽成不足 $'+(cfg.bonusThreshold||0)+' 補差額';
       }
     } else if(cfg.bonusType==='minTip'){
-      // Per-transaction: each service tip < X% → boss tops up that transaction
       var tipPct=(cfg.bonusThreshold||15)/100;
       var perTxnSupp=0;
       var y2=cur.getFullYear(),m2c=cur.getMonth();
       var days2=new Date(y2,m2c+1,0).getDate();
       ['mv','sr'].forEach(function(store){
         for(var d2=1;d2<=days2;d2++){
-          (sDay(store,d2).clients||[]).forEach(function(c){
-            var techMatch=(c.tech||'')===name||(Array.isArray(c.staff)&&c.staff.includes(name));
-            if(!techMatch)return;
-            var svc=gv(c.svc);if(svc<=0)return;
-            var tip=gv(c.tip);
-            var minT=Math.round(svc*tipPct*100)/100;
-            if(tip<minT)perTxnSupp+=Math.round((minT-tip)*100)/100;
+          mergeClientTxns(sDay(store,d2).clients).forEach(function(mc){
+            if(mc.techName!==name)return;
+            if(mc.svc<=0)return;
+            var minT=Math.round(mc.svc*tipPct*100)/100;
+            if(mc.tip<minT)perTxnSupp+=Math.round((minT-mc.tip)*100)/100;
           });
         }
       });
@@ -4231,26 +4283,24 @@ function buildStaffReportData(){
       var y3=cur.getFullYear(),m3c=cur.getMonth();
       var days3=new Date(y3,m3c+1,0).getDate();
 
-      // Step 1: per-member boss top-up from raw clients (per transaction)
+      // Step 1: per-member boss top-up using merged transactions
       var topupByMember={};
       allPoolMembers.forEach(function(member){
         var memberTopUp=0;
         ['mv','sr'].forEach(function(store){
           for(var d3=1;d3<=days3;d3++){
-            (sDay(store,d3).clients||[]).forEach(function(c){
-              var techMatch=(c.tech||'')===member||(Array.isArray(c.staff)&&c.staff.includes(member));
-              if(!techMatch)return;
-              var svc=gv(c.svc);if(svc<=0)return;
-              var tip=gv(c.tip);
-              var minT=Math.round(svc*tipPct2*100)/100;
-              if(tip<minT)memberTopUp+=Math.round((minT-tip)*100)/100;
+            mergeClientTxns(sDay(store,d3).clients).forEach(function(mc){
+              if(mc.techName!==member)return;
+              if(mc.svc<=0)return;
+              var minT=Math.round(mc.svc*tipPct2*100)/100;
+              if(mc.tip<minT)memberTopUp+=Math.round((minT-mc.tip)*100)/100;
             });
           }
         });
         topupByMember[member]=Math.round(memberTopUp*100)/100;
       });
 
-      // Step 2: pool (confirmedTip + topup) — tipMap already reads tipConfirmed only
+      // Step 2: pool (confirmedTip + topup)
       var totalPoolPot=0;
       allPoolMembers.forEach(function(member){
         var mt=tipMap[member]||{mv:{card:0,cash:0},sr:{card:0,cash:0}};
@@ -4429,19 +4479,17 @@ function renderReportPage(){
       var hasMinTip=(d.cfg.bonusType==='minTip'||d.cfg.bonusType==='minTipPooled');
       for(var dr2=1;dr2<=days4;dr2++){
         ['mv','sr'].forEach(function(store){
-          (sDay(store,dr2).clients||[]).forEach(function(c){
-            var techMatch=(c.tech||'')===d.name||(Array.isArray(c.staff)&&c.staff.includes(d.name));
-            if(!techMatch)return;
-            var svcAmt2=gv(c.svc),tipAmt2=gv(c.tip);
-            if(!svcAmt2&&!tipAmt2)return;
-            var minT4=hasMinTip?Math.round(svcAmt2*tipPct3*100)/100:0;
-            var supp4=hasMinTip&&tipAmt2<minT4?Math.round((minT4-tipAmt2)*100)/100:0;
+          mergeClientTxns(sDay(store,dr2).clients).forEach(function(mc){
+            if(mc.techName!==d.name)return;
+            if(!mc.svc&&!mc.tip)return;
+            var minT4=hasMinTip?Math.round(mc.svc*tipPct3*100)/100:0;
+            var supp4=hasMinTip&&mc.tip<minT4?Math.round((minT4-mc.tip)*100)/100:0;
             var mm4=String(mr2+1).padStart(2,'0'),dd4=String(dr2).padStart(2,'0');
             txnRows+='<tr style="border-bottom:1px solid var(--border)">'
               +'<td style="padding:5px 8px;font-size:11px;color:var(--sub);white-space:nowrap">'+mm4+'/'+dd4+'</td>'
-              +'<td style="padding:5px 8px;font-size:11px;max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+(c.clientName||'—')+'</td>'
-              +'<td style="padding:5px 8px;font-size:11px;text-align:right">'+$f(svcAmt2)+'</td>'
-              +'<td style="padding:5px 8px;font-size:11px;text-align:right">'+$f(tipAmt2)+'</td>'
+              +'<td style="padding:5px 8px;font-size:11px;max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+(mc.clientName||'—')+'</td>'
+              +'<td style="padding:5px 8px;font-size:11px;text-align:right">'+$f(mc.svc)+'</td>'
+              +'<td style="padding:5px 8px;font-size:11px;text-align:right">'+$f(mc.tip)+'</td>'
               +(hasMinTip?'<td style="padding:5px 8px;font-size:11px;text-align:right">'+$f(minT4)+'</td>'
                 +'<td style="padding:5px 8px;font-size:11px;text-align:right;font-weight:700;color:'+(supp4>0?'#C0392B':'var(--faint)') +'">'+(supp4>0?'+'+$f(supp4):'—')+'</td>':'')
               +'</tr>';
@@ -4547,24 +4595,22 @@ function renderReportPage(){
       var daysr=new Date(yr,mr+1,0).getDate();
       for(var dr=1;dr<=daysr;dr++){
         ['mv','sr'].forEach(function(store){
-          (sDay(store,dr).clients||[]).forEach(function(c){
-            var tn=Array.isArray(c.staff)&&c.staff.length>0?c.staff[0]:(c.tech||'');
-            if(!tn)return;
-            var cfgr=staffPayCfg(tn);
+          mergeClientTxns(sDay(store,dr).clients).forEach(function(mc){
+            if(!mc.techName)return;
+            var cfgr=staffPayCfg(mc.techName);
             if(cfgr.bonusType!=='minTip'&&cfgr.bonusType!=='minTipPooled')return;
-            var svcr=gv(c.svc);if(!svcr)return;
-            var tipr=gv(c.tip);
-            var minTr=svcr*(cfgr.bonusThreshold||15)/100;
-            if(tipr>=minTr)return;
-            var sr3=Math.round((minTr-tipr)*100)/100;
+            if(!mc.svc)return;
+            var minTr=mc.svc*(cfgr.bonusThreshold||15)/100;
+            if(mc.tip>=minTr)return;
+            var sr3=Math.round((minTr-mc.tip)*100)/100;
             grandSupp3+=sr3;
             var mmr=String(mr+1).padStart(2,'0'),ddr=String(dr).padStart(2,'0');
             suppRows3+='<tr>'
               +'<td style="padding:7px 12px;font-size:12px;color:var(--sub)">'+mmr+'/'+ddr+'</td>'
-              +'<td style="padding:7px 12px;font-size:12px">'+(c.clientName||'客人')+'</td>'
-              +'<td style="padding:7px 12px;font-size:12px;font-weight:600">'+tn+'</td>'
-              +'<td style="padding:7px 12px;text-align:right;font-size:12px">'+$f(svcr)+'</td>'
-              +'<td style="padding:7px 12px;text-align:right;font-size:12px">'+$f(tipr)+'</td>'
+              +'<td style="padding:7px 12px;font-size:12px">'+(mc.clientName||'客人')+'</td>'
+              +'<td style="padding:7px 12px;font-size:12px;font-weight:600">'+mc.techName+'</td>'
+              +'<td style="padding:7px 12px;text-align:right;font-size:12px">'+$f(mc.svc)+'</td>'
+              +'<td style="padding:7px 12px;text-align:right;font-size:12px">'+$f(mc.tip)+'</td>'
               +'<td style="padding:7px 12px;text-align:right;font-size:12px">'+$f(minTr)+'</td>'
               +'<td style="padding:7px 12px;text-align:right;font-size:13px;font-weight:700;color:#C0392B">+'+$f(sr3)+'</td>'
               +'</tr>';
@@ -4655,20 +4701,18 @@ function buildStaffCardHTML(d,moLabel,isPreview,note){
     var days5=new Date(yr3,mr3+1,0).getDate();
     for(var dr3=1;dr3<=days5;dr3++){
       ['mv','sr'].forEach(function(store){
-        (sDay(store,dr3).clients||[]).forEach(function(c){
-          var techMatch=(c.tech||'')===d.name||(Array.isArray(c.staff)&&c.staff.includes(d.name));
-          if(!techMatch)return;
-          var svc5=gv(c.svc),tip5=gv(c.tip);
-          if(!svc5&&!tip5)return;
-          var minT5=hasMinTipPDF?Math.round(svc5*tipPctPDF*100)/100:0;
-          var supp5=hasMinTipPDF&&tip5<minT5?Math.round((minT5-tip5)*100)/100:0;
+        mergeClientTxns(sDay(store,dr3).clients).forEach(function(mc){
+          if(mc.techName!==d.name)return;
+          if(!mc.svc&&!mc.tip)return;
+          var minT5=hasMinTipPDF?Math.round(mc.svc*tipPctPDF*100)/100:0;
+          var supp5=hasMinTipPDF&&mc.tip<minT5?Math.round((minT5-mc.tip)*100)/100:0;
           txnTotalSuppPDF+=supp5;
           var mm5=String(mr3+1).padStart(2,'0'),dd5=String(dr3).padStart(2,'0');
           txnRowsPDF+='<tr style="border-bottom:1px solid #eee">'
             +'<td style="padding:5px 8px;font-size:11px;color:#666">'+mm5+'/'+dd5+'</td>'
-            +'<td style="padding:5px 8px;font-size:11px">'+( c.clientName||'—')+'</td>'
-            +'<td style="padding:5px 8px;font-size:11px;text-align:right">'+$f(svc5)+'</td>'
-            +'<td style="padding:5px 8px;font-size:11px;text-align:right">'+$f(tip5)+'</td>'
+            +'<td style="padding:5px 8px;font-size:11px">'+(mc.clientName||'—')+'</td>'
+            +'<td style="padding:5px 8px;font-size:11px;text-align:right">'+$f(mc.svc)+'</td>'
+            +'<td style="padding:5px 8px;font-size:11px;text-align:right">'+$f(mc.tip)+'</td>'
             +(hasMinTipPDF?'<td style="padding:5px 8px;font-size:11px;text-align:right">'+$f(minT5)+'</td>'
               +'<td style="padding:5px 8px;font-size:11px;text-align:right;font-weight:700;color:'+(supp5>0?'#C0392B':'#aaa')+'">'+(supp5>0?'+'+$f(supp5):'—')+'</td>':'')
             +'</tr>';
