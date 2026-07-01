@@ -142,8 +142,8 @@ input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-
 .db.open{display:block}
 
 /* Client table */
-.ct-wrap{padding:12px 14px 6px}
-.ct{width:100%;border-collapse:collapse;font-size:13px}
+.ct-wrap{padding:12px 14px 6px;overflow-x:auto}
+.ct{width:100%;border-collapse:collapse;font-size:13px;min-width:900px}
 .ct thead th{font-size:10px;text-transform:uppercase;letter-spacing:.07em;color:var(--sub);font-weight:600;padding:4px 6px;text-align:left;border-bottom:1.5px solid var(--border);white-space:nowrap}
 .ct tbody tr:hover{background:#F8F6F3}
 .ct tbody td{padding:4px 5px;border-bottom:1px solid var(--border);vertical-align:middle}
@@ -279,7 +279,7 @@ input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-
 .staff-del:hover{color:var(--warn);background:var(--warn-bg)}
 
 /* Technician tip column in client row */
-.tech-sel{padding:4px 6px;border:1px solid var(--border);border-radius:5px;font-size:11px;font-family:inherit;color:var(--text);background:var(--white);outline:none;max-width:90px}
+.tech-sel{padding:4px 6px;border:1px solid var(--border);border-radius:5px;font-size:11px;font-family:inherit;color:var(--text);background:var(--white);outline:none;max-width:110px}
 .tech-sel:focus{border-color:var(--border2)}
 
 /* Day staff tip summary */
@@ -363,7 +363,7 @@ input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-
 .att-tbl tbody tr:hover{background:#F8F6F3}
 .att-tbl tbody td{padding:7px 12px;border-bottom:1px solid var(--border);vertical-align:middle}
 .att-tbl tbody tr:last-child td{border-bottom:none}
-.att-time-inp{width:88px;border:1px solid var(--border);border-radius:5px;padding:4px 7px;font-size:12px;font-family:inherit;color:var(--text);background:var(--white);outline:none}
+.att-time-inp{width:115px;border:1px solid var(--border);border-radius:5px;padding:4px 7px;font-size:12px;font-family:inherit;color:var(--text);background:var(--white);outline:none}
 .att-time-inp:focus{border-color:var(--border2)}
 .att-num-inp{width:60px;border:1px solid var(--border);border-radius:5px;padding:4px 7px;font-size:12px;font-family:inherit;color:var(--text);background:var(--white);outline:none;text-align:right}
 .att-num-inp:focus{border-color:var(--border2)}
@@ -1788,8 +1788,8 @@ function renderDay(d,dow){
       <div class='ct-wrap'>
         <table class='ct' id="ct-${d}">
           <thead><tr>
-            <th></th><th>#</th><th>技師</th><th>服務金額</th><th>付款方式</th><th>ClassPass</th>
-            <th>GC金額</th><th>補差額</th><th>Tip</th><th>Tip方式</th><th style="text-align:right">總額</th><th style="text-align:center">POS</th><th style="text-align:center">GD</th><th></th>
+            <th></th><th>#</th><th>客人名字</th><th>技師</th><th>服務金額</th><th>付款方式</th><th>ClassPass</th>
+            <th style="min-width:80px;max-width:80px">GC金額</th><th style="min-width:140px;max-width:140px">補差額</th><th>Tip</th><th>Tip方式</th><th style="text-align:right">總額</th><th style="text-align:center">POS</th><th style="text-align:center">GD</th><th></th>
           </tr></thead>
           <tbody id="ctb-${d}"></tbody>
         </table>
@@ -1836,7 +1836,7 @@ function renderClientTable(d){
     tr.innerHTML=`
       <td style="text-align:center;width:20px"><span class="row-flag${c.flagged?' on':''}" onclick="toggleClientFlag(${d},${i},this)" title="標記有問題">⚠️</span></td>
       <td style="color:var(--faint);font-size:11px;text-align:center;width:24px">${i+1}</td>
-      <td><input type="text" class='ti' placeholder="客人名字" value="${(c.clientName||'').replace(/"/g,'&quot;')}" oninput="updC(${d},${i},'clientName',this.value)" style="width:88px;font-size:12px;color:var(--sub);${!c.clientName?'border-color:#F0A090;background:#FFF5F3;':''}"></td>
+      <td style="min-width:130px"><input type="text" class='ti' placeholder="客人名字" value="${(c.clientName||'').replace(/"/g,'&quot;')}" oninput="updC(${d},${i},'clientName',this.value)" style="width:100%;box-sizing:border-box;font-size:12px;color:var(--sub);${!c.clientName?'border-color:#F0A090;background:#FFF5F3;':''}"></td>
       <td>${buildTechSel(d,i,c)}</td>
       <td><input type="text" inputmode="decimal" class='ti' placeholder="服務費" min="0" step="0.01" value="${c.svc||''}" oninput="updC(${d},${i},'svc',this.value)" style="width:80px"></td>
       <td>
@@ -1851,11 +1851,11 @@ function renderClientTable(d){
       <td style="text-align:center">
         <button class="tgl ${c.cp?'on-cp':''}" onclick="toggleCP(${d},${i},this)">${c.cp?'✓ CP':'CP'}</button>
       </td>
-      <td>
+      <td style="min-width:80px;max-width:80px;overflow:hidden">
         ${isGC?`<input type="text" inputmode="decimal" class='ti' placeholder="GC金額" min="0" step="0.01" value="${c.gcAmt||''}" oninput="updC(${d},${i},'gcAmt',this.value)" style="width:72px" title="Gift Card 使用金額">`:`<span style="color:var(--faint);font-size:11px">—</span>`}
       </td>
-      <td>
-        ${isGC?`<div class='tgl-grp'><input type="text" inputmode="decimal" class='ti' placeholder="0.00" min="0" step="0.01" value="${c.topup||''}" oninput="updC(${d},${i},'topup',this.value)" style="width:60px" title="補差額"><button class='tgl ${c.topupPay==="card"?"on-card":""}' onclick="setTopup(${d},${i},'card',this)">刷卡</button><button class='tgl ${c.topupPay==="cash"?"on-cash":""}' onclick="setTopup(${d},${i},'cash',this)">現金</button></div>`:`<span style="color:var(--faint);font-size:11px">—</span>`}
+      <td style="min-width:140px;max-width:140px;overflow:hidden">
+        ${isGC?`<div class='tgl-grp'><input type="text" inputmode="decimal" class='ti' placeholder="0.00" min="0" step="0.01" value="${c.topup||''}" oninput="updC(${d},${i},'topup',this.value)" style="width:55px" title="補差額"><button class='tgl ${c.topupPay==="card"?"on-card":""}' onclick="setTopup(${d},${i},'card',this)">刷卡</button><button class='tgl ${c.topupPay==="cash"?"on-cash":""}' onclick="setTopup(${d},${i},'cash',this)">現金</button></div>`:`<span style="color:var(--faint);font-size:11px">—</span>`}
       </td>
       <td>
         <input type="text" inputmode="decimal" class='ti' placeholder="Tip" min="0" step="0.01" value="${c.tip||''}" oninput="updC(${d},${i},'tip',this.value)" style="width:65px">
@@ -4839,13 +4839,47 @@ function downloadAllPDFs(){
 
   function $f2(n){return n>=0?'$'+n.toFixed(2):'-$'+Math.abs(n).toFixed(2);}
 
+  var attD=attData();
+
   var pages=allData.map(function(d){
     var note=notes[d.name]||'';
     // 小費合計（不分MV/SR）
     var totalTipAmt=d.pooledTip!==undefined?d.pooledTip:((d.mvTip||0)+(d.srTip||0));
     var tipLabel=d.pooledTip!==undefined?'小費（平分後）':'小費';
     var tipRow=totalTipAmt>0?'<tr><td>'+tipLabel+'</td><td style="color:#7A5A10;font-weight:600">$'+totalTipAmt.toFixed(2)+'</td></tr>':'';
-    // 逐筆明細
+
+    // ── 打卡明細 ──
+    var attRecs=(attD.records[d.name]||[]).filter(function(r){return netMins(r.rawMins,r.breakDeducted)>0;});
+    attRecs.sort(function(a,b){return a.date<b.date?-1:1;});
+    var attDetailRows=attRecs.map(function(r){
+      var mins=netMins(r.rawMins,r.breakDeducted);
+      var hStr=Math.floor(mins/60)+'h '+String(mins%60).padStart(2,'0')+'m';
+      var dateDisp=r.date?r.date.slice(5).replace('-','/'):'-';
+      var timeDisp=(r.startTime?r.startTime.slice(0,5):'')+(r.endTime?' – '+r.endTime.slice(0,5):'');
+      return '<tr>'
+        +'<td>'+dateDisp+'</td>'
+        +'<td>'+(timeDisp||'—')+'</td>'
+        +'<td style="text-align:right">'+hStr+'</td>'
+        +'</tr>';
+    }).join('');
+    var attSection=attDetailRows?(
+      '<div style="margin-top:12px">'
+      +'<div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:#666;margin-bottom:6px;border-bottom:1px solid #ddd;padding-bottom:4px">出勤明細</div>'
+      +'<table style="font-size:11px">'
+        +'<thead><tr style="background:#f5f5f5">'
+          +'<th style="text-align:left;padding:4px;font-weight:600">日期</th>'
+          +'<th style="text-align:left;padding:4px;font-weight:600">時間</th>'
+          +'<th style="text-align:right;padding:4px;font-weight:600">工時</th>'
+        +'</tr></thead>'
+        +'<tbody>'+attDetailRows+'</tbody>'
+        +'<tfoot><tr style="border-top:2px solid #ddd;background:#f7f7f7">'
+          +'<td colspan="2" style="padding:5px 4px;font-weight:600;font-size:11px">合計 '+d.workDays+' 天</td>'
+          +'<td style="text-align:right;font-weight:700;padding:5px 4px">'+d.hoursStr+'</td>'
+        +'</tr></tfoot>'
+      +'</table></div>'
+    ):'';
+
+    // ── 逐筆小費明細 ──
     var hasMinTipPDF2=(d.cfg.bonusType==='minTip'||d.cfg.bonusType==='minTipPooled');
     var tipPctPDF2=(d.cfg.bonusThreshold||15)/100;
     var txnRows2='';
@@ -4917,6 +4951,7 @@ function downloadAllPDFs(){
         +'<tr class="total"><td>合計應得</td><td style="color:'+grandColor+'">'+$f2(d.grand)+'</td></tr>'
       +'</table>'
       +txnSection2
+      +attSection
       +(note?'<div class="note"><strong>備註：</strong>'+note+'</div>':'')
       +'<div class="footer">Chic Lash Studio · '+moLabel+' · 列印日期：'+new Date().toLocaleDateString('zh-TW')+'</div>'
     +'</div>';
@@ -4925,8 +4960,8 @@ function downloadAllPDFs(){
   var html='<!DOCTYPE html><html><head><meta charset="utf-8">'+
     '<style>'+
     'body{font-family:"Helvetica Neue",Arial,"PingFang TC","Heiti TC",sans-serif;font-size:12px;margin:0;padding:0}'+
-    '.pg{padding:28px 32px;page-break-after:always;min-height:100vh;box-sizing:border-box}'+
-    '.pg:last-child{page-break-after:auto}'+
+    '.pg{padding:28px 32px;page-break-after:always;break-after:page;box-sizing:border-box}'+
+    '.pg:last-child{page-break-after:avoid;break-after:avoid}'+
     '.hdr{display:flex;justify-content:space-between;align-items:flex-start;background:#f7f7f7;padding:16px 20px;border-radius:8px;margin-bottom:20px}'+
     '.studio{font-size:10px;color:#999;margin-bottom:4px}'+
     '.staff-name{font-size:22px;font-weight:700;color:#1a1a1a}'+
@@ -6212,8 +6247,8 @@ function exportAttPDF(){
 
   var css=
     'body{font-family:system-ui,sans-serif;font-size:13px;color:#1C1A17;margin:0;padding:0}'+
-    '.pg{padding:28px 32px;page-break-after:always;min-height:100vh;box-sizing:border-box}'+
-    '.pg:last-child{page-break-after:auto}'+
+    '.pg{padding:28px 32px;page-break-after:always;break-after:page;box-sizing:border-box}'+
+    '.pg:last-child{page-break-after:avoid;break-after:avoid}'+
     '.ph{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:20px;padding-bottom:14px;border-bottom:2px solid #1656A0}'+
     '.pn{font-size:22px;font-weight:700;color:#1C1A17}'+
     '.pm{font-size:12px;color:#7A746C;margin-top:2px}'+
