@@ -1581,23 +1581,22 @@ const save=()=>{
 const mk=()=>`${cur.getFullYear()}-${String(cur.getMonth()+1).padStart(2,'0')}`;
 const gv=v=>v!==''&&v!==undefined&&v!==null?parseFloat(v)||0:0;
 
-// 合併同天同技師同客人的多筆記錄：服務費加總，小費取最大值（通常只有一行有tip）
+// 合併同天同技師同客人的多筆記錄：服務費加總，小費加總，任一筆有cashTipOk就標記
 function mergeClientTxns(clients){
   var map={};
   var order=[];
   (clients||[]).forEach(function(c,i){
     var techName=Array.isArray(c.staff)&&c.staff.length>0?c.staff[0]:(c.tech||'');
     var name=(c.clientName||'').trim();
-    // 只有有名字且有技師的才合併
     var key=name&&techName?(techName+'||'+name):('__solo__'+i);
     if(!map[key]){
-      map[key]={techName:techName,clientName:name,svc:0,tip:0,tipPay:c.tipPay||'card',originalIdx:i};
+      map[key]={techName:techName,clientName:name,svc:0,tip:0,tipPay:c.tipPay||'card',cashTipOk:false,originalIdx:i};
       order.push(key);
     }
     map[key].svc+=gv(c.svc);
     map[key].tip+=gv(c.tip);
-    // 付款方式以有tip的那筆為準
     if(gv(c.tip)>0) map[key].tipPay=c.tipPay||'card';
+    if(c.cashTipOk) map[key].cashTipOk=true; // 任一筆標記即視為已收現金
   });
   return order.map(function(k){return map[k];});
 }
@@ -1865,9 +1864,16 @@ function renderClientTable(d){
           if(!techName)return '';
           const cfg=staffPayCfg(techName);
           if(cfg.bonusType!=='minTip'&&cfg.bonusType!=='minTipPooled')return '';
-          // 合併同天同技師同客人的服務費
           const clientName=(c.clientName||'').trim();
           const dayClients=sDay(activeStore,d).clients||[];
+          // 如果同一客人任何一筆有 cashTipOk，就不顯示補款
+          if(clientName&&techName){
+            const anyOk=dayClients.some(function(cc){
+              const ct=Array.isArray(cc.staff)&&cc.staff.length>0?cc.staff[0]:(cc.tech||'');
+              return ct===techName&&(cc.clientName||'').trim()===clientName&&cc.cashTipOk;
+            });
+            if(anyOk)return '';
+          } else if(c.cashTipOk) return '';
           let mergedSvc=gv(c.svc), mergedTip=gv(c.tip);
           if(clientName&&techName){
             mergedSvc=0; mergedTip=0;
@@ -1877,7 +1883,7 @@ function renderClientTable(d){
                 mergedSvc+=gv(cc.svc); mergedTip+=gv(cc.tip);
               }
             });
-            // 只在第一筆顯示（避免重複顯示）
+            // 只在第一筆顯示
             let isFirst=true;
             for(let j=0;j<dayClients.length;j++){
               const cc=dayClients[j];
@@ -1894,6 +1900,13 @@ function renderClientTable(d){
           if(mergedTip>=minT)return '';
           const supp=minT-mergedTip;
           return `<span style="color:#C0392B;font-size:11px;font-weight:600;white-space:nowrap">+$${supp.toFixed(2)}補</span>`;
+        })()}
+        ${(()=>{
+          const tn2=Array.isArray(c.staff)&&c.staff.length>0?c.staff[0]:(c.tech||'');
+          if(!tn2)return '';
+          const cfg4=staffPayCfg(tn2);
+          if(cfg4.bonusType!=='minTip'&&cfg4.bonusType!=='minTipPooled')return '';
+          return `<button class="tgl ${c.cashTipOk?'on-cash':''}" onclick="updC(${d},${i},'cashTipOk',${!c.cashTipOk})" title="現金小費已收，不需老闆補款" style="font-size:10px;padding:2px 6px;margin-left:2px">${c.cashTipOk?'💵✓':'💵?'}</button>`;
         })()}
       </td>
       <td>
@@ -2054,7 +2067,7 @@ function updC(d,i,f,v){
   const c=sDay(activeStore,d).clients[i];if(!c)return;
   var stringFields=['tech','clientName'];
   c[f]=typeof v==='boolean'?v:v===''?'':stringFields.indexOf(f)>=0?v:parseFloat(v)||0;save();
-  if(f==='tech')renderClientTable(d);
+  if(f==='tech'||f==='cashTipOk')renderClientTable(d);
   updateDaySummary(d);updateAll();
 }
 function setPay(d,i,val,btn){
@@ -3222,7 +3235,7 @@ function calcStaffTipMapForDay(store,d){
 
   (r.clients||[]).forEach(c=>{
     const tip=gv(c.tip);if(!tip)return;
-    const rawName=c.tech||'未指定';
+    const rawName=(Array.isArray(c.staff)&&c.staff.length>0?c.staff[0]:(c.tech||''))||'未指定';
     // Apply reverse mapping if available
     const name=revMap[rawName]||rawName;
     if(!map[name])map[name]={card:0,cash:0,venmo:0};
@@ -3422,10 +3435,11 @@ function buildTipDayBody(d){
     var r=sDay(store,d);
     (r.clients||[]).forEach(function(c,ci){
       if(!gv(c.tip)) return;
+      var techFromStaff=Array.isArray(c.staff)&&c.staff.length>0?c.staff[0]:(c.tech||'');
       allClients.push({store:store,idx:ci,c:c,
         time:c.time||'',
         name:c.clientName||'',
-        tech:c.tech||'',
+        tech:techFromStaff,
         tip:gv(c.tip),
         tipPay:c.tipPay||'card',
         svc:gv(c.svc)
@@ -3496,7 +3510,8 @@ function buildTipDayBody(d){
         ).find(function(mc){return mc.techName===techName&&mc.clientName===(cl.name||'');});
         var mergedSvc2=mergedForCl?mergedForCl.svc:cl.svc;
         var mergedTip2=mergedForCl?mergedForCl.tip:cl.tip;
-        if(mergedSvc2>0){
+        var cashOk=mergedForCl?mergedForCl.cashTipOk:false;
+        if(!cashOk&&mergedSvc2>0){
           var minT2=mergedSvc2*(cfg2.bonusThreshold||15)/100;
           if(mergedTip2<minT2)suppAmt=Math.round((minT2-mergedTip2)*100)/100;
         }
@@ -3545,6 +3560,7 @@ function buildTipDayBody(d){
     var tn=mc.techName;if(!tn)return;
     var cfg3=staffPayCfg(tn);
     if((cfg3.bonusType!=='minTip'&&cfg3.bonusType!=='minTipPooled')||!mc.svc)return;
+    if(mc.cashTipOk)return; // 已標記現金已收
     var minT3=mc.svc*(cfg3.bonusThreshold||15)/100;
     if(mc.tip>=minT3)return;
     var s2=Math.round((minT3-mc.tip)*100)/100;
@@ -4127,7 +4143,8 @@ function calcStaffMonthSales(name){
     for(var d=1;d<=days;d++){
       var day=sDay(store,d);
       (day.clients||[]).forEach(function(c){
-        if((c.tech||'')===name) total+=gv(c.svc);
+        var ct=Array.isArray(c.staff)&&c.staff.length>0?c.staff[0]:(c.tech||'');
+        if(ct===name) total+=gv(c.svc);
       });
     }
   });
@@ -4188,8 +4205,9 @@ function buildStaffReportData(){
         var svcA=0,svcB=0;
         ['mv','sr'].forEach(function(store){
           (sDay(store,d).clients||[]).forEach(function(c){
-            if((c.tech||'')===name)svcA+=gv(c.svc);
-            if((c.tech||'')===partner)svcB+=gv(c.svc);
+            var ct=Array.isArray(c.staff)&&c.staff.length>0?c.staff[0]:(c.tech||'');
+            if(ct===name)svcA+=gv(c.svc);
+            if(ct===partner)svcB+=gv(c.svc);
           });
         });
         var commSum=Math.round((svcA*rate1+svcB*rate2)*100)/100;
@@ -4269,6 +4287,7 @@ function buildStaffReportData(){
           mergeClientTxns(sDay(store,d2).clients).forEach(function(mc){
             if(mc.techName!==name)return;
             if(mc.svc<=0)return;
+            if(mc.cashTipOk)return; // 已標記現金已收，不補款
             var minT=Math.round(mc.svc*tipPct*100)/100;
             if(mc.tip<minT)perTxnSupp+=Math.round((minT-mc.tip)*100)/100;
           });
@@ -4292,6 +4311,7 @@ function buildStaffReportData(){
             mergeClientTxns(sDay(store,d3).clients).forEach(function(mc){
               if(mc.techName!==member)return;
               if(mc.svc<=0)return;
+              if(mc.cashTipOk)return; // 已標記現金已收
               var minT=Math.round(mc.svc*tipPct2*100)/100;
               if(mc.tip<minT)memberTopUp+=Math.round((minT-mc.tip)*100)/100;
             });
@@ -4482,8 +4502,8 @@ function renderReportPage(){
           mergeClientTxns(sDay(store,dr2).clients).forEach(function(mc){
             if(mc.techName!==d.name)return;
             if(!mc.svc&&!mc.tip)return;
-            var minT4=hasMinTip?Math.round(mc.svc*tipPct3*100)/100:0;
-            var supp4=hasMinTip&&mc.tip<minT4?Math.round((minT4-mc.tip)*100)/100:0;
+            var minT4=hasMinTip&&!mc.cashTipOk?Math.round(mc.svc*tipPct3*100)/100:0;
+            var supp4=hasMinTip&&!mc.cashTipOk&&mc.tip<minT4?Math.round((minT4-mc.tip)*100)/100:0;
             var mm4=String(mr2+1).padStart(2,'0'),dd4=String(dr2).padStart(2,'0');
             txnRows+='<tr style="border-bottom:1px solid var(--border)">'
               +'<td style="padding:5px 8px;font-size:11px;color:var(--sub);white-space:nowrap">'+mm4+'/'+dd4+'</td>'
@@ -4600,6 +4620,7 @@ function renderReportPage(){
             var cfgr=staffPayCfg(mc.techName);
             if(cfgr.bonusType!=='minTip'&&cfgr.bonusType!=='minTipPooled')return;
             if(!mc.svc)return;
+            if(mc.cashTipOk)return; // 已標記現金已收
             var minTr=mc.svc*(cfgr.bonusThreshold||15)/100;
             if(mc.tip>=minTr)return;
             var sr3=Math.round((minTr-mc.tip)*100)/100;
@@ -4704,8 +4725,8 @@ function buildStaffCardHTML(d,moLabel,isPreview,note){
         mergeClientTxns(sDay(store,dr3).clients).forEach(function(mc){
           if(mc.techName!==d.name)return;
           if(!mc.svc&&!mc.tip)return;
-          var minT5=hasMinTipPDF?Math.round(mc.svc*tipPctPDF*100)/100:0;
-          var supp5=hasMinTipPDF&&mc.tip<minT5?Math.round((minT5-mc.tip)*100)/100:0;
+          var minT5=hasMinTipPDF&&!mc.cashTipOk?Math.round(mc.svc*tipPctPDF*100)/100:0;
+          var supp5=hasMinTipPDF&&!mc.cashTipOk&&mc.tip<minT5?Math.round((minT5-mc.tip)*100)/100:0;
           txnTotalSuppPDF+=supp5;
           var mm5=String(mr3+1).padStart(2,'0'),dd5=String(dr3).padStart(2,'0');
           txnRowsPDF+='<tr style="border-bottom:1px solid #eee">'
