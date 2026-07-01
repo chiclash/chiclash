@@ -1837,7 +1837,21 @@ function renderClientTable(d){
       <td>
         ${isGC?`<div class='tgl-grp'><input type="text" inputmode="decimal" class='ti' placeholder="0.00" min="0" step="0.01" value="${c.topup||''}" oninput="updC(${d},${i},'topup',this.value)" style="width:60px" title="補差額"><button class='tgl ${c.topupPay==="card"?"on-card":""}' onclick="setTopup(${d},${i},'card',this)">刷卡</button><button class='tgl ${c.topupPay==="cash"?"on-cash":""}' onclick="setTopup(${d},${i},'cash',this)">現金</button></div>`:`<span style="color:var(--faint);font-size:11px">—</span>`}
       </td>
-      <td><input type="text" inputmode="decimal" class='ti' placeholder="Tip" min="0" step="0.01" value="${c.tip||''}" oninput="updC(${d},${i},'tip',this.value)" style="width:65px"></td>
+      <td>
+        <input type="text" inputmode="decimal" class='ti' placeholder="Tip" min="0" step="0.01" value="${c.tip||''}" oninput="updC(${d},${i},'tip',this.value)" style="width:65px">
+        ${(()=>{
+          const techName=Array.isArray(c.staff)&&c.staff.length>0?c.staff[0]:(c.tech||'');
+          if(!techName)return '';
+          const cfg=staffPayCfg(techName);
+          if(cfg.bonusType!=='minTip'&&cfg.bonusType!=='minTipPooled')return '';
+          const svcAmt=gv(c.svc);if(!svcAmt)return '';
+          const tipAmt=gv(c.tip);
+          const minT=svcAmt*(cfg.bonusThreshold||15)/100;
+          if(tipAmt>=minT)return '';
+          const supp=minT-tipAmt;
+          return `<span style="color:#C0392B;font-size:11px;font-weight:600;white-space:nowrap">+$${supp.toFixed(2)}補</span>`;
+        })()}
+      </td>
       <td>
         <div class='tgl-grp'>
           <button class="tgl ${c.tipPay==='card'?'on-card':''}" onclick="setTipPay(${d},${i},'card',this)">刷卡</button>
@@ -3426,6 +3440,18 @@ function buildTipDayBody(d){
     var txnKey=cl.store+'_'+cl.idx;
     var selSet=tipSplitSel[splitKey][txnKey]||new Set();
 
+    // 補款計算
+    var techName=cl.tech||'';
+    var suppAmt=0;
+    if(techName){
+      var cfg2=staffPayCfg(techName);
+      if((cfg2.bonusType==='minTip'||cfg2.bonusType==='minTipPooled')&&cl.svc>0){
+        var minT2=cl.svc*(cfg2.bonusThreshold||15)/100;
+        if(cl.tip<minT2)suppAmt=Math.round((minT2-cl.tip)*100)/100;
+      }
+    }
+    var suppTag=suppAmt>0?'<span style="color:#C0392B;font-size:11px;font-weight:700;background:#FFF0EE;border:1px solid #F5C6C0;border-radius:6px;padding:1px 6px;margin-left:4px">老闆補 +$'+suppAmt.toFixed(2)+'</span>':'';
+
     var chips=staff.filter(function(name){return presentAt(name,cl.time)||selSet.has(name);}).map(function(name){
       var on=selSet.has(name);
       var present=true;
@@ -3447,6 +3473,7 @@ function buildTipDayBody(d){
         +(cl.name?'<span style="font-size:13px;font-weight:600">'+cl.name+'</span>':'<span style="font-size:12px;color:var(--faint)">客人</span>')
         +(cl.tech?(function(){var sc=getStaffColor(cl.tech);return '<span style="font-size:13px;font-weight:700;color:'+sc.hex+';background:'+sc.bg+';border:1.5px solid '+sc.border+';border-radius:10px;padding:2px 10px">'+cl.tech+'</span>';}()):'<span style="font-size:12px;color:var(--faint)">—</span>')
         +'<span style="margin-left:auto;font-size:14px;font-weight:700;color:'+payColor+'">'+payIcon+' $'+cl.tip.toFixed(2)+'</span>'
+        +suppTag
       +'</div>'
       +'<div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">'
         +chips
@@ -3454,6 +3481,30 @@ function buildTipDayBody(d){
       +'</div>'
     +'</div>';
   });
+
+  // 老闆補款合計
+  var totalSupp2=0,suppRows2='';
+  allClients.forEach(function(cl){
+    var tn=cl.tech||'';if(!tn)return;
+    var cfg3=staffPayCfg(tn);
+    if((cfg3.bonusType==='minTip'||cfg3.bonusType==='minTipPooled')&&cl.svc>0){
+      var minT3=cl.svc*(cfg3.bonusThreshold||15)/100;
+      if(cl.tip<minT3){
+        var s2=Math.round((minT3-cl.tip)*100)/100;
+        totalSupp2+=s2;
+        suppRows2+='<div style="display:flex;justify-content:space-between;font-size:12px;color:var(--sub);padding:3px 0">'
+          +'<span>'+(cl.name||'客人')+' ('+tn+')</span>'
+          +'<span style="color:#C0392B;font-weight:600">+$'+s2.toFixed(2)+'</span></div>';
+      }
+    }
+  });
+  var suppSection2=totalSupp2>0?
+    '<div style="background:#FFF8F7;border:1.5px solid #F5C6C0;border-radius:10px;padding:12px 16px;margin-top:8px">'
+    +'<div style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.08em;color:#C0392B;margin-bottom:8px">老闆補款明細</div>'
+    +suppRows2
+    +'<div style="display:flex;justify-content:space-between;border-top:1px solid #F5C6C0;margin-top:8px;padding-top:8px">'
+    +'<span style="font-weight:700;font-size:13px">今日老闆補款合計</span>'
+    +'<span style="font-weight:700;font-size:15px;color:#C0392B">+$'+totalSupp2.toFixed(2)+'</span></div></div>':'';
 
   // Totals per staff
   var totals={};
@@ -3494,6 +3545,7 @@ function buildTipDayBody(d){
     +attSummary
     +rows
     +totalSection
+    +suppSection2
     +'<button onclick="confirmTipTxnSplit(\''+splitKey+'\','+d+')" style="width:100%;margin-top:12px;padding:12px;background:var(--ok);color:#fff;border:none;border-radius:10px;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit">✓ 確認分配（儲存）</button>'
     +'</div>';
 }
@@ -4161,7 +4213,8 @@ function buildStaffReportData(){
       ['mv','sr'].forEach(function(store){
         for(var d2=1;d2<=days2;d2++){
           (sDay(store,d2).clients||[]).forEach(function(c){
-            if((c.tech||'')!==name)return;
+            var techMatch=(c.tech||'')===name||(Array.isArray(c.staff)&&c.staff.includes(name));
+            if(!techMatch)return;
             var svc=gv(c.svc);if(svc<=0)return;
             var tip=gv(c.tip);
             var minT=Math.round(svc*tipPct*100)/100;
@@ -4185,7 +4238,8 @@ function buildStaffReportData(){
         ['mv','sr'].forEach(function(store){
           for(var d3=1;d3<=days3;d3++){
             (sDay(store,d3).clients||[]).forEach(function(c){
-              if((c.tech||'')!==member)return;
+              var techMatch=(c.tech||'')===member||(Array.isArray(c.staff)&&c.staff.includes(member));
+              if(!techMatch)return;
               var svc=gv(c.svc);if(svc<=0)return;
               var tip=gv(c.tip);
               var minT=Math.round(svc*tipPct2*100)/100;
@@ -4366,6 +4420,50 @@ function renderReportPage(){
       '<td style="padding:4px 14px 4px 28px;font-size:11px;color:var(--warn)">老闆補款：'+d.bossSuppLabel+'</td>'+
       '<td colspan="'+(COLS-2)+'"></td></tr>';
 
+    // Per-transaction tip + supplement detail
+    (function(){
+      var yr2=cur.getFullYear(),mr2=cur.getMonth();
+      var days4=new Date(yr2,mr2+1,0).getDate();
+      var txnRows='';
+      var tipPct3=(d.cfg.bonusThreshold||15)/100;
+      var hasMinTip=(d.cfg.bonusType==='minTip'||d.cfg.bonusType==='minTipPooled');
+      for(var dr2=1;dr2<=days4;dr2++){
+        ['mv','sr'].forEach(function(store){
+          (sDay(store,dr2).clients||[]).forEach(function(c){
+            var techMatch=(c.tech||'')===d.name||(Array.isArray(c.staff)&&c.staff.includes(d.name));
+            if(!techMatch)return;
+            var svcAmt2=gv(c.svc),tipAmt2=gv(c.tip);
+            if(!svcAmt2&&!tipAmt2)return;
+            var minT4=hasMinTip?Math.round(svcAmt2*tipPct3*100)/100:0;
+            var supp4=hasMinTip&&tipAmt2<minT4?Math.round((minT4-tipAmt2)*100)/100:0;
+            var mm4=String(mr2+1).padStart(2,'0'),dd4=String(dr2).padStart(2,'0');
+            txnRows+='<tr style="border-bottom:1px solid var(--border)">'
+              +'<td style="padding:5px 8px;font-size:11px;color:var(--sub);white-space:nowrap">'+mm4+'/'+dd4+'</td>'
+              +'<td style="padding:5px 8px;font-size:11px;max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+(c.clientName||'—')+'</td>'
+              +'<td style="padding:5px 8px;font-size:11px;text-align:right">'+$f(svcAmt2)+'</td>'
+              +'<td style="padding:5px 8px;font-size:11px;text-align:right">'+$f(tipAmt2)+'</td>'
+              +(hasMinTip?'<td style="padding:5px 8px;font-size:11px;text-align:right">'+$f(minT4)+'</td>'
+                +'<td style="padding:5px 8px;font-size:11px;text-align:right;font-weight:700;color:'+(supp4>0?'#C0392B':'var(--faint)') +'">'+(supp4>0?'+'+$f(supp4):'—')+'</td>':'')
+              +'</tr>';
+          });
+        });
+      }
+      if(!txnRows)return;
+      var hdCols='<th style="padding:5px 8px;text-align:left;font-size:10px;color:var(--sub);font-weight:600;background:var(--bg)">日期</th>'
+        +'<th style="padding:5px 8px;text-align:left;font-size:10px;color:var(--sub);font-weight:600;background:var(--bg)">客人</th>'
+        +'<th style="padding:5px 8px;text-align:right;font-size:10px;color:var(--sub);font-weight:600;background:var(--bg)">服務費</th>'
+        +'<th style="padding:5px 8px;text-align:right;font-size:10px;color:var(--sub);font-weight:600;background:var(--bg)">小費</th>'
+        +(hasMinTip?'<th style="padding:5px 8px;text-align:right;font-size:10px;color:var(--sub);font-weight:600;background:var(--bg)">應得('+(d.cfg.bonusThreshold||15)+'%)</th>'
+          +'<th style="padding:5px 8px;text-align:right;font-size:10px;color:#C0392B;font-weight:600;background:var(--bg)">老闆補</th>':'');
+      details+='<tr id="'+detailId+'-txn" style="display:none;background:var(--white)"><td></td>'
+        +'<td colspan="'+(COLS-1)+'" style="padding:8px 14px 12px 28px">'
+        +'<div style="font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.08em;color:var(--sub);margin-bottom:6px">逐筆明細</div>'
+        +'<div style="border-radius:8px;overflow:hidden;border:1px solid var(--border)">'
+        +'<table style="width:100%;border-collapse:collapse"><thead><tr>'+hdCols+'</tr></thead>'
+        +'<tbody>'+txnRows+'</tbody></table></div>'
+        +'</td></tr>';
+    })();
+
     var adj=d.adj||0;
     var adjEsc=d.name.replace(/'/g,"\\'");
     var noteRow='<tr style="background:'+staffBg+';border-bottom:2px solid '+staffBd+'"><td></td>'+
@@ -4441,14 +4539,63 @@ function renderReportPage(){
         '<tbody>'+rows+'</tbody>'+
       '</table>'+
     '</div>'+
-    bossSummary;
+    bossSummary+
+    (function(){
+      // 補款明細逐筆表
+      var suppRows3='',grandSupp3=0;
+      var yr=cur.getFullYear(),mr=cur.getMonth();
+      var daysr=new Date(yr,mr+1,0).getDate();
+      for(var dr=1;dr<=daysr;dr++){
+        ['mv','sr'].forEach(function(store){
+          (sDay(store,dr).clients||[]).forEach(function(c){
+            var tn=Array.isArray(c.staff)&&c.staff.length>0?c.staff[0]:(c.tech||'');
+            if(!tn)return;
+            var cfgr=staffPayCfg(tn);
+            if(cfgr.bonusType!=='minTip'&&cfgr.bonusType!=='minTipPooled')return;
+            var svcr=gv(c.svc);if(!svcr)return;
+            var tipr=gv(c.tip);
+            var minTr=svcr*(cfgr.bonusThreshold||15)/100;
+            if(tipr>=minTr)return;
+            var sr3=Math.round((minTr-tipr)*100)/100;
+            grandSupp3+=sr3;
+            var mmr=String(mr+1).padStart(2,'0'),ddr=String(dr).padStart(2,'0');
+            suppRows3+='<tr>'
+              +'<td style="padding:7px 12px;font-size:12px;color:var(--sub)">'+mmr+'/'+ddr+'</td>'
+              +'<td style="padding:7px 12px;font-size:12px">'+(c.clientName||'客人')+'</td>'
+              +'<td style="padding:7px 12px;font-size:12px;font-weight:600">'+tn+'</td>'
+              +'<td style="padding:7px 12px;text-align:right;font-size:12px">'+$f(svcr)+'</td>'
+              +'<td style="padding:7px 12px;text-align:right;font-size:12px">'+$f(tipr)+'</td>'
+              +'<td style="padding:7px 12px;text-align:right;font-size:12px">'+$f(minTr)+'</td>'
+              +'<td style="padding:7px 12px;text-align:right;font-size:13px;font-weight:700;color:#C0392B">+'+$f(sr3)+'</td>'
+              +'</tr>';
+          });
+        });
+      }
+      if(!suppRows3)return '';
+      return '<div style="margin-top:16px;background:var(--white);border:1.5px solid #F5C6C0;border-radius:10px;overflow:hidden">'
+        +'<div style="background:#FFF0EE;padding:10px 16px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid #F5C6C0">'
+        +'<span style="font-size:12px;font-weight:700;color:#C0392B">📋 老闆補款明細（逐筆）</span>'
+        +'<span style="font-size:14px;font-weight:700;color:#C0392B">本月合計 +'+$f(grandSupp3)+'</span></div>'
+        +'<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse">'
+        +'<thead><tr style="background:var(--bg);border-bottom:1px solid var(--border)">'
+        +'<th style="padding:7px 12px;text-align:left;font-size:10px;color:var(--sub);font-weight:600">日期</th>'
+        +'<th style="padding:7px 12px;text-align:left;font-size:10px;color:var(--sub);font-weight:600">客人</th>'
+        +'<th style="padding:7px 12px;text-align:left;font-size:10px;color:var(--sub);font-weight:600">技師</th>'
+        +'<th style="padding:7px 12px;text-align:right;font-size:10px;color:var(--sub);font-weight:600">服務費</th>'
+        +'<th style="padding:7px 12px;text-align:right;font-size:10px;color:var(--sub);font-weight:600">實際小費</th>'
+        +'<th style="padding:7px 12px;text-align:right;font-size:10px;color:var(--sub);font-weight:600">應得('+((staffPayCfg((_D.staff||[])[0]||'').bonusThreshold)||15)+'%)</th>'
+        +'<th style="padding:7px 12px;text-align:right;font-size:10px;color:#C0392B;font-weight:600">老闆補</th>'
+        +'</tr></thead>'
+        +'<tbody>'+suppRows3+'</tbody>'
+        +'</table></div></div>';
+    })();
 }
 
 function rptToggle(i){
   var arr=document.getElementById('rpt-arr-'+i);
   var open=arr&&arr.style.transform==='rotate(90deg)';
   if(arr)arr.style.transform=open?'':'rotate(90deg)';
-  ['h','sv','mt','st','rv','bs'].forEach(function(k){
+  ['h','sv','mt','st','rv','bs','txn'].forEach(function(k){
     var el=document.getElementById('rpt-detail-'+i+'-'+k);
     if(el)el.style.display=open?'none':'table-row';
   });
@@ -4497,6 +4644,60 @@ function buildStaffCardHTML(d,moLabel,isPreview,note){
       p.date.slice(5).replace('-','/')+' <span style="font-weight:600;color:'+(isB?'#1A7A45':'#B83010')+'">'+(isB?'獎勵':'扣款')+'</span> '+p.desc+
       '</td><td style="padding:5px 12px;text-align:right;font-weight:600;color:'+(isB?'#1A7A45':'#B83010')+'">'+(isB?'+':'-')+$f(Math.abs(p.amt))+'</td></tr>';
   });
+
+  // Per-transaction tip detail for PDF
+  var hasMinTipPDF=(d.cfg.bonusType==='minTip'||d.cfg.bonusType==='minTipPooled');
+  var tipPctPDF=(d.cfg.bonusThreshold||15)/100;
+  var txnRowsPDF='';
+  var txnTotalSuppPDF=0;
+  (function(){
+    var yr3=cur.getFullYear(),mr3=cur.getMonth();
+    var days5=new Date(yr3,mr3+1,0).getDate();
+    for(var dr3=1;dr3<=days5;dr3++){
+      ['mv','sr'].forEach(function(store){
+        (sDay(store,dr3).clients||[]).forEach(function(c){
+          var techMatch=(c.tech||'')===d.name||(Array.isArray(c.staff)&&c.staff.includes(d.name));
+          if(!techMatch)return;
+          var svc5=gv(c.svc),tip5=gv(c.tip);
+          if(!svc5&&!tip5)return;
+          var minT5=hasMinTipPDF?Math.round(svc5*tipPctPDF*100)/100:0;
+          var supp5=hasMinTipPDF&&tip5<minT5?Math.round((minT5-tip5)*100)/100:0;
+          txnTotalSuppPDF+=supp5;
+          var mm5=String(mr3+1).padStart(2,'0'),dd5=String(dr3).padStart(2,'0');
+          txnRowsPDF+='<tr style="border-bottom:1px solid #eee">'
+            +'<td style="padding:5px 8px;font-size:11px;color:#666">'+mm5+'/'+dd5+'</td>'
+            +'<td style="padding:5px 8px;font-size:11px">'+( c.clientName||'—')+'</td>'
+            +'<td style="padding:5px 8px;font-size:11px;text-align:right">'+$f(svc5)+'</td>'
+            +'<td style="padding:5px 8px;font-size:11px;text-align:right">'+$f(tip5)+'</td>'
+            +(hasMinTipPDF?'<td style="padding:5px 8px;font-size:11px;text-align:right">'+$f(minT5)+'</td>'
+              +'<td style="padding:5px 8px;font-size:11px;text-align:right;font-weight:700;color:'+(supp5>0?'#C0392B':'#aaa')+'">'+(supp5>0?'+'+$f(supp5):'—')+'</td>':'')
+            +'</tr>';
+        });
+      });
+    }
+  })();
+
+  var txnSection='';
+  if(txnRowsPDF){
+    txnSection='<div style="margin-top:12px;border:1px solid #ddd;border-radius:6px;overflow:hidden">'
+      +'<div style="background:#f0f0f0;padding:7px 10px;display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid #ddd">'
+        +'<span style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:#555">逐筆明細</span>'
+        +(txnTotalSuppPDF>0?'<span style="font-size:11px;font-weight:700;color:#C0392B">老闆補合計 +'+$f(txnTotalSuppPDF)+'</span>':'')
+      +'</div>'
+      +'<table style="width:100%;border-collapse:collapse">'
+        +'<thead><tr style="background:#f7f7f7">'
+          +'<th style="padding:5px 8px;text-align:left;font-size:10px;color:#888;font-weight:600">日期</th>'
+          +'<th style="padding:5px 8px;text-align:left;font-size:10px;color:#888;font-weight:600">客人</th>'
+          +'<th style="padding:5px 8px;text-align:right;font-size:10px;color:#888;font-weight:600">服務費</th>'
+          +'<th style="padding:5px 8px;text-align:right;font-size:10px;color:#888;font-weight:600">小費</th>'
+          +(hasMinTipPDF?'<th style="padding:5px 8px;text-align:right;font-size:10px;color:#888;font-weight:600">應得('+(d.cfg.bonusThreshold||15)+'%)</th>'
+            +'<th style="padding:5px 8px;text-align:right;font-size:10px;color:#C0392B;font-weight:600">老闆補</th>':'')
+        +'</tr></thead>'
+        +'<tbody>'+txnRowsPDF+'</tbody>'
+      +'</table>'
+    +'</div>';
+  }
+
   var grandColor=d.grand>=0?'#1A7A45':'#B83010';
   return '<div style="background:#fff;border:1px solid #ddd;border-radius:8px;overflow:hidden;font-family:system-ui,sans-serif">'+
     '<div style="padding:14px 16px;background:#f7f7f7;border-bottom:1px solid #ddd;display:flex;align-items:center;justify-content:space-between">'+
@@ -4510,6 +4711,7 @@ function buildStaffCardHTML(d,moLabel,isPreview,note){
         '<td style="padding:8px 12px;font-weight:700;font-size:12px">合計應得</td>'+
         '<td style="padding:8px 12px;text-align:right;font-size:18px;font-weight:700;color:'+grandColor+'">'+$f(d.grand)+'</td>'+
       '</tr></tfoot></table>'+
+    txnSection+
     (note?'<div style="padding:10px 12px;border-top:1px solid #ddd;background:#fffdf5">'+
       '<div style="font-size:10px;color:#888;margin-bottom:3px;font-weight:600">備註</div>'+
       '<div style="font-size:12px;color:#444;white-space:pre-wrap">'+note+'</div></div>':'')+
@@ -5902,7 +6104,7 @@ function switchCDTab(store){
     tab.style.borderBottom=active?'3px solid '+(s==='mv'?'var(--mv)':'var(--sr)'):'3px solid transparent';
   });
 }
-var CD_DENOMS=[1,5,10,20,100];
+var CD_DENOMS=[1,5,10,20,50,100];
 function cdData(){if(!_D.cd)_D.cd=[];return _D.cd;}
 function addCDEntry(store){
   var date=document.getElementById('cd-date-'+store).value||fmtDate(new Date());
