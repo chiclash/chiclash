@@ -4841,17 +4841,56 @@ function downloadAllPDFs(){
 
   var pages=allData.map(function(d){
     var note=notes[d.name]||'';
-    var tipRows='';
-    if(d.mvTip>0){
-      tipRows+='<tr><td>MV 小費</td><td style="color:#1656A0;font-weight:600">$'+d.mvTip.toFixed(2)+'</td></tr>';
-      if(d.mvTipCard>0) tipRows+='<tr class="sub"><td>&nbsp;&nbsp;&nbsp;💳 刷卡</td><td>$'+d.mvTipCard.toFixed(2)+'</td></tr>';
-      if(d.mvTipCash>0) tipRows+='<tr class="sub"><td>&nbsp;&nbsp;&nbsp;💵 現金</td><td style="color:#B45309">$'+d.mvTipCash.toFixed(2)+'</td></tr>';
+    // 小費合計（不分MV/SR）
+    var totalTipAmt=d.pooledTip!==undefined?d.pooledTip:((d.mvTip||0)+(d.srTip||0));
+    var tipLabel=d.pooledTip!==undefined?'小費（平分後）':'小費';
+    var tipRow=totalTipAmt>0?'<tr><td>'+tipLabel+'</td><td style="color:#7A5A10;font-weight:600">$'+totalTipAmt.toFixed(2)+'</td></tr>':'';
+    // 逐筆明細
+    var hasMinTipPDF2=(d.cfg.bonusType==='minTip'||d.cfg.bonusType==='minTipPooled');
+    var tipPctPDF2=(d.cfg.bonusThreshold||15)/100;
+    var txnRows2='';
+    var txnTotalSupp2=0;
+    var yr4=cur.getFullYear(),mr4=cur.getMonth();
+    var days6=new Date(yr4,mr4+1,0).getDate();
+    for(var dr4=1;dr4<=days6;dr4++){
+      ['mv','sr'].forEach(function(store){
+        mergeClientTxns(sDay(store,dr4).clients).forEach(function(mc){
+          if(mc.techName!==d.name)return;
+          if(!mc.svc&&!mc.tip)return;
+          var minT6=hasMinTipPDF2&&!mc.cashTipOk?Math.round(mc.svc*tipPctPDF2*100)/100:0;
+          var supp6=hasMinTipPDF2&&!mc.cashTipOk&&mc.tip<minT6?Math.round((minT6-mc.tip)*100)/100:0;
+          txnTotalSupp2+=supp6;
+          var mm6=String(mr4+1).padStart(2,'0'),dd6=String(dr4).padStart(2,'0');
+          txnRows2+='<tr>'
+            +'<td>'+mm6+'/'+dd6+'</td>'
+            +'<td>'+(mc.clientName||'—')+'</td>'
+            +'<td style="text-align:right">$'+mc.svc.toFixed(2)+'</td>'
+            +'<td style="text-align:right">$'+mc.tip.toFixed(2)+'</td>'
+            +(hasMinTipPDF2?'<td style="text-align:right">$'+minT6.toFixed(2)+'</td>'
+              +'<td style="text-align:right;color:'+(supp6>0?'#C0392B':'#aaa')+'">'
+              +(supp6>0?'+$'+supp6.toFixed(2):'—')+'</td>':'')
+            +(mc.cashTipOk?'<td style="color:#1A7A45;font-size:10px">💵✓</td>':'<td></td>')
+            +'</tr>';
+        });
+      });
     }
-    if(d.srTip>0){
-      tipRows+='<tr><td>SR 小費</td><td style="color:#5E35B1;font-weight:600">$'+d.srTip.toFixed(2)+'</td></tr>';
-      if(d.srTipCard>0) tipRows+='<tr class="sub"><td>&nbsp;&nbsp;&nbsp;💳 刷卡</td><td>$'+d.srTipCard.toFixed(2)+'</td></tr>';
-      if(d.srTipCash>0) tipRows+='<tr class="sub"><td>&nbsp;&nbsp;&nbsp;💵 現金</td><td style="color:#B45309">$'+d.srTipCash.toFixed(2)+'</td></tr>';
-    }
+    var txnSection2=txnRows2?(
+      '<div style="margin-top:12px">'
+      +'<div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:#666;margin-bottom:6px;border-bottom:1px solid #ddd;padding-bottom:4px">逐筆明細</div>'
+      +'<table style="font-size:11px">'
+        +'<thead><tr style="background:#f5f5f5">'
+          +'<th style="text-align:left;padding:4px;font-weight:600">日期</th>'
+          +'<th style="text-align:left;padding:4px;font-weight:600">客人</th>'
+          +'<th style="text-align:right;padding:4px;font-weight:600">服務費</th>'
+          +'<th style="text-align:right;padding:4px;font-weight:600">小費</th>'
+          +(hasMinTipPDF2?'<th style="text-align:right;padding:4px;font-weight:600">應得('+(d.cfg.bonusThreshold||15)+'%)</th>'
+            +'<th style="text-align:right;padding:4px;color:#C0392B;font-weight:600">老闆補</th>':'')
+          +'<th style="text-align:center;padding:4px;font-weight:600">現金</th>'
+        +'</tr></thead>'
+        +'<tbody>'+txnRows2+'</tbody>'
+        +(txnTotalSupp2>0?'<tfoot><tr style="border-top:2px solid #ddd;background:#fff8f7"><td colspan="'+(hasMinTipPDF2?5:3)+'" style="padding:5px 4px;font-weight:600;font-size:11px">老闆補款合計</td><td style="text-align:right;font-weight:700;color:#C0392B;padding:5px 4px">+$'+txnTotalSupp2.toFixed(2)+'</td><td></td></tr></tfoot>':'')
+      +'</table></div>'
+    ):'';
     var penRows='';
     d.pens.forEach(function(p){
       var isB=p.type==='bonus';
@@ -4859,27 +4898,28 @@ function downloadAllPDFs(){
         +'<td style="color:'+(isB?'#1A7A45':'#B83010')+';font-weight:600">'+(isB?'+':'-')+'$'+Math.abs(p.amt).toFixed(2)+'</td></tr>';
     });
     var grandColor=d.grand>=0?'#1A7A45':'#B83010';
-    return '<div class="pg">'+
-      '<div class="hdr">'+
-        '<div><div class="studio">Chic Lash Studio</div>'+
-        '<div class="staff-name">'+d.name+'</div>'+
-        '<div class="mo-label">'+moLabel+' 月結報表</div></div>'+
-        '<div class="grand" style="color:'+grandColor+'">'+$f2(d.grand)+'</div>'+
-      '</div>'+
-      '<table>'+
-        (d.totalNetMins>0?'<tr><td>出勤工時</td><td>'+d.hoursStr+'（'+d.workDays+' 天）</td></tr>':'')+
-        '<tr><td>服務費</td><td>$'+d.totalSales.toFixed(2)+'</td></tr>'+
-        '<tr><td>'+d.baseLabel+'</td><td style="color:#1656A0;font-weight:600">$'+d.basePay.toFixed(2)+'</td></tr>'+
-        tipRows+
-        (d.mvRev>0?'<tr><td>MV 評論獎勵</td><td style="color:#7A5A10">$'+d.mvRev.toFixed(2)+'</td></tr>':'')+
-        (d.srRev>0?'<tr><td>SR 評論獎勵</td><td style="color:#7A5A10">$'+d.srRev.toFixed(2)+'</td></tr>':'')+
-        penRows+
-        (d.bossSupp>0?'<tr><td>老闆補款</td><td style="color:#B45309;font-weight:600">$'+d.bossSupp.toFixed(2)+'</td></tr>':'')+
-        '<tr class="total"><td>合計應得</td><td style="color:'+grandColor+'">'+$f2(d.grand)+'</td></tr>'+
-      '</table>'+
-      (note?'<div class="note"><strong>備註：</strong>'+note+'</div>':'')+
-      '<div class="footer">Chic Lash Studio · '+moLabel+' · 列印日期：'+new Date().toLocaleDateString('zh-TW')+'</div>'+
-    '</div>';
+    return '<div class="pg">'
+      +'<div class="hdr">'
+        +'<div><div class="studio">Chic Lash Studio</div>'
+        +'<div class="staff-name">'+d.name+'</div>'
+        +'<div class="mo-label">'+moLabel+' 月結報表</div></div>'
+        +'<div class="grand" style="color:'+grandColor+'">'+$f2(d.grand)+'</div>'
+      +'</div>'
+      +'<table>'
+        +(d.totalNetMins>0?'<tr><td>出勤工時</td><td>'+d.hoursStr+'（'+d.workDays+' 天）</td></tr>':'')
+        +'<tr><td>服務費</td><td>$'+d.totalSales.toFixed(2)+'</td></tr>'
+        +'<tr><td>'+d.baseLabel+'</td><td style="color:#1656A0;font-weight:600">$'+d.basePay.toFixed(2)+'</td></tr>'
+        +tipRow
+        +(d.mvRev>0?'<tr><td>MV 評論獎勵</td><td style="color:#7A5A10">$'+d.mvRev.toFixed(2)+'</td></tr>':'')
+        +(d.srRev>0?'<tr><td>SR 評論獎勵</td><td style="color:#7A5A10">$'+d.srRev.toFixed(2)+'</td></tr>':'')
+        +penRows
+        +(d.bossSupp>0?'<tr><td>老闆補款</td><td style="color:#B45309;font-weight:600">$'+d.bossSupp.toFixed(2)+'</td></tr>':'')
+        +'<tr class="total"><td>合計應得</td><td style="color:'+grandColor+'">'+$f2(d.grand)+'</td></tr>'
+      +'</table>'
+      +txnSection2
+      +(note?'<div class="note"><strong>備註：</strong>'+note+'</div>':'')
+      +'<div class="footer">Chic Lash Studio · '+moLabel+' · 列印日期：'+new Date().toLocaleDateString('zh-TW')+'</div>'
+    +'</div>';
   }).join('');
 
   var html='<!DOCTYPE html><html><head><meta charset="utf-8">'+
