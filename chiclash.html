@@ -4505,6 +4505,16 @@ function renderReportPage(){
             var minT4=hasMinTip&&!mc.cashTipOk?Math.round(mc.svc*tipPct3*100)/100:0;
             var supp4=hasMinTip&&!mc.cashTipOk&&mc.tip<minT4?Math.round((minT4-mc.tip)*100)/100:0;
             var mm4=String(mr2+1).padStart(2,'0'),dd4=String(dr2).padStart(2,'0');
+            var cashBtn=hasMinTip?(
+              '<td style="padding:5px 8px;text-align:center">'
+              +'<button onclick="toggleRptCashTipOk(this)" '
+              +'data-store="'+store+'" data-day="'+dr2+'" '
+              +'data-tech="'+mc.techName.replace(/"/g,'&quot;')+'" '
+              +'data-client="'+mc.clientName.replace(/"/g,'&quot;')+'" '
+              +'style="font-size:10px;padding:2px 7px;border:1px solid '+(mc.cashTipOk?'var(--ok-bd)':'var(--border)')+';border-radius:6px;background:'+(mc.cashTipOk?'var(--ok-bg)':'var(--white)')+';color:'+(mc.cashTipOk?'var(--ok)':'var(--faint)')+';cursor:pointer;font-family:inherit" '
+              +'title="現金小費已收，不計補款">'+(mc.cashTipOk?'💵✓':'💵?')+'</button>'
+              +'</td>'
+            ):'';
             txnRows+='<tr style="border-bottom:1px solid var(--border)">'
               +'<td style="padding:5px 8px;font-size:11px;color:var(--sub);white-space:nowrap">'+mm4+'/'+dd4+'</td>'
               +'<td style="padding:5px 8px;font-size:11px;max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+(mc.clientName||'—')+'</td>'
@@ -4512,6 +4522,7 @@ function renderReportPage(){
               +'<td style="padding:5px 8px;font-size:11px;text-align:right">'+$f(mc.tip)+'</td>'
               +(hasMinTip?'<td style="padding:5px 8px;font-size:11px;text-align:right">'+$f(minT4)+'</td>'
                 +'<td style="padding:5px 8px;font-size:11px;text-align:right;font-weight:700;color:'+(supp4>0?'#C0392B':'var(--faint)') +'">'+(supp4>0?'+'+$f(supp4):'—')+'</td>':'')
+              +cashBtn
               +'</tr>';
           });
         });
@@ -4522,7 +4533,8 @@ function renderReportPage(){
         +'<th style="padding:5px 8px;text-align:right;font-size:10px;color:var(--sub);font-weight:600;background:var(--bg)">服務費</th>'
         +'<th style="padding:5px 8px;text-align:right;font-size:10px;color:var(--sub);font-weight:600;background:var(--bg)">小費</th>'
         +(hasMinTip?'<th style="padding:5px 8px;text-align:right;font-size:10px;color:var(--sub);font-weight:600;background:var(--bg)">應得('+(d.cfg.bonusThreshold||15)+'%)</th>'
-          +'<th style="padding:5px 8px;text-align:right;font-size:10px;color:#C0392B;font-weight:600;background:var(--bg)">老闆補</th>':'');
+          +'<th style="padding:5px 8px;text-align:right;font-size:10px;color:#C0392B;font-weight:600;background:var(--bg)">老闆補</th>'
+          +'<th style="padding:5px 8px;text-align:center;font-size:10px;color:var(--sub);font-weight:600;background:var(--bg)">現金</th>':'');
       details+='<tr id="'+detailId+'-txn" style="display:none;background:var(--white)"><td></td>'
         +'<td colspan="'+(COLS-1)+'" style="padding:8px 14px 12px 28px">'
         +'<div style="font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.08em;color:var(--sub);margin-bottom:6px">逐筆明細</div>'
@@ -4657,6 +4669,43 @@ function renderReportPage(){
         +'</table></div></div>';
     })();
 }
+
+function toggleRptCashTipOk(btn){
+  var store     = btn.dataset.store;
+  var day       = parseInt(btn.dataset.day);
+  var techName  = btn.dataset.tech;
+  var clientName= btn.dataset.client;
+
+  // 記住哪些員工的明細是展開的
+  var openIdxs=[];
+  document.querySelectorAll('[id^="rpt-arr-"]').forEach(function(el){
+    if(el.style.transform==='rotate(90deg)'){
+      openIdxs.push(el.id.replace('rpt-arr-',''));
+    }
+  });
+
+  // 找到當天符合的所有 clients，全部 toggle
+  var clients = sDay(store, day).clients || [];
+  var newVal = null;
+  clients.forEach(function(c){
+    var ct = Array.isArray(c.staff)&&c.staff.length>0?c.staff[0]:(c.tech||'');
+    if(ct===techName && (c.clientName||'').trim()===clientName.trim()){
+      if(newVal===null) newVal = !c.cashTipOk;
+      c.cashTipOk = newVal;
+    }
+  });
+  save();
+  renderReportPage();
+
+  // 重新展開之前開著的員工明細
+  requestAnimationFrame(function(){
+    openIdxs.forEach(function(idx){
+      var arr=document.getElementById('rpt-arr-'+idx);
+      if(arr&&arr.style.transform!=='rotate(90deg)') rptToggle(parseInt(idx));
+    });
+  });
+}
+window.toggleRptCashTipOk = toggleRptCashTipOk;
 
 function rptToggle(i){
   var arr=document.getElementById('rpt-arr-'+i);
