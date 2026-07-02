@@ -266,6 +266,10 @@ body{background:var(--cream);font-family:'Inter',sans-serif;color:var(--ink);min
           <div style="font-size:16px;font-weight:700;color:var(--ink);border-bottom:1.5px solid var(--border);padding-bottom:6px" id="gc-fill-exp">—</div>
         </div>
       </div>
+      <div style="margin-bottom:14px">
+        <div style="font-size:11px;color:var(--sub);font-weight:600;letter-spacing:.06em;margin-bottom:5px">CERTIFICATE NUMBER 卡号</div>
+        <div style="font-size:16px;font-weight:700;font-family:monospace;color:var(--rose);border-bottom:1.5px solid var(--border);padding-bottom:6px;letter-spacing:.08em" id="gc-fill-code-customer">—</div>
+      </div>
       <div>
         <div style="font-size:11px;color:var(--sub);font-weight:600;letter-spacing:.06em;margin-bottom:5px">AUTHORIZED SIGNATURE</div>
         <div style="height:32px;border-bottom:1.5px solid var(--border)"></div>
@@ -1160,6 +1164,7 @@ async function submitGC() {
     document.getElementById('gc-fill-purchaser').textContent = fromVal;
     document.getElementById('gc-fill-soldby').textContent    = soldBy;
     document.getElementById('gc-done-code').textContent      = code;
+    document.getElementById('gc-fill-code-customer').textContent = code;
     var nw = document.getElementById('gc-done-note-wrap');
     var ne = document.getElementById('gc-done-note');
     if (noteVal && nw && ne) { nw.style.display='block'; ne.textContent=noteVal; }
