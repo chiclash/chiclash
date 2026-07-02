@@ -6598,12 +6598,58 @@ function renderCDStoreTbl(store,entries,selMonth){
     '<span></span>'+
   '</div>';
   var running=manualBal!==null?manualBal:prevBal;
-  if(moEntries.length===0){
+
+  // 從每日 clients 自動產生現金服務費記錄（只顯示，不存入 cdData）
+  var storeData=(_D[store]&&_D[store][selMonth])||{};
+  var autoCashByDate={};
+  Object.keys(storeData).forEach(function(day){
+    var clients=(storeData[day].clients||[]);
+    var cashSvc=0,cashNames=[];
+    clients.forEach(function(c){
+      if(c.pay==='cash'||c.pay==='現金') cashSvc+=gv(c.svc);
+      if((c.pay==='cash'||c.pay==='現金')&&c.clientName) cashNames.push(c.clientName);
+    });
+    var total=Math.round(cashSvc*100)/100;
+    if(total>0){
+      var dateStr=selMonth+'-'+String(day).padStart(2,'0');
+      autoCashByDate[dateStr]={svc:cashSvc,total:total,names:cashNames};
+    }
+  });
+
+  // 合併手動記錄和自動現金記錄，按日期排序
+  var allItems=[];
+  moEntries.forEach(function(e){ allItems.push({type:'entry',date:e.date,e:e}); });
+  Object.keys(autoCashByDate).forEach(function(date){
+    allItems.push({type:'auto',date:date,data:autoCashByDate[date]});
+  });
+  allItems.sort(function(a,b){
+    if(a.date!==b.date) return a.date<b.date?-1:1;
+    return a.type==='auto'?-1:1; // 同一天現金收入排在前面
+  });
+
+  if(allItems.length===0){
     tbl.innerHTML=hdr+carryRow+'<div style="text-align:center;padding:24px;font-size:13px;color:var(--faint)">本月尚無記錄</div>';
     return;
   }
-  var rows=moEntries.map(function(e){
-    if(e.type!=='count')running=Math.round((running+(e.type==='in'?e.amt:-e.amt))*100)/100;
+
+  var rows=allItems.map(function(item){
+    if(item.type==='auto'){
+      // 自動現金收入列（灰色背景，不可刪除）
+      var d=item.data;
+      var nameStr=d.names.length>0?d.names.slice(0,3).join('、')+(d.names.length>3?'…':''):'';
+      return '<div class="cd-row2" style="background:#F5FBF5;opacity:0.9">'+
+        '<span style="font-size:12px">'+item.date.slice(5)+'</span>'+
+        '<span style="font-size:11px;font-weight:600;color:var(--ok)">💵 現金收入</span>'+
+        '<span style="text-align:right;color:var(--ok);font-weight:600">+'+$f(d.total)+'</span>'+
+        '<span style="text-align:right;color:var(--faint)">—</span>'+
+        '<span style="text-align:right;color:var(--faint)">—</span>'+
+        '<span style="font-size:11px;color:var(--sub)">服務費 '+$f(d.svc)+(nameStr?' · '+nameStr:'')+'</span>'+
+        '<span></span>'+
+      '</div>';
+    }
+    // 手動記錄
+    var e=item.e;
+    if(e.type!=='count') running=Math.round((running+(e.type==='in'?e.amt:-e.amt))*100)/100;
     var balColor=running>0?storeColor:running<0?'var(--warn)':'var(--faint)';
     if(e.type==='count'){
       var hasChange=e.change!==null&&e.change!==undefined&&e.lastDate&&e.lastDate.slice(0,7)===e.date.slice(0,7);
