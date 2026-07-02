@@ -6346,7 +6346,8 @@ function calcCDStoreBossOut(store,month){
   }).reduce(function(s,e){return s+e.amt;},0);
 }
 function getLastCount(store){
-  var counts=cdData().filter(function(e){return e.store===store&&e.type==='count';});
+  var mo=mk(); // 只看當月
+  var counts=cdData().filter(function(e){return e.store===store&&e.type==='count'&&e.date.slice(0,7)===mo;});
   return counts.length>0?counts[counts.length-1]:null;
 }
 function initCDDenoms(store){
@@ -6605,7 +6606,7 @@ function renderCDStoreTbl(store,entries,selMonth){
     if(e.type!=='count')running=Math.round((running+(e.type==='in'?e.amt:-e.amt))*100)/100;
     var balColor=running>0?storeColor:running<0?'var(--warn)':'var(--faint)';
     if(e.type==='count'){
-      var hasChange=e.change!==null&&e.change!==undefined;
+      var hasChange=e.change!==null&&e.change!==undefined&&e.lastDate&&e.lastDate.slice(0,7)===e.date.slice(0,7);
       var changeStr=hasChange?(e.change>=0?'+':'')+$f(e.change):'首次';
       var changeColor=!hasChange?'var(--sub)':e.change>=0?'var(--ok)':'var(--warn)';
       var sinceDate=e.lastDate||'';
