@@ -401,16 +401,21 @@ var _gcList = [];
 
 async function loadGiftCards() {
   try {
-    // 等待 Firebase module 準備好
+    // 等待 Firebase module script 執行完畢
     var waited = 0;
-    while(!window._crDb && waited < 30){ await new Promise(r=>setTimeout(r,100)); waited++; }
-    if(!window._crDb){ throw new Error('Firebase not ready'); }
-    
-    const crDb = window._crDb;
-    const fb = window._fb;
-    const q = fb.query(fb.collection(crDb, 'gift_certificates'), fb.orderBy('issuedAt','desc'));
-    const snap = await fb.getDocs(q);
-    _gcList = snap.docs.map(d => ({id:d.id, ...d.data()}));
+    while(!window._fbReady && waited < 50){
+      await new Promise(function(r){setTimeout(r,100);});
+      waited++;
+    }
+    if(!window._fbReady || !window._fb || !window._crDb){
+      throw new Error('Firebase not ready - please refresh 請重新整理頁面');
+    }
+    var q = window._fb.query(
+      window._fb.collection(window._crDb, 'gift_certificates'),
+      window._fb.orderBy('issuedAt','desc')
+    );
+    var snap = await window._fb.getDocs(q);
+    _gcList = snap.docs.map(function(d){ return Object.assign({id:d.id}, d.data()); });
     renderGCList(_gcList);
   } catch(e) {
     console.error('loadGiftCards error:', e);
@@ -442,26 +447,52 @@ function renderGCList(list) {
     var usedTag = g.used
       ? '<span style="background:#FEE;color:#C0392B;border-radius:6px;padding:2px 8px;font-size:11px;font-weight:600">Used 已使用</span>'
       : '<span style="background:#EFB;color:#1A7A45;border-radius:6px;padding:2px 8px;font-size:11px;font-weight:600">Active 有效</span>';
-    return '<div style="background:var(--white);border:1px solid var(--border);border-radius:12px;padding:16px 20px;margin-bottom:10px;box-shadow:0 1px 6px rgba(0,0,0,.05)">'
+    var markBtn = g.used
+      ? '<button onclick="markGCUnused(\''+g.id+'\')" style="font-size:11px;padding:4px 10px;border:1px solid var(--border);border-radius:6px;background:var(--white);color:var(--sub);cursor:pointer;font-family:inherit">↩ 取消已使用 Undo</button>'
+      : '<button onclick="markGCUsed(\''+g.id+'\')" style="font-size:11px;padding:4px 10px;border:1px solid #C0392B;border-radius:6px;background:#FFF0EE;color:#C0392B;cursor:pointer;font-family:inherit;font-weight:600">✓ 標記已使用 Mark Used</button>';
+    return '<div style="background:var(--white);border:1px solid var(--border);border-radius:12px;padding:16px 20px;margin-bottom:10px;box-shadow:0 1px 6px rgba(0,0,0,.05)'+(g.used?';opacity:0.6':'')+'\">'
       +'<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:8px">'
         +storeTag
         +'<span style="font-family:monospace;font-weight:700;font-size:14px;color:#C0392B;letter-spacing:.05em">'+(g.code||'—')+'</span>'
         +usedTag
         +'<span style="margin-left:auto;font-size:18px;font-weight:700">$'+(g.amount||0).toFixed(2)+'</span>'
       +'</div>'
-      +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;font-size:12px;color:var(--sub)">'
+      +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;font-size:12px;color:var(--sub);margin-bottom:10px">'
         +'<div><span style="font-weight:600">For 赠予:</span> '+(g.giftFor||'—')+'</div>'
         +'<div><span style="font-weight:600">From 购买者:</span> '+(g.purchaser||'—')+'</div>'
         +'<div><span style="font-weight:600">Issued 发行:</span> '+date+'</div>'
         +'<div><span style="font-weight:600">Expires 到期:</span> '+exp+'</div>'
         +'<div><span style="font-weight:600">Payment 付款:</span> '+(g.payMethod||'—')+'</div>'
         +'<div><span style="font-weight:600">Sold By 售卡人:</span> '+(g.soldBy||'—')+'</div>'
+        +(g.usedAt?'<div style="grid-column:span 2"><span style="font-weight:600">Used On 使用日期:</span> '+new Date(g.usedAt).toLocaleDateString('en-US')+'</div>':'')
         +(g.note?'<div style="grid-column:span 2"><span style="font-weight:600">Note 备注:</span> '+g.note+'</div>':'')
       +'</div>'
+      +markBtn
     +'</div>';
   }).join('');
 }
-window.filterGC = filterGC;
+async function markGCUsed(id) {
+  try {
+    await window._fb.updateDoc(window._fb.doc(window._crDb, 'gift_certificates', id), {
+      used: true, usedAt: new Date().toISOString()
+    });
+    var g = _gcList.find(function(x){ return x.id===id; });
+    if(g){ g.used=true; g.usedAt=new Date().toISOString(); }
+    renderGCList(_gcList);
+  } catch(e) { alert('Failed to update 更新失敗: ' + e.message); }
+}
+async function markGCUnused(id) {
+  try {
+    await window._fb.updateDoc(window._fb.doc(window._crDb, 'gift_certificates', id), {
+      used: false, usedAt: null
+    });
+    var g = _gcList.find(function(x){ return x.id===id; });
+    if(g){ g.used=false; g.usedAt=null; }
+    renderGCList(_gcList);
+  } catch(e) { alert('Failed to update 更新失敗: ' + e.message); }
+}
+window.markGCUsed = markGCUsed;
+window.markGCUnused = markGCUnused;
 
 function showTab(t) {
   ['clients','analytics','giftcards','import'].forEach(id=>{
@@ -472,7 +503,14 @@ function showTab(t) {
     el.classList.toggle('on', ['clients','analytics','giftcards','import'][i]===t);
   });
   if (t==='analytics') renderAnalytics();
-  if (t==='giftcards' && _gcList.length===0) loadGiftCards();
+  if (t==='giftcards') {
+    if (window._fbReady) {
+      loadGiftCards();
+    } else {
+      var prev = window._onFbReady;
+      window._onFbReady = function(){ if(prev) prev(); loadGiftCards(); };
+    }
+  }
 }
 
 // ── FILTER & SORT ──
