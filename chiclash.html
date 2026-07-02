@@ -3238,21 +3238,28 @@ function renderGCPage(){
 
   // Load Firebase gift certificates
   const fbWrap=document.getElementById('gc-firebase-wrap');
-  if(fbWrap&&window._gcFb){
+  if(fbWrap){
     fbWrap.innerHTML='<div style="font-size:12px;color:var(--sub)">載入中… Loading…</div>';
-    window._gcFb.loadActive().then(function(cards){
-      if(cards.length===0){fbWrap.innerHTML='<div style="font-size:12px;color:var(--faint);padding:8px 0">No active certificates · 無有效禮品卡</div>';return;}
-      fbWrap.innerHTML=cards.sort(function(a,b){return(b.issuedAt||'').localeCompare(a.issuedAt||'');}).map(function(g){
-        var exp=g.expireDate?new Date(g.expireDate+'T12:00:00').toLocaleDateString('en-US'):'—';
-        return '<div style="display:flex;align-items:center;gap:10px;padding:8px 12px;background:var(--white);border:1px solid var(--border);border-radius:8px;margin-bottom:6px;flex-wrap:wrap">'
-          +'<span style="font-family:monospace;font-weight:700;color:#C0392B;font-size:13px">'+g.code+'</span>'
-          +'<span style="font-size:13px;font-weight:600">$'+g.amount.toFixed(2)+'</span>'
-          +'<span style="font-size:11px;color:var(--sub)">For: '+(g.giftFor||'—')+'</span>'
-          +'<span style="font-size:11px;color:var(--sub)">Exp: '+exp+'</span>'
-          +'<button onclick="markFBGCUsed(\''+g.id+'\',\''+g.code+'\')" style="margin-left:auto;font-size:11px;padding:4px 10px;border:1px solid #C0392B;border-radius:6px;background:#FFF0EE;color:#C0392B;cursor:pointer;font-family:inherit;font-weight:600">✓ 標記已使用</button>'
-          +'</div>';
-      }).join('');
-    }).catch(function(){fbWrap.innerHTML='<div style="font-size:12px;color:var(--warn)">無法載入 Firebase 禮品卡</div>';});
+    var tryLoad=function(){
+      if(!window._gcFb){
+        setTimeout(tryLoad,200);
+        return;
+      }
+      window._gcFb.loadActive().then(function(cards){
+        if(cards.length===0){fbWrap.innerHTML='<div style="font-size:12px;color:var(--faint);padding:8px 0">No active certificates · 無有效禮品卡</div>';return;}
+        fbWrap.innerHTML=cards.sort(function(a,b){return(b.issuedAt||'').localeCompare(a.issuedAt||'');}).map(function(g){
+          var exp=g.expireDate?new Date(g.expireDate+'T12:00:00').toLocaleDateString('en-US'):'—';
+          return '<div style="display:flex;align-items:center;gap:10px;padding:8px 12px;background:var(--white);border:1px solid var(--border);border-radius:8px;margin-bottom:6px;flex-wrap:wrap">'
+            +'<span style="font-family:monospace;font-weight:700;color:#C0392B;font-size:13px">'+g.code+'</span>'
+            +'<span style="font-size:13px;font-weight:600">$'+g.amount.toFixed(2)+'</span>'
+            +'<span style="font-size:11px;color:var(--sub)">For: '+(g.giftFor||'—')+'</span>'
+            +'<span style="font-size:11px;color:var(--sub)">Exp: '+exp+'</span>'
+            +'<button onclick="markFBGCUsed(\''+g.id+'\',\''+g.code+'\')" style="margin-left:auto;font-size:11px;padding:4px 10px;border:1px solid #C0392B;border-radius:6px;background:#FFF0EE;color:#C0392B;cursor:pointer;font-family:inherit;font-weight:600">✓ 標記已使用</button>'
+            +'</div>';
+        }).join('');
+      }).catch(function(e){fbWrap.innerHTML='<div style="font-size:12px;color:var(--warn)">無法載入：'+e.message+'</div>';});
+    };
+    tryLoad();
   }
 }
 
