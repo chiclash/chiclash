@@ -6662,15 +6662,15 @@ function renderCDStoreTbl(store,entries,selMonth){
     }
   });
 
-  // 合併手動記錄和自動現金記錄，按日期排序
+  // 合併手動記錄和自動現金記錄，按時間順序（id=Date.now()為時間戳）
   var allItems=[];
-  moEntries.forEach(function(e){ allItems.push({type:'entry',date:e.date,e:e}); });
+  moEntries.forEach(function(e){ allItems.push({type:'entry',date:e.date,sortKey:e.id||0,e:e}); });
   Object.keys(autoCashByDate).forEach(function(date){
-    allItems.push({type:'auto',date:date,data:autoCashByDate[date]});
+    allItems.push({type:'auto',date:date,sortKey:1,data:autoCashByDate[date]});
   });
   allItems.sort(function(a,b){
     if(a.date!==b.date) return a.date<b.date?-1:1;
-    return a.type==='auto'?-1:1; // 同一天現金收入排在前面
+    return a.sortKey-b.sortKey;
   });
 
   if(allItems.length===0){
@@ -6678,27 +6678,30 @@ function renderCDStoreTbl(store,entries,selMonth){
     return;
   }
 
+  // 計算最終餘額：點鈔重設基準，放入＋，取出－，現金收入不計入
+  var finalBal=manualBal!==null?manualBal:prevBal;
+  moEntries.forEach(function(e){
+    if(e.type==='count') finalBal=e.amt;
+    else if(e.type==='in') finalBal=Math.round((finalBal+e.amt)*100)/100;
+    else if(e.type==='out'||e.type==='expense') finalBal=Math.round((finalBal-e.amt)*100)/100;
+  });
+  var finalColor=finalBal>=0?storeColor:'var(--warn)';
+
   var rows=allItems.map(function(item){
     if(item.type==='auto'){
-      // 自動現金收入列 — 計入餘額
       var d=item.data;
-      running=Math.round((running+d.total)*100)/100;
-      var balColor=running>0?storeColor:running<0?'var(--warn)':'var(--faint)';
       var nameStr=d.names.length>0?d.names.slice(0,3).join('、')+(d.names.length>3?'…':''):'';
       return '<div class="cd-row2" style="background:#F5FBF5">'+
         '<span style="font-size:12px">'+item.date.slice(5)+'</span>'+
         '<span style="font-size:11px;font-weight:600;color:var(--ok)">💵 現金收入</span>'+
         '<span style="text-align:right;color:var(--ok);font-weight:600">+'+$f(d.total)+'</span>'+
         '<span style="text-align:right;color:var(--faint)">—</span>'+
-        '<span style="text-align:right;font-weight:700;color:'+balColor+'">'+$f(running)+'</span>'+
+        '<span style="text-align:right;color:var(--faint)">—</span>'+
         '<span style="font-size:11px;color:var(--sub)">服務費 '+$f(d.svc)+(nameStr?' · '+nameStr:'')+'</span>'+
         '<span></span>'+
       '</div>';
     }
-    // 手動記錄
     var e=item.e;
-    if(e.type!=='count') running=Math.round((running+(e.type==='in'?e.amt:-e.amt))*100)/100;
-    var balColor=running>0?storeColor:running<0?'var(--warn)':'var(--faint)';
     if(e.type==='count'){
       var hasChange=e.change!==null&&e.change!==undefined&&e.lastDate&&e.lastDate.slice(0,7)===e.date.slice(0,7);
       var changeStr=hasChange?(e.change>=0?'+':'')+$f(e.change):'首次';
@@ -6732,12 +6735,23 @@ function renderCDStoreTbl(store,entries,selMonth){
       '<span style="font-size:11px;font-weight:600;color:'+typeColor[e.type]+'">'+typeLabel[e.type]+'</span>'+
       '<span style="text-align:right">'+inAmt+'</span>'+
       '<span style="text-align:right">'+outAmt+'</span>'+
-      '<span style="text-align:right;font-weight:700;color:'+balColor+'">'+$f(running)+'</span>'+
+      '<span style="text-align:right;color:var(--faint)">—</span>'+
       '<span style="font-size:11px;color:var(--sub)">'+(e.note||'')+'</span>'+
       '<button class="att-del" onclick="delCDEntry('+e.id+')">&#215;</button>'+
     '</div>';
   }).join('');
-  tbl.innerHTML=hdr+carryRow+rows;
+
+  // 最終餘額列
+  var finalRow='<div style="display:grid;grid-template-columns:50px 120px 90px 90px 90px 1fr 32px;align-items:center;gap:8px;padding:10px 14px;border-top:2px solid '+storeColor+';background:var(--bg)">'+
+    '<span style="font-size:11px;color:var(--sub)">目前</span>'+
+    '<span style="font-size:12px;font-weight:700;color:'+finalColor+'">📦 現金餘額</span>'+
+    '<span></span><span></span>'+
+    '<span style="text-align:right;font-size:18px;font-weight:700;color:'+finalColor+'">'+$f(finalBal)+'</span>'+
+    '<span style="font-size:11px;color:var(--sub)">最後點鈔基準 + 放入/取出</span>'+
+    '<span></span>'+
+  '</div>';
+
+  tbl.innerHTML=hdr+carryRow+rows+finalRow;
 }
 function renderCDPage(){
   var entries=cdData();
