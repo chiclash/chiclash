@@ -91,6 +91,12 @@ body{background:var(--cream);font-family:'Inter',sans-serif;color:var(--ink);min
 #sig-canvas{display:block;width:100%;touch-action:none}
 .sig-clear{position:absolute;top:10px;right:10px;background:var(--cream);border:1px solid var(--border);border-radius:6px;padding:4px 10px;font-size:11px;color:var(--sub);cursor:pointer;font-family:'Inter',sans-serif}
 
+.gc-exp-btn{padding:10px 8px;border:1.5px solid var(--border);border-radius:9px;cursor:pointer;font-size:14px;font-family:'Inter',sans-serif;background:var(--white);color:var(--sub);text-align:center;transition:all .15s;-webkit-user-select:none}
+.gc-exp-btn.sel{border-color:var(--rose);background:var(--rose-light);color:var(--rose);font-weight:600}
+/* gift card pay buttons */
+.gc-pay-btn{padding:12px 8px;border:1.5px solid var(--border);border-radius:10px;cursor:pointer;font-size:14px;font-family:'Inter',sans-serif;background:var(--white);color:var(--sub);transition:all .15s;text-align:center;-webkit-user-select:none}
+.gc-pay-btn.sel{border-color:var(--rose);background:var(--rose-light);color:var(--rose);font-weight:600}
+
 /* submit */
 .submit-btn{display:block;width:100%;background:var(--rose);color:#fff;border:none;border-radius:12px;padding:17px;font-size:18px;font-weight:500;cursor:pointer;font-family:'Inter',sans-serif;margin-top:8px;transition:opacity .2s;letter-spacing:.02em}
 .submit-btn:disabled{opacity:.5}
@@ -112,8 +118,8 @@ body{background:var(--cream);font-family:'Inter',sans-serif;color:var(--ink);min
 <!-- STEP 0: Store Selection (Staff) -->
 <div id="step-store" style="padding:32px 20px;max-width:500px;margin:0 auto">
   <div style="text-align:center;margin-bottom:28px">
-    <div style="font-size:22px;font-weight:600;margin-bottom:6px">Select Location</div>
-    <div style="font-size:14px;color:var(--sub)">Please select today's location</div>
+    <div style="font-size:22px;font-weight:600;margin-bottom:6px">Select Location 选择门店</div>
+    <div style="font-size:14px;color:var(--sub)">Please select today's location 请选择今天的门店</div>
   </div>
   <div style="display:flex;gap:16px;max-width:400px;margin:0 auto">
     <div onclick="pickStore('mv',this)" style="flex:1;background:var(--white);border:2px solid var(--border);border-radius:16px;padding:32px 16px;cursor:pointer;text-align:center;transition:all .2s">
@@ -125,45 +131,222 @@ body{background:var(--cream);font-family:'Inter',sans-serif;color:var(--ink);min
       <div style="font-size:14px;color:var(--sub)">San Rafael</div>
     </div>
   </div>
+  <!-- Gift Card option -->
+  <div style="max-width:400px;margin:20px auto 0">
+    <div style="text-align:center;font-size:12px;color:var(--faint);margin-bottom:12px;letter-spacing:.04em">— OR 或 —</div>
+    <div onclick="showGiftCardForm()" style="background:var(--white);border:2px solid var(--border);border-radius:16px;padding:20px 24px;cursor:pointer;display:flex;align-items:center;gap:14px;transition:border-color .2s" onmouseover="this.style.borderColor='var(--rose)'" onmouseout="this.style.borderColor='var(--border)'">
+      <span style="font-size:28px">🎁</span>
+      <div>
+        <div style="font-size:16px;font-weight:600;color:var(--ink)">Gift Certificate 礼品卡</div>
+        <div style="font-size:12px;color:var(--sub);margin-top:2px">Purchase a gift certificate 购买礼品卡</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- STEP GC: Gift Card Form -->
+<div id="step-gc" style="display:none;padding:24px 20px;max-width:520px;margin:0 auto">
+  <button onclick="goBackFromGC()" style="display:flex;align-items:center;gap:6px;background:none;border:none;color:var(--sub);font-size:14px;font-family:'Inter',sans-serif;cursor:pointer;padding:4px 0;margin-bottom:20px">← Back 返回</button>
+
+  <!-- Live preview -->
+  <div style="background:linear-gradient(135deg,var(--rose) 0%,#B85C55 100%);border-radius:16px;padding:22px 24px;color:#fff;margin-bottom:20px;box-shadow:0 4px 20px rgba(196,114,106,.3);position:relative;overflow:hidden">
+    <div style="position:absolute;top:-24px;right:-24px;width:100px;height:100px;border-radius:50%;background:rgba(255,255,255,.08)"></div>
+    <div style="font-size:10px;letter-spacing:.18em;text-transform:uppercase;opacity:.75;margin-bottom:2px">Chic Lash Boutique</div>
+    <div style="font-size:19px;font-weight:700;margin-bottom:14px">Gift Certificate 礼品卡</div>
+    <div style="font-size:28px;font-weight:700;letter-spacing:-.5px;margin-bottom:10px" id="gc-prev-amt">$—</div>
+    <div style="font-size:13px;opacity:.9;margin-bottom:3px">For 赠予: <span id="gc-prev-for" style="font-weight:600">—</span></div>
+    <div style="font-size:13px;opacity:.9;margin-bottom:3px">From 购买者: <span id="gc-prev-from" style="font-weight:600">—</span></div>
+    <div style="font-size:13px;opacity:.9;margin-bottom:3px">Date 日期: <span id="gc-prev-date" style="font-weight:600"></span></div>
+    <div style="font-size:13px;opacity:.9">Expires 到期: <span id="gc-prev-exp" style="font-weight:600">—</span></div>
+    <div style="font-size:10px;opacity:.6;margin-top:10px;font-family:monospace;letter-spacing:.1em">Card # auto-generated · 卡号自动生成</div>
+  </div>
+
+  <!-- Store -->
+  <div style="background:var(--white);border-radius:var(--radius);padding:18px 20px;margin-bottom:14px;box-shadow:var(--shadow)">
+    <div style="font-size:12px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:var(--rose);margin-bottom:12px;padding-bottom:8px;border-bottom:1px solid var(--rose-light)">Store 门店</div>
+    <div style="display:flex;gap:10px">
+      <div onclick="pickGCStore('mv',this)" id="gc-store-mv" style="flex:1;border:1.5px solid var(--border);border-radius:10px;padding:12px;cursor:pointer;text-align:center;transition:all .15s">
+        <div style="font-size:18px;font-weight:700;color:var(--mv)">MV</div>
+        <div style="font-size:11px;color:var(--sub)">Mill Valley</div>
+      </div>
+      <div onclick="pickGCStore('sr',this)" id="gc-store-sr" style="flex:1;border:1.5px solid var(--border);border-radius:10px;padding:12px;cursor:pointer;text-align:center;transition:all .15s">
+        <div style="font-size:18px;font-weight:700;color:var(--sr)">SR</div>
+        <div style="font-size:11px;color:var(--sub)">San Rafael</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Amount -->
+  <div style="background:var(--white);border-radius:var(--radius);padding:18px 20px;margin-bottom:14px;box-shadow:var(--shadow)">
+    <div style="font-size:12px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:var(--rose);margin-bottom:12px;padding-bottom:8px;border-bottom:1px solid var(--rose-light)">Amount 金额 *</div>
+    <div style="display:flex;align-items:center;gap:8px">
+      <span style="font-size:22px;font-weight:600;color:var(--sub)">$</span>
+      <input type="number" id="gc-amount" placeholder="0.00" min="1" step="0.01" oninput="updateGCPreview()" style="flex:1;border:1.5px solid var(--border);border-radius:9px;padding:12px 14px;font-size:22px;font-weight:700;font-family:'Inter',sans-serif;color:var(--ink);background:var(--white);outline:none;-webkit-appearance:none" onfocus="this.style.borderColor='var(--rose-mid)'" onblur="this.style.borderColor='var(--border)'">
+    </div>
+  </div>
+
+  <!-- Gift Details -->
+  <div style="background:var(--white);border-radius:var(--radius);padding:18px 20px;margin-bottom:14px;box-shadow:var(--shadow)">
+    <div style="font-size:12px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:var(--rose);margin-bottom:14px;padding-bottom:8px;border-bottom:1px solid var(--rose-light)">Gift Details 礼品信息</div>
+    <div class="field">
+      <label>Gift For 赠予 *<br><span style="font-weight:400;font-size:11px;color:var(--faint)">Recipient's name · 收礼人姓名</span></label>
+      <input type="text" id="gc-for" placeholder="e.g. Jennifer Kelly" autocomplete="off" oninput="updateGCPreview()">
+    </div>
+    <div class="field">
+      <label>From 购买者 *<br><span style="font-weight:400;font-size:11px;color:var(--faint)">Purchaser's name · 购买人姓名</span></label>
+      <input type="text" id="gc-from" placeholder="e.g. Shannon" autocomplete="off" oninput="updateGCPreview()">
+    </div>
+    <div class="field" style="margin-bottom:0">
+      <label>Expire Date 到期日</label>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px">
+        <div class="gc-exp-btn" onclick="pickExpiry(12,this)">1 Year 一年</div>
+        <div class="gc-exp-btn" onclick="pickExpiry(6,this)">6 Months 六个月</div>
+        <div class="gc-exp-btn" onclick="pickExpiry(3,this)">3 Months 三个月</div>
+        <div class="gc-exp-btn" onclick="pickExpiry(1,this)">1 Month 一个月</div>
+        <div class="gc-exp-btn" style="grid-column:span 2" onclick="pickExpiry(0,this)">Custom 自訂日期</div>
+      </div>
+      <input type="date" id="gc-exp" oninput="updateGCPreview()" style="display:none;width:100%;border:1.5px solid var(--border);border-radius:9px;padding:12px 14px;font-size:16px;font-family:'Inter',sans-serif;color:var(--ink);background:var(--white);outline:none;box-sizing:border-box">
+    </div>
+  </div>
+
+  <!-- Payment -->
+  <div style="background:var(--white);border-radius:var(--radius);padding:18px 20px;margin-bottom:14px;box-shadow:var(--shadow)">
+    <div style="font-size:12px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:var(--rose);margin-bottom:14px;padding-bottom:8px;border-bottom:1px solid var(--rose-light)">Payment 付款方式 *</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+      <div class="gc-pay-btn" onclick="pickGCPay('cash',this)">💵 Cash 现金</div>
+      <div class="gc-pay-btn" onclick="pickGCPay('card',this)">💳 Card 刷卡</div>
+      <div class="gc-pay-btn" onclick="pickGCPay('venmo',this)">📱 Venmo</div>
+      <div class="gc-pay-btn" onclick="pickGCPay('zelle',this)">⚡ Zelle</div>
+    </div>
+  </div>
+
+  <!-- Sold By -->
+  <div style="background:var(--white);border-radius:var(--radius);padding:18px 20px;margin-bottom:14px;box-shadow:var(--shadow)">
+    <div style="font-size:12px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:var(--rose);margin-bottom:12px;padding-bottom:8px;border-bottom:1px solid var(--rose-light)">Sold By 售卡人 *</div>
+    <select id="gc-soldby" onchange="validateGC()" style="width:100%;border:1.5px solid var(--border);border-radius:9px;padding:12px 14px;font-size:17px;font-family:'Inter',sans-serif;color:var(--ink);background:var(--white);outline:none;-webkit-appearance:none">
+      <option value="">⏳ Loading staff... 载入中</option>
+    </select>
+  </div>
+
+  <!-- Staff Note -->
+  <div style="background:#FFFBF0;border:1px dashed #D4B483;border-radius:var(--radius);padding:14px 18px;margin-bottom:20px">
+    <div style="font-size:11px;font-weight:600;color:#9A7030;letter-spacing:.08em;text-transform:uppercase;margin-bottom:8px">Staff Note 内部备注 (not printed 不打印)</div>
+    <input type="text" id="gc-note" placeholder="e.g. tip included $20 · 含小费" autocomplete="off" style="width:100%;border:1px solid #E0C88A;border-radius:7px;padding:9px 12px;font-size:14px;font-family:'Inter',sans-serif;color:var(--ink);background:#fff;outline:none">
+  </div>
+
+  <button id="gc-submit-btn" onclick="submitGC()" disabled style="display:block;width:100%;background:var(--rose);color:#fff;border:none;border-radius:12px;padding:17px;font-size:18px;font-weight:500;cursor:pointer;font-family:'Inter',sans-serif;opacity:.45;transition:opacity .2s">🎁 Issue Gift Certificate 开出礼品卡</button>
+</div>
+
+<!-- STEP GC-DONE: Staff fill-in reference -->
+<div id="step-gc-done" style="display:none;padding:24px 20px;max-width:520px;margin:0 auto">
+  <div style="background:var(--white);border-radius:14px;box-shadow:0 3px 16px rgba(0,0,0,.09);overflow:hidden;margin-bottom:14px">
+    <div style="background:var(--rose);color:#fff;padding:10px 18px;font-size:11px;font-weight:600;letter-spacing:.12em;text-transform:uppercase">Customer Copy 顾客联</div>
+    <div style="padding:18px 20px">
+      <div style="margin-bottom:14px">
+        <div style="font-size:11px;color:var(--sub);font-weight:600;letter-spacing:.06em;margin-bottom:5px">A GIFT FOR</div>
+        <div style="font-size:18px;font-weight:700;color:var(--ink);border-bottom:1.5px solid var(--border);padding-bottom:6px" id="gc-fill-for">—</div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:14px">
+        <div>
+          <div style="font-size:11px;color:var(--sub);font-weight:600;letter-spacing:.06em;margin-bottom:5px">FROM</div>
+          <div style="font-size:16px;font-weight:700;color:var(--ink);border-bottom:1.5px solid var(--border);padding-bottom:6px" id="gc-fill-from">—</div>
+        </div>
+        <div>
+          <div style="font-size:11px;color:var(--sub);font-weight:600;letter-spacing:.06em;margin-bottom:5px">DATE</div>
+          <div style="font-size:16px;font-weight:700;color:var(--ink);border-bottom:1.5px solid var(--border);padding-bottom:6px" id="gc-fill-date">—</div>
+        </div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:14px">
+        <div>
+          <div style="font-size:11px;color:var(--sub);font-weight:600;letter-spacing:.06em;margin-bottom:5px">AMOUNT</div>
+          <div style="font-size:22px;font-weight:700;color:var(--rose);border-bottom:1.5px solid var(--border);padding-bottom:6px" id="gc-fill-amt">—</div>
+        </div>
+        <div>
+          <div style="font-size:11px;color:var(--sub);font-weight:600;letter-spacing:.06em;margin-bottom:5px">EXPIRE DATE</div>
+          <div style="font-size:16px;font-weight:700;color:var(--ink);border-bottom:1.5px solid var(--border);padding-bottom:6px" id="gc-fill-exp">—</div>
+        </div>
+      </div>
+      <div>
+        <div style="font-size:11px;color:var(--sub);font-weight:600;letter-spacing:.06em;margin-bottom:5px">AUTHORIZED SIGNATURE</div>
+        <div style="height:32px;border-bottom:1.5px solid var(--border)"></div>
+      </div>
+    </div>
+  </div>
+
+  <div style="background:var(--white);border-radius:14px;box-shadow:0 3px 16px rgba(0,0,0,.09);overflow:hidden;margin-bottom:14px">
+    <div style="background:#6B6560;color:#fff;padding:10px 18px;font-size:11px;font-weight:600;letter-spacing:.12em;text-transform:uppercase">Store Copy 存根</div>
+    <div style="padding:18px 20px">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+        <div>
+          <div style="font-size:11px;color:var(--sub);font-weight:600;letter-spacing:.06em;margin-bottom:5px">DATE</div>
+          <div style="font-size:15px;font-weight:600;color:var(--ink);border-bottom:1.5px solid var(--border);padding-bottom:6px" id="gc-fill-date2">—</div>
+        </div>
+        <div>
+          <div style="font-size:11px;color:var(--sub);font-weight:600;letter-spacing:.06em;margin-bottom:5px">AMOUNT</div>
+          <div style="font-size:15px;font-weight:700;color:var(--rose);border-bottom:1.5px solid var(--border);padding-bottom:6px" id="gc-fill-amt2">—</div>
+        </div>
+        <div>
+          <div style="font-size:11px;color:var(--sub);font-weight:600;letter-spacing:.06em;margin-bottom:5px">PURCHASER NAME</div>
+          <div style="font-size:15px;font-weight:600;color:var(--ink);border-bottom:1.5px solid var(--border);padding-bottom:6px" id="gc-fill-purchaser">—</div>
+        </div>
+        <div>
+          <div style="font-size:11px;color:var(--sub);font-weight:600;letter-spacing:.06em;margin-bottom:5px">SOLD BY 售卡人</div>
+          <div style="font-size:15px;font-weight:600;color:var(--ink);border-bottom:1.5px solid var(--border);padding-bottom:6px" id="gc-fill-soldby">—</div>
+        </div>
+        <div style="grid-column:span 2">
+          <div style="font-size:11px;color:var(--sub);font-weight:600;letter-spacing:.06em;margin-bottom:5px">NUMBER 卡号</div>
+          <div style="font-size:16px;font-weight:700;font-family:monospace;color:var(--rose);border-bottom:1.5px solid var(--border);padding-bottom:6px;letter-spacing:.1em" id="gc-done-code">—</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="gc-done-note-wrap" style="display:none;background:#FFFBF0;border:1px dashed #D4B483;border-radius:10px;padding:12px 16px;margin-bottom:14px">
+    <div style="font-size:11px;font-weight:600;color:#9A7030;margin-bottom:4px">Staff Note 备注 (internal)</div>
+    <div style="font-size:14px;color:var(--ink)" id="gc-done-note"></div>
+  </div>
+
+  <button onclick="resetGC()" style="display:block;width:100%;padding:15px;background:var(--ink);color:#fff;border:none;border-radius:12px;font-size:16px;font-weight:600;cursor:pointer;font-family:'Inter',sans-serif">New Transaction 新交易 →</button>
+  <div style="text-align:center;margin-top:12px;font-size:11px;color:var(--faint)">Record saved · 记录已保存</div>
 </div>
 
 <!-- STEP 1: Pick service -->
 <div id="step-pick" style="display:none">
   <div style="display:flex;align-items:center;padding:12px 20px;border-bottom:1px solid var(--border);background:var(--white)">
-    <button onclick="goBackToStore()" style="background:none;border:none;color:var(--sub);font-size:14px;font-family:'Inter',sans-serif;cursor:pointer;padding:4px 0;margin-right:12px">← Back</button>
+    <button onclick="goBackToStore()" style="background:none;border:none;color:var(--sub);font-size:14px;font-family:'Inter',sans-serif;cursor:pointer;padding:4px 0;margin-right:12px">← Back 返回</button>
     <span id="pick-store-badge" style="font-size:13px;font-weight:600;color:var(--sub)"></span>
   </div>
-  <div class="step-title" style="margin-top:24px">Welcome!</div>
-  <div class="step-sub">Please select your service today</div>
+  <div class="step-title" style="margin-top:24px">Welcome! 欢迎！</div>
+  <div class="step-sub">Please select your service today 请选择今天的服务</div>
   <div class="svc-grid">
     <div class="svc-btn" onclick="pickSvc('lash',this)">
-            <div class="svc-name">Eyelash</div>
-      <div class="svc-desc">Extensions & Lifting</div>
+            <div class="svc-name">Eyelash 睫毛</div>
+      <div class="svc-desc">Extensions & Lifting 延伸与卷翘</div>
     </div>
     <div class="svc-btn" onclick="pickSvc('facial',this)">
-            <div class="svc-name">Facial</div>
-      <div class="svc-desc">Skin Care & Treatment</div>
+            <div class="svc-name">Facial 护脸</div>
+      <div class="svc-desc">Skin Care & Treatment 护肤疗程</div>
     </div>
     <div class="svc-btn" onclick="pickSvc('headspa',this)">
-            <div class="svc-name">Head Spa</div>
-      <div class="svc-desc">Scalp Treatment</div>
+            <div class="svc-name">Head Spa 头疗</div>
+      <div class="svc-desc">Scalp Treatment 头皮护理</div>
     </div>
     <div class="svc-btn" onclick="pickSvc('massage',this)">
-            <div class="svc-name">Massage</div>
-      <div class="svc-desc">Body & Relaxation</div>
+            <div class="svc-name">Massage 按摩</div>
+      <div class="svc-desc">Body & Relaxation 全身放松</div>
     </div>
   </div>
-  <button class="next-btn" id="next-btn" disabled onclick="showForm()">Continue →</button>
+  <button class="next-btn" id="next-btn" disabled onclick="showForm()">Continue 继续 →</button>
 </div>
 
 <!-- STEP 2: Form -->
 <div id="step-form">
   <div class="form-wrap" autocomplete="off">
-    <button onclick="goBack()" style="display:flex;align-items:center;gap:6px;background:none;border:none;color:var(--sub);font-size:14px;font-family:'Inter',sans-serif;cursor:pointer;padding:4px 0;margin-bottom:16px">← Back</button>
+    <button onclick="goBack()" style="display:flex;align-items:center;gap:6px;background:none;border:none;color:var(--sub);font-size:14px;font-family:'Inter',sans-serif;cursor:pointer;padding:4px 0;margin-bottom:16px">← Back 返回</button>
     <div class="form-title" id="form-title"></div>
     <div class="form-subtitle" id="form-subtitle"></div>
     <div id="form-body"></div>
-    <button class="submit-btn" id="submit-btn" onclick="submitForm()">Submit Form</button>
+    <button class="submit-btn" id="submit-btn" onclick="submitForm()">Submit Form 提交表单</button>
   </div>
 </div>
 
@@ -173,8 +356,8 @@ body{background:var(--cream);font-family:'Inter',sans-serif;color:var(--ink);min
   <div style="background:#fff;border-radius:16px;box-shadow:0 4px 24px rgba(0,0,0,.1);overflow:hidden">
     <div style="background:var(--rose);color:#fff;padding:20px 24px">
       <div style="font-size:11px;letter-spacing:.12em;text-transform:uppercase;opacity:.8;margin-bottom:4px">Staff Review — <span id="review-store-label"></span></div>
-      <div style="font-size:20px;font-weight:600">Staff: Please Review Client Info
-Please confirm client information</div>
+      <div style="font-size:20px;font-weight:600">Staff: Please Review Client Info 员工：请审核客户信息
+请确认客户信息 Please confirm client information 请确认客户信息</div>
     </div>
     <!-- Client info summary -->
     <div style="padding:20px 24px" id="review-body"></div>
@@ -186,9 +369,12 @@ Please confirm client information</div>
 </div>
 <div id="step-done">
   <div class="done-icon">🌸</div>
-  <div class="done-title">Thank you!</div>
-  <div class="done-sub">Your information has been saved.<br>Please hand the iPad back to your technician.</div>
-  <button class="reset-btn" onclick="resetForm()">New Client →</button>
+  <div class="done-title">Thank you! 谢谢！</div>
+  <div class="done-sub">Your information has been saved. 您的信息已保存。
+请将iPad交还给您的技师。
+Please hand the iPad back to your technician.<br>Please hand the iPad back to your technician.
+请将iPad交还给您的技师。</div>
+  <button class="reset-btn" onclick="resetForm()">New Client 新客人 →</button>
 </div>
 
 <script type="module">
@@ -205,6 +391,51 @@ const app = initializeApp({
 window._db2 = getFirestore(app);
 window._addDoc = addDoc;
 window._collection = collection;
+window._gcSave = async function(data) {
+  return await addDoc(collection(getFirestore(app), 'gift_certificates'), data);
+};
+
+// 從 chiclash 主系統讀取員工名單
+(async function loadStaffList(){
+  try {
+    const { getDoc, doc: fsDoc } = await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js');
+    const snap = await getDoc(fsDoc(getFirestore(app), 'chic lash', 'data'));
+    const sel = document.getElementById('gc-soldby');
+    if (snap.exists() && sel) {
+      const staffPay = snap.data().staffPay || {};
+      const names = Object.keys(staffPay).filter(n => n && n !== 'undefined').sort();
+      if (names.length > 0) {
+        sel.innerHTML = '<option value="">-- Select staff 选择员工 --</option>';
+        names.forEach(function(name) {
+          const opt = document.createElement('option');
+          opt.value = name; opt.textContent = name;
+          sel.appendChild(opt);
+        });
+        if(typeof validateGC === 'function') validateGC();
+        return;
+      }
+    }
+    // 載入失敗或沒有員工 → 改成文字輸入框
+    fallbackSoldByToInput();
+  } catch(e) {
+    console.warn('Staff list load failed:', e);
+    fallbackSoldByToInput();
+  }
+})();
+
+function fallbackSoldByToInput(){
+  var sel = document.getElementById('gc-soldby');
+  if (!sel) return;
+  var input = document.createElement('input');
+  input.type = 'text';
+  input.id = 'gc-soldby';
+  input.placeholder = 'Staff name · 员工姓名';
+  input.autocomplete = 'off';
+  input.oninput = validateGC;
+  input.style.cssText = 'width:100%;border:1.5px solid var(--border);border-radius:9px;padding:12px 14px;font-size:17px;font-family:\'Inter\',sans-serif;color:var(--ink);background:var(--white);outline:none;box-sizing:border-box';
+  sel.parentNode.replaceChild(input, sel);
+}
+window.fallbackSoldByToInput = fallbackSoldByToInput;
 </script>
 
 <script>
@@ -242,14 +473,14 @@ function pickOpt(el, type) {
 // ── COMMON INFO SECTION ──
 function commonInfo() {
   return `<div class="sec">
-    <div class="sec-title">Personal Information</div>
+    <div class="sec-title">Personal Information 个人信息</div>
     <div class="field-row">
-      <div class="field"><label>First Name *</label><input type="text" id="f-first" placeholder="First name" autocomplete="off" oninput="autoFillPrintName()"></div>
-      <div class="field"><label>Last Name *</label><input type="text" id="f-last" placeholder="Last name" autocomplete="off" oninput="autoFillPrintName()"></div>
+      <div class="field"><label>First Name * 名字</label><input type="text" id="f-first" placeholder="First name 名字" autocomplete="off" oninput="autoFillPrintName()"></div>
+      <div class="field"><label>Last Name * 姓氏</label><input type="text" id="f-last" placeholder="Last name 姓氏" autocomplete="off" oninput="autoFillPrintName()"></div>
     </div>
-    <div class="field"><label>Phone Number *</label><input type="tel" id="f-phone" placeholder="(415) 000-0000" autocomplete="off"></div>
-    <div class="field"><label>E-mail</label><input type="email" id="f-email" placeholder="email@example.com" autocomplete="off"></div>
-    <div class="field"><label>Date of Birth</label>
+    <div class="field"><label>Phone Number * 电话</label><input type="tel" id="f-phone" placeholder="(415) 000-0000" autocomplete="off"></div>
+    <div class="field"><label>E-mail 电邮</label><input type="email" id="f-email" placeholder="email@example.com" autocomplete="off"></div>
+    <div class="field"><label>Date of Birth 生日</label>
 <div style="display:flex;gap:8px;align-items:center">
   <select id="f-dob-m" style="flex:1;padding:10px;border:1.5px solid var(--border);border-radius:9px;font-size:15px;background:var(--card);color:var(--txt);font-family:inherit">
     <option value="">Month</option>
@@ -266,8 +497,8 @@ function commonInfo() {
   </select>
 </div></div>
     <div class="field">
-      <label>How did you hear about us?</label>
-      ${checkbox('hear',['Google','Yelp','Friend','Pass By'],true)}
+      <label>How did you hear about us? 如何得知我们？</label>
+      ${checkbox('hear',['Google','Yelp','Friend 朋友推荐','Pass By 路过'],true)}
     </div>
   </div>`;
 }
@@ -276,13 +507,13 @@ function commonInfo() {
 function sigSection() {
   return `<div class="sec">
     <div class="sec-title">Signature</div>
-    <div class="field"><label>Print Name</label><input type="text" id="f-print-name" placeholder="Auto-filled from name above" autocomplete="off" readonly style="background:var(--rose-light);color:var(--sub);cursor:default"></div>
-    <div class="field"><label>Date</label><input type="text" id="f-date" value="${new Date().toLocaleDateString('en-US')}" readonly style="color:var(--sub)"></div>
+    <div class="field"><label>Print Name 印刷体姓名</label><input type="text" id="f-print-name" placeholder="Auto-filled 自动填入" autocomplete="off" readonly style="background:var(--rose-light);color:var(--sub);cursor:default"></div>
+    <div class="field"><label>Date 日期</label><input type="text" id="f-date" value="${new Date().toLocaleDateString('en-US')}" readonly style="color:var(--sub)"></div>
     <div class="field">
-      <label>Signature</label>
+      <label>Signature 签名</label>
       <div class="sig-wrap">
         <canvas id="sig-canvas" height="160"></canvas>
-        <button class="sig-clear" onclick="clearSig()">Clear</button>
+        <button class="sig-clear" onclick="clearSig()">Clear 清除</button>
       </div>
     </div>
   </div>`;
@@ -292,36 +523,36 @@ function sigSection() {
 function buildLash() {
   return commonInfo() + `
   <div class="sec">
-    <div class="sec-title">Client Information</div>
+    <div class="sec-title">Client Information 客户信息</div>
     <div class="field">
-      <div class="ql">Do you think you have sensitive eyes?</div>
-      ${radio('sensitive',['Yes','No'],true)}
+      <div class="ql">Do you think you have sensitive eyes? 您认为您有敏感眼睛吗？</div>
+      ${radio('sensitive',['Yes 是','No 否'],true)}
     </div>
     <div class="field">
-      <div class="ql">Have you had eyelash extensions before?</div>
-      ${radio('prev-lash',['Yes, love them','Yes, had reactions','No, first time'],false)}
+      <div class="ql">Have you had eyelash extensions before? 您以前有做过睫毛延伸吗？</div>
+      ${radio('prev-lash',['Yes, love them 是，喜欢','Yes, had reactions 是，有过敏反应','No, first time 否，第一次'],false)}
     </div>
     <div class="field">
-      <div class="ql">Do you wear contact lenses?</div>
+      <div class="ql">Do you wear contact lenses? 您戴隐形眼镜吗？</div>
       ${radio('contacts',['Yes','No'],true)}
     </div>
     <div class="field">
-      <div class="ql">Any known allergies? (glue, latex, tape)</div>
+      <div class="ql">Any known allergies? (glue, latex, tape) 已知过敏？（胶水、乳胶、胶带）</div>
       ${radio('lash-allergy',['Yes','No'],true)}
       <div id="lash-allergy-detail" style="margin-top:8px;display:none">
-        <input type="text" id="f-lash-allergy-detail" placeholder="Please specify...">
+        <input type="text" id="f-lash-allergy-detail" placeholder="Please specify... 请说明...">
       </div>
     </div>
   </div>
   <div class="sec">
-    <div class="sec-title">Policy & Consent</div>
+    <div class="sec-title">Policy & Consent 同意书 政策与同意</div>
     <div class="policy-box">
       <b>1. Appointment Policy:</b> All services by appointment only. Please provide 3 hours notice to avoid a $30 cancellation charge.<br><br>
       <b>2. Payment:</b> CASH Preferred. All types of Credit Cards accepted. No checks.<br><br>
       <b>3. Fix/Removal:</b> If you experience discomfort or a lash becomes dislodged, contact us immediately. Do NOT attempt removal yourself — this can damage your natural lashes. <b>We are only responsible for complaints within 48 hours.</b><br><br>
       <b>4. Refunds:</b> If you are unhappy with the service, please let us know within 48 hours. We can consider a half or full refund.
     </div>
-    <div class="ql" style="margin-bottom:10px">Please initial each item below:</div>
+    <div class="ql" style="margin-bottom:10px">Please initial each item below: 请在以下每项旁边签名缩写：</div>
     <div class="initial-list">
       <div class="initial-item"><div class="initial-check" onclick="toggleInitial(this)">✓</div><span>I understand this procedure involves synthetic eyelashes to be glued to my natural eyelashes.</span></div>
       <div class="initial-item"><div class="initial-check" onclick="toggleInitial(this)">✓</div><span>I understand there are risks including eye redness and irritation. Adhesive fumes may cause tearing if I open my eyes during application.</span></div>
@@ -338,35 +569,35 @@ function buildLash() {
 function buildFacial() {
   return commonInfo() + `
   <div class="sec">
-    <div class="sec-title">Skin Analysis — Daily Care</div>
+    <div class="sec-title">Skin Analysis — Daily Care 皮肤分析 — 日常护理</div>
     <div class="field">
-      <div class="ql">1. Do you wear makeup?</div>
+      <div class="ql">1. Do you wear makeup? 您使用化妆品吗？</div>
       ${radio('makeup',['Yes','No'],true)}
-      <div style="margin-top:8px"><div class="ql" style="font-size:12px;color:var(--sub)">Makeup removal method:</div>${checkbox('makeup-removal',['Oil','Wipes','Soap','Other'],true)}</div>
+      <div style="margin-top:8px"><div class="ql" style="font-size:12px;color:var(--sub)">Makeup removal method: 卸妆方式：</div>${checkbox('makeup-removal',['Oil','Wipes','Soap','Other'],true)}</div>
     </div>
     <div class="field">
-      <div class="ql">2. Face wash type:</div>
+      <div class="ql">2. Face wash type: 洗脸产品类型：</div>
       ${checkbox('face-wash',['Foam','Soap','Other'],true)}
     </div>
     <div class="field">
-      <div class="ql">3. Water temperature preference:</div>
-      ${radio('water-temp',['Cold','Warm'],true)}
+      <div class="ql">3. Water temperature preference: 用水温度偏好：</div>
+      ${radio('water-temp',['Cold','Warm 暖'],true)}
     </div>
     <div class="field">
-      <div class="ql">4. Do you use exfoliators / enzymatic products?</div>
+      <div class="ql">4. Do you use exfoliators / enzymatic products? 您使用去角质/酵素产品吗？</div>
       ${radio('exfoliator',['Yes','No'],true)}
     </div>
     <div class="field">
-      <div class="ql">5. Vitamin C or Brightening/Whitening products?</div>
+      <div class="ql">5. Vitamin C or Brightening/Whitening products? 维他命C或美白产品？</div>
       ${radio('vitc',['Yes','No'],true)}
-      <div style="margin-top:8px"><div class="ql" style="font-size:12px;color:var(--sub)">Usage frequency:</div>${radio('vitc-freq',['Daily','Weekly','Sometimes'],true)}</div>
+      <div style="margin-top:8px"><div class="ql" style="font-size:12px;color:var(--sub)">Usage frequency: 使用频率：</div>${radio('vitc-freq',['Daily','Weekly','Sometimes'],true)}</div>
     </div>
   </div>
   <div class="sec">
-    <div class="sec-title">Medical & Special Requirements</div>
+    <div class="sec-title">Medical & Special Requirements 医疗与特殊需求</div>
     <div class="field">
-      <div class="ql">6. Please check if apply:</div>
-      ${checkbox('medical',['Currently Pregnant','Metal implants in body'],false)}
+      <div class="ql">6. Please check if apply: 请勾选适用项：</div>
+      ${checkbox('medical',['Currently Pregnant 目前怀孕','Metal implants in body 体内有金属植入物'],false)}
       <div style="margin-top:8px">
         <div class="opt-btn" data-name="claustrophobia" data-val="Yes" onclick="pickOpt(this,'check');toggleClaus()"><span class="sq"></span>Claustrophobia</div>
         <div id="claus-opts" style="display:none;margin-top:8px;margin-left:24px">
@@ -375,34 +606,34 @@ function buildFacial() {
       </div>
     </div>
     <div class="field">
-      <label>7. Allergies (Aspirin, Iodine, Nuts, etc.)</label>
-      <input type="text" id="f-facial-allergy" placeholder="List any allergies...">
+      <label>7. Allergies 过敏 (Aspirin, Iodine, Nuts, etc.)</label>
+      <input type="text" id="f-facial-allergy" placeholder="List any allergies... 列出所有过敏...">
     </div>
     <div class="field">
-      <label>8. Shoulder/Neck Massage intensity (1–10)</label>
-      <input type="text" id="f-massage-intensity" placeholder="e.g. 5">
+      <label>8. Shoulder/Neck 颈部 Massage intensity 肩颈按摩力度 (1–10)</label>
+      <input type="text" id="f-massage-intensity" placeholder="e.g. 5 例如：5">
     </div>
   </div>
 
   <div class="sec">
-    <div class="sec-title">Add-ons & Waxing</div>
+    <div class="sec-title">Add-ons & Waxing 附加服务与除毛</div>
     <div class="field">
-      <div class="ql">Add-ons:</div>
+      <div class="ql">Add-ons 附加服务:</div>
       ${checkbox('addons',['Ultrasonic Cleaning ($25)','Eye Treatment Device ($45)','Eye Treatment Upgrade Pola ($25)'],true)}
     </div>
     <div class="field">
-      <div class="ql">Waxing:</div>
+      <div class="ql">Waxing 除毛:</div>
       ${checkbox('waxing',['Brow ($30)','Full Face ($55)','Chin Lip ($15)','Under Arm ($40)','Brow Lip ($40)'],true)}
     </div>
   </div>
   <div class="sec">
-    <div class="sec-title">Consent</div>
+    <div class="sec-title">Consent 同意书</div>
     <div class="policy-box">
       I understand treatments are for cosmetic purposes. I have provided accurate health information. I've been informed that using brightening/Vitamin C products may cause sensitivity during treatment. I consent to the treatment and release ChicLash Boutique from any liability for adverse reactions not disclosed prior to treatment.
     </div>
     <label style="display:flex;align-items:flex-start;gap:12px;cursor:pointer;font-size:15px;line-height:1.5;padding:4px 0">
       <input type="checkbox" id="facial-consent-cb" style="width:22px;height:22px;margin-top:2px;accent-color:var(--ok);flex-shrink:0;cursor:pointer">
-      <span>I have read and agree to the above consent. <b style="color:var(--rose)">*</b></span>
+      <span>I have read and agree to the above consent. 我已阅读并同意以上条款。 <b style="color:var(--rose)">*</b></span>
     </label>
   </div>
   ` + sigSection();
@@ -412,44 +643,44 @@ function buildFacial() {
 function buildHeadSpa() {
   return commonInfo() + `
   <div class="sec">
-    <div class="sec-title">Head Spa Consultation</div>
+    <div class="sec-title">Head Spa Consultation 头疗咨询</div>
     <div class="field">
-      <div class="ql">1. Have you received a scalp massage before?</div>
+      <div class="ql">1. Have you received a scalp massage before? 您之前有做过头皮按摩吗？</div>
       ${radio('prev-spa',['Yes','No'],true)}
     </div>
     <div class="field">
-      <div class="ql">2. Are you on any medication?</div>
+      <div class="ql">2. Are you on any medication? 您目前有服用药物吗？</div>
       ${radio('medication',['Yes','No'],true)}
-      <div style="margin-top:8px"><input type="text" id="f-medication-detail" placeholder="If yes, which ones..."></div>
+      <div style="margin-top:8px"><input type="text" id="f-medication-detail" placeholder="If yes, which ones... 如是，请说明..."></div>
     </div>
     <div class="field">
-      <div class="ql">3. Do you have any allergies?</div>
+      <div class="ql">3. Do you have any allergies? 您有任何过敏吗？</div>
       ${radio('spa-allergy',['Yes','No'],true)}
-      <div style="margin-top:8px"><input type="text" id="f-spa-allergy-detail" placeholder="If yes, which ones..."></div>
+      <div style="margin-top:8px"><input type="text" id="f-spa-allergy-detail" placeholder="If yes, which ones... 如是，请说明"></div>
     </div>
     <div class="field">
-      <div class="ql">4. Are you pregnant?</div>
+      <div class="ql">4. Are you pregnant? 您目前怀孕吗？</div>
       ${radio('pregnant-spa',['Yes','No'],true)}
     </div>
     <div class="field">
-      <div class="ql">5. Water temperature preference:</div>
-      ${radio('water-pref',['Cool','Normal','Warm','Extra Warm'],true)}
+      <div class="ql">5. Water temperature preference: 水温偏好：</div>
+      ${radio('water-pref',['Cool 凉','Normal 普通','Warm','Extra Warm 热'],true)}
     </div>
     <div class="field">
-      <div class="ql">6. Head Massage Pressure:</div>
-      ${radio('head-pressure',['Soft','Medium','Hard'],true)}
+      <div class="ql">6. Head Massage Pressure: 头部按摩力度：</div>
+      ${radio('head-pressure',['Soft 轻','Medium 中','Hard 重'],true)}
     </div>
     <div class="field">
-      <div class="ql">7. Neck & Shoulder Massage Pressure:</div>
+      <div class="ql">7. Neck & Shoulder Massage Pressure: 颈肩按摩力度：</div>
       ${radio('neck-pressure',['Soft','Medium','Hard'],true)}
     </div>
     <div class="field">
-      <div class="ql">8. Please indicate if you have any of the following:</div>
-      ${checkbox('scalp-cond',['Skin Conditions','Dandruff','Eczema','Psoriasis'],true)}
+      <div class="ql">8. Please indicate if you have any of the following: 请指出以下哪项适用于您：</div>
+      ${checkbox('scalp-cond',['Skin Conditions 皮肤问题','Dandruff 头皮屑','Eczema 湿疹','Psoriasis 牛皮癣'],true)}
     </div>
     <div class="field">
-      <label>9. Head, neck or shoulder surgery (if any):</label>
-      <input type="text" id="f-surgery" placeholder="Describe if applicable...">
+      <label>9. Head, neck or shoulder surgery (if any): 头部、颈部或肩部手术（如有）：</label>
+      <input type="text" id="f-surgery" placeholder="Describe if applicable... 如适用请描述...">
     </div>
   </div>
   <div class="sec">
@@ -469,21 +700,21 @@ function buildHeadSpa() {
 function buildMassage() {
   return commonInfo() + `
   <div class="sec">
-    <div class="sec-title">1. Massage Preferences</div>
+    <div class="sec-title">1. Massage Preferences 按摩偏好</div>
     <div class="field">
-      <div class="ql">Desired Pressure:</div>
-      ${radio('pressure',['Light','Medium','Firm / Deep Tissue'],true)}
+      <div class="ql">Desired Pressure: 期望力度：</div>
+      ${radio('pressure',['Light 轻','Medium','Firm / Deep Tissue 深层组织'],true)}
     </div>
     <div class="field">
-      <div class="ql">Areas to Focus On:</div>
-      ${checkbox('focus-areas',['Neck','Shoulders','Upper Back','Lower Back','Hips/Glutes','Arms/Hands','Legs/Feet','Scalp/Face'],true)}
+      <div class="ql">Areas to Focus On: 重点部位：</div>
+      ${checkbox('focus-areas',['Neck','Shoulders 肩部','Upper Back 上背部','Lower Back 下背部','Hips/Glutes 臀部','Arms/Hands 手臂/双手','Legs/Feet 腿部/双脚','Scalp/Face 头皮/脸部'],true)}
     </div>
   </div>
   <div class="sec">
-    <div class="sec-title">2. Health History</div>
+    <div class="sec-title">2. Health History 健康状况</div>
     <div class="field">
-      <div class="ql">Do you have any of the following?</div>
-      ${checkbox('health',['High Blood Pressure','Varicose Veins','Blood Clots/DVT','Osteoporosis','Recent Surgery','Pregnancy','Skin Rashes','Numbness/Tingling'],true)}
+      <div class="ql">Do you have any of the following? 您有以下任何状况吗？</div>
+      ${checkbox('health',['High Blood Pressure 高血压','Varicose Veins 静脉曲张','Blood Clots/DVT 血栓','Osteoporosis 骨质疏松','Recent Surgery 近期手术','Pregnancy 怀孕','Skin Rashes 皮疹','Numbness/Tingling 麻木/刺痛'],true)}
     </div>
   </div>
   <div class="sec">
@@ -557,7 +788,7 @@ function getSigDataURL() {
 
 // ── SHOW FORM ──
 function showForm() {
-  var titles = {lash:'Eyelash Agreement & Consent',facial:'Skin Care Report & Consent',headspa:'Head Spa Agreement & Consent',massage:'Massage Therapy Consent'};
+  var titles = {lash:'Eyelash Agreement & Consent 睫毛协议与同意书',facial:'Skin Care Report & Consent 护肤报告与同意书',headspa:'Head Spa Agreement & Consent 头疗协议与同意书',massage:'Massage Therapy Consent 按摩治疗同意书'};
   document.getElementById('form-title').textContent = titles[curSvc];
   document.getElementById('form-subtitle').textContent = 'Please complete all fields and sign below';
   var builders = {lash:buildLash, facial:buildFacial, headspa:buildHeadSpa, massage:buildMassage};
@@ -802,6 +1033,174 @@ async function confirmAndSave() {
   }
 }
 
+// ── GIFT CARD FLOW ──
+var _gcStore = null;
+var _gcPayMethod = null;
+
+function pickExpiry(months, el) {
+  document.querySelectorAll('.gc-exp-btn').forEach(b => b.classList.remove('sel'));
+  el.classList.add('sel');
+  var expEl = document.getElementById('gc-exp');
+  if (months === 0) {
+    expEl.style.display = 'block';
+    expEl.focus();
+  } else {
+    expEl.style.display = 'none';
+    var now = new Date();
+    var y = now.getFullYear(), mo = now.getMonth(), day = now.getDate();
+    // 加月份，如果月底溢出就取當月最後一天
+    var targetMo = mo + months;
+    var targetY = y + Math.floor(targetMo / 12);
+    targetMo = targetMo % 12;
+    var maxDay = new Date(targetY, targetMo + 1, 0).getDate();
+    var expDate = new Date(targetY, targetMo, Math.min(day, maxDay));
+    expEl.value = expDate.toISOString().split('T')[0];
+  }
+  updateGCPreview();
+}
+window.pickExpiry = pickExpiry;
+
+function showGiftCardForm() {
+  document.getElementById('step-store').style.display = 'none';
+  document.getElementById('step-gc').style.display = 'block';
+  document.getElementById('gc-prev-date').textContent = new Date().toLocaleDateString('en-US');
+  window.scrollTo(0,0);
+  // 直接呼叫 pickExpiry 設定預設值並更新預覽
+  var firstBtn = document.querySelector('.gc-exp-btn');
+  if (firstBtn) pickExpiry(12, firstBtn);
+}
+
+function goBackFromGC() {
+  document.getElementById('step-gc').style.display = 'none';
+  document.getElementById('step-store').style.display = 'block';
+  _gcStore = null; _gcPayMethod = null;
+  document.querySelectorAll('.gc-pay-btn').forEach(b => b.classList.remove('sel'));
+  ['gc-store-mv','gc-store-sr'].forEach(id => {
+    var e = document.getElementById(id);
+    if (e) { e.style.borderColor='var(--border)'; e.style.background='var(--white)'; }
+  });
+  window.scrollTo(0,0);
+}
+
+function pickGCStore(store, el) {
+  _gcStore = store;
+  ['gc-store-mv','gc-store-sr'].forEach(id => {
+    var e = document.getElementById(id);
+    if (e) { e.style.borderColor='var(--border)'; e.style.background='var(--white)'; }
+  });
+  el.style.borderColor = store==='mv' ? 'var(--mv)' : 'var(--sr)';
+  el.style.background  = store==='mv' ? '#EBF2FA' : '#F0EBF9';
+  validateGC();
+}
+
+function pickGCPay(method, el) {
+  _gcPayMethod = method;
+  document.querySelectorAll('.gc-pay-btn').forEach(b => b.classList.remove('sel'));
+  el.classList.add('sel');
+  validateGC();
+}
+
+function gcGenCode(store) {
+  var rand = Math.floor(Math.random()*9000+1000);
+  return 'CLB' + (store||'CL').toUpperCase() + '-' + rand;
+}
+
+function updateGCPreview() {
+  var forVal  = (document.getElementById('gc-for')?.value||'').trim();
+  var fromVal = (document.getElementById('gc-from')?.value||'').trim();
+  var amtVal  = parseFloat(document.getElementById('gc-amount')?.value)||0;
+  var expVal  = document.getElementById('gc-exp')?.value;
+  document.getElementById('gc-prev-for').textContent  = forVal  || '—';
+  document.getElementById('gc-prev-from').textContent = fromVal || '—';
+  document.getElementById('gc-prev-amt').textContent  = amtVal > 0 ? '$' + amtVal.toFixed(2) : '$—';
+  document.getElementById('gc-prev-exp').textContent  = expVal
+    ? new Date(expVal+'T12:00:00').toLocaleDateString('en-US') : '—';
+  validateGC();
+}
+
+function validateGC() {
+  var forVal  = (document.getElementById('gc-for')?.value||'').trim();
+  var fromVal = (document.getElementById('gc-from')?.value||'').trim();
+  var amt     = parseFloat(document.getElementById('gc-amount')?.value)||0;
+  var soldBy  = (document.getElementById('gc-soldby')?.value||'').trim();
+  var ok = forVal && fromVal && amt > 0 && _gcPayMethod && _gcStore && soldBy;
+  var btn = document.getElementById('gc-submit-btn');
+  if (btn) { btn.disabled = !ok; btn.style.opacity = ok ? '1' : '0.45'; }
+}
+
+async function submitGC() {
+  var forVal  = (document.getElementById('gc-for')?.value||'').trim();
+  var fromVal = (document.getElementById('gc-from')?.value||'').trim();
+  var amt     = parseFloat(document.getElementById('gc-amount')?.value)||0;
+  var expVal  = document.getElementById('gc-exp')?.value || '';
+  var noteVal = (document.getElementById('gc-note')?.value||'').trim();
+  var soldBy  = (document.getElementById('gc-soldby')?.value||'').trim();
+  var code    = gcGenCode(_gcStore);
+  var today   = new Date().toLocaleDateString('en-US');
+  var expDisp = expVal ? new Date(expVal+'T12:00:00').toLocaleDateString('en-US') : '—';
+  var btn = document.getElementById('gc-submit-btn');
+  btn.disabled = true; btn.textContent = 'Saving 保存中…';
+
+  var data = {
+    type:'gift_certificate', code:code, store:_gcStore,
+    giftFor:forVal, purchaser:fromVal, amount:amt, balance:amt,
+    payMethod:_gcPayMethod, expireDate:expVal, soldBy:soldBy,
+    note:noteVal, issuedAt:new Date().toISOString(), used:false
+  };
+  try {
+    if (window._gcSave) await window._gcSave(data);
+    // Fill reference screen
+    document.getElementById('gc-fill-for').textContent       = forVal;
+    document.getElementById('gc-fill-from').textContent      = fromVal;
+    document.getElementById('gc-fill-date').textContent      = today;
+    document.getElementById('gc-fill-date2').textContent     = today;
+    document.getElementById('gc-fill-amt').textContent       = '$' + amt.toFixed(2);
+    document.getElementById('gc-fill-amt2').textContent      = '$' + amt.toFixed(2);
+    document.getElementById('gc-fill-exp').textContent       = expDisp;
+    document.getElementById('gc-fill-purchaser').textContent = fromVal;
+    document.getElementById('gc-fill-soldby').textContent    = soldBy;
+    document.getElementById('gc-done-code').textContent      = code;
+    var nw = document.getElementById('gc-done-note-wrap');
+    var ne = document.getElementById('gc-done-note');
+    if (noteVal && nw && ne) { nw.style.display='block'; ne.textContent=noteVal; }
+    else if (nw) nw.style.display='none';
+    document.getElementById('step-gc').style.display = 'none';
+    document.getElementById('step-gc-done').style.display = 'block';
+    window.scrollTo(0,0);
+  } catch(e) {
+    console.error(e);
+    alert('Connection failed. Please check WiFi.\n网络失败，请检查Wifi。');
+    btn.disabled = false; btn.textContent = '🎁 Issue Gift Certificate 开出礼品卡';
+  }
+}
+
+function resetGC() {
+  _gcStore = null; _gcPayMethod = null;
+  ['gc-for','gc-from','gc-amount','gc-note','gc-soldby'].forEach(id => {
+    var el = document.getElementById(id); if (el) el.value = '';
+  });
+  // Reset expiry to 1 year default
+  var firstBtn = document.querySelector('.gc-exp-btn');
+  if (firstBtn) pickExpiry(12, firstBtn);
+  document.querySelectorAll('.gc-pay-btn').forEach(b => b.classList.remove('sel'));
+  ['gc-store-mv','gc-store-sr'].forEach(id => {
+    var e = document.getElementById(id);
+    if (e) { e.style.borderColor='var(--border)'; e.style.background='var(--white)'; }
+  });
+  document.getElementById('step-gc-done').style.display = 'none';
+  document.getElementById('step-gc').style.display = 'none';
+  document.getElementById('step-store').style.display = 'block';
+  window.scrollTo(0,0);
+}
+
+window.showGiftCardForm = showGiftCardForm;
+window.goBackFromGC    = goBackFromGC;
+window.pickGCStore     = pickGCStore;
+window.pickGCPay       = pickGCPay;
+window.updateGCPreview = updateGCPreview;
+window.submitGC        = submitGC;
+window.resetGC         = resetGC;
+
 // ── RESET ──
 var _selectedStore = null;
 
@@ -815,6 +1214,8 @@ function resetForm() {
   document.getElementById('step-done').style.display = 'none';
   document.getElementById('step-review').style.display = 'none';
   document.getElementById('step-pick').style.display = 'none';
+  document.getElementById('step-gc') && (document.getElementById('step-gc').style.display = 'none');
+  document.getElementById('step-gc-done') && (document.getElementById('step-gc-done').style.display = 'none');
   document.getElementById('step-store').style.display = 'block';
   // Reset store buttons
   document.querySelectorAll('#step-store [onclick^="pickStore"]').forEach(b => {

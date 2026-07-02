@@ -133,57 +133,58 @@ input[type=file]{font-size:12px;font-family:'Inter',sans-serif;color:var(--sub)}
 
   <!-- Tabs -->
   <div class="tabs">
-    <div class="tab on" onclick="showTab('clients')">👥 客戶列表</div>
-    <div class="tab" onclick="showTab('analytics')">📊 數據分析</div>
-    <div class="tab" onclick="showTab('import')">⬆ 匯入 Square</div>
+    <div class="tab on" onclick="showTab('clients')">👥 客戶列表 Clients</div>
+    <div class="tab" onclick="showTab('analytics')">📊 數據分析 Analytics</div>
+    <div class="tab" onclick="showTab('giftcards')">🎁 Gift Cards 礼品卡</div>
+    <div class="tab" onclick="showTab('import')">⬆ 匯入 Square Import</div>
   </div>
 
   <!-- ── 客戶列表 tab ── -->
   <div id="tab-clients">
     <div class="toolbar">
-      <input class="tb-input" id="search" placeholder="🔍 搜尋姓名、電話、Email…" style="width:260px" oninput="applyFilters()">
+      <input class="tb-input" id="search" placeholder="🔍 搜尋 Search 姓名 Name / 電話 Phone / Email…" style="width:260px" oninput="applyFilters()">
       <select class="tb-select" id="filter-svc" onchange="applyFilters()">
-        <option value="">所有服務</option>
+        <option value="">所有服務 All Services</option>
         <option value="lash">Eyelash</option>
         <option value="facial">Facial</option>
         <option value="headspa">Head Spa</option>
         <option value="massage">Massage</option>
       </select>
       <select class="tb-select" id="filter-store" onchange="applyFilters()">
-        <option value="">兩店合計</option>
+        <option value="">兩店合計 All Stores</option>
         <option value="mv">Mill Valley</option>
         <option value="sr">San Rafael</option>
       </select>
       <select class="tb-select" id="filter-lapsed" onchange="applyFilters()">
-        <option value="">所有客戶</option>
-        <option value="4">4週未回</option>
-        <option value="8">8週未回</option>
-        <option value="12">12週未回</option>
+        <option value="">所有客戶 All Clients</option>
+        <option value="4">4週未回 4 Weeks</option>
+        <option value="8">8週未回 8 Weeks</option>
+        <option value="12">12週未回 12 Weeks</option>
       </select>
       <div class="spacer"></div>
-      <button class="tb-btn ok" onclick="exportCSV()">⬇ 匯出 CSV</button>
-      <button class="tb-btn secondary" onclick="toggleLapsed()">⚠ 流失客戶</button>
-      <button class="tb-btn secondary" onclick="reloadAll()">🔄 重新整理</button>
+      <button class="tb-btn ok" onclick="exportCSV()">⬇ 匯出 CSV Export</button>
+      <button class="tb-btn secondary" onclick="toggleLapsed()">⚠ 流失客戶 Lapsed</button>
+      <button class="tb-btn secondary" onclick="reloadAll()">🔄 重新整理 Refresh</button>
     </div>
 
     <div class="lapsed-panel" id="lapsed-panel">
-      <div class="lapsed-title">⚠ 流失客戶 — 超過 8 週未回</div>
+      <div class="lapsed-title">⚠ 流失客戶 Lapsed Clients — 超過 8 週未回 Over 8 Weeks</div>
       <div class="lapsed-grid" id="lapsed-grid"></div>
     </div>
 
     <div class="tbl-wrap">
       <div class="tbl-hdr">
-        <div onclick="sortBy('name')">姓名 <span id="sort-name"></span></div>
-        <div onclick="sortBy('phone')">電話</div>
+        <div onclick="sortBy('name')">姓名 Name <span id="sort-name"></span></div>
+        <div onclick="sortBy('phone')">電話 Phone</div>
         <div onclick="sortBy('email')">Email</div>
-        <div onclick="sortBy('svc')">服務</div>
-        <div onclick="sortBy('dob')">生日</div>
-        <div onclick="sortBy('date')">填表時間 <span id="sort-date">↓</span></div>
-        <div>來源</div>
-        <div onclick="sortBy('weeks')">週未回</div>
+        <div onclick="sortBy('svc')">服務 Service</div>
+        <div onclick="sortBy('dob')">生日 DOB</div>
+        <div onclick="sortBy('date')">填表時間 Date <span id="sort-date">↓</span></div>
+        <div>來源 Source</div>
+        <div onclick="sortBy('weeks')">週未回 Weeks</div>
       </div>
       <div class="tbl-body" id="tbl-body">
-        <div class="loading">載入客戶資料中…</div>
+        <div class="loading">載入客戶資料中… Loading…</div>
       </div>
     </div>
   </div>
@@ -192,7 +193,7 @@ input[type=file]{font-size:12px;font-family:'Inter',sans-serif;color:var(--sub)}
   <div id="tab-analytics" style="display:none">
     <div style="display:flex;gap:10px;margin-bottom:16px;flex-wrap:wrap;align-items:center">
       <select class="tb-select" id="ana-month" onchange="renderAnalytics()">
-        <option value="">全部月份</option>
+        <option value="">全部月份 All Months</option>
       </select>
       <select class="tb-select" id="ana-store" onchange="renderAnalytics()">
         <option value="">兩店合計</option>
@@ -202,10 +203,19 @@ input[type=file]{font-size:12px;font-family:'Inter',sans-serif;color:var(--sub)}
       <span style="font-size:12px;color:var(--sub)">（需匯入 Square CSV 才有分店和項目數據）</span>
     </div>
     <div class="analytics-grid" id="analytics-grid">
-      <div class="a-card"><div class="a-card-title">各服務人數</div><div id="ana-svc-chart"></div></div>
-      <div class="a-card"><div class="a-card-title">分店人數</div><div id="ana-store-chart"></div></div>
-      <div class="a-card" style="grid-column:1/-1"><div class="a-card-title">最熱門項目 Top 10</div><div id="ana-item-chart"></div></div>
+      <div class="a-card"><div class="a-card-title">各服務人數 By Service</div><div id="ana-svc-chart"></div></div>
+      <div class="a-card"><div class="a-card-title">分店人數 By Store</div><div id="ana-store-chart"></div></div>
+      <div class="a-card" style="grid-column:1/-1"><div class="a-card-title">最熱門項目 Top 10 Most Popular</div><div id="ana-item-chart"></div></div>
     </div>
+  </div>
+
+  <!-- ── Gift Cards tab ── -->
+  <div id="tab-giftcards" style="display:none">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+      <div style="font-size:15px;font-weight:600">Gift Certificate Records 礼品卡记录</div>
+      <input type="text" id="gc-search" placeholder="Search / 搜索 name, code…" oninput="filterGC()" style="border:1.5px solid var(--border);border-radius:8px;padding:8px 12px;font-size:13px;font-family:inherit;outline:none;width:200px">
+    </div>
+    <div id="gc-list"><div style="text-align:center;padding:40px;color:var(--sub)">Loading… 载入中…</div></div>
   </div>
 
   <!-- ── 匯入 Square tab ── -->
@@ -216,7 +226,7 @@ input[type=file]{font-size:12px;font-family:'Inter',sans-serif;color:var(--sub)}
       <div class="import-row">
         <span class="import-label">Customer CSV</span>
         <input type="file" id="sq-customer-file" accept=".csv">
-        <button class="tb-btn primary" onclick="importSqCustomers()">匯入客戶</button>
+        <button class="tb-btn primary" onclick="importSqCustomers()">匯入客戶 Import</button>
       </div>
       <div id="sq-customer-status" style="margin-top:10px;font-size:12px;color:var(--sub)"></div>
     </div>
@@ -383,14 +393,75 @@ function updateStats() {
 }
 
 // ── TABS ──
+// ── GIFT CARDS ──
+var _gcList = [];
+
+async function loadGiftCards() {
+  try {
+    const q = query(collection(db, 'gift_certificates'), orderBy('issuedAt','desc'));
+    const snap = await getDocs(q);
+    _gcList = snap.docs.map(d => ({id:d.id, ...d.data()}));
+    renderGCList(_gcList);
+  } catch(e) {
+    document.getElementById('gc-list').innerHTML = '<div style="color:red;padding:20px">Failed to load 無法載入</div>';
+  }
+}
+
+function filterGC() {
+  var q = (document.getElementById('gc-search')?.value||'').toLowerCase();
+  var filtered = q ? _gcList.filter(g =>
+    (g.giftFor||'').toLowerCase().includes(q) ||
+    (g.purchaser||'').toLowerCase().includes(q) ||
+    (g.code||'').toLowerCase().includes(q) ||
+    (g.soldBy||'').toLowerCase().includes(q)
+  ) : _gcList;
+  renderGCList(filtered);
+}
+
+function renderGCList(list) {
+  var el = document.getElementById('gc-list');
+  if (!el) return;
+  if (!list.length) { el.innerHTML = '<div style="text-align:center;padding:40px;color:var(--sub)">No records found 無記錄</div>'; return; }
+  el.innerHTML = list.map(function(g) {
+    var date = g.issuedAt ? new Date(g.issuedAt).toLocaleDateString('en-US') : '—';
+    var exp  = g.expireDate ? new Date(g.expireDate+'T12:00:00').toLocaleDateString('en-US') : '—';
+    var storeTag = g.store==='mv'
+      ? '<span style="color:#1656A0;font-weight:700;font-size:11px">MV</span>'
+      : '<span style="color:#5E35B1;font-weight:700;font-size:11px">SR</span>';
+    var usedTag = g.used
+      ? '<span style="background:#FEE;color:#C0392B;border-radius:6px;padding:2px 8px;font-size:11px;font-weight:600">Used 已使用</span>'
+      : '<span style="background:#EFB;color:#1A7A45;border-radius:6px;padding:2px 8px;font-size:11px;font-weight:600">Active 有效</span>';
+    return '<div style="background:var(--white);border:1px solid var(--border);border-radius:12px;padding:16px 20px;margin-bottom:10px;box-shadow:0 1px 6px rgba(0,0,0,.05)">'
+      +'<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:8px">'
+        +storeTag
+        +'<span style="font-family:monospace;font-weight:700;font-size:14px;color:#C0392B;letter-spacing:.05em">'+(g.code||'—')+'</span>'
+        +usedTag
+        +'<span style="margin-left:auto;font-size:18px;font-weight:700">$'+(g.amount||0).toFixed(2)+'</span>'
+      +'</div>'
+      +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;font-size:12px;color:var(--sub)">'
+        +'<div><span style="font-weight:600">For 赠予:</span> '+(g.giftFor||'—')+'</div>'
+        +'<div><span style="font-weight:600">From 购买者:</span> '+(g.purchaser||'—')+'</div>'
+        +'<div><span style="font-weight:600">Issued 发行:</span> '+date+'</div>'
+        +'<div><span style="font-weight:600">Expires 到期:</span> '+exp+'</div>'
+        +'<div><span style="font-weight:600">Payment 付款:</span> '+(g.payMethod||'—')+'</div>'
+        +'<div><span style="font-weight:600">Sold By 售卡人:</span> '+(g.soldBy||'—')+'</div>'
+        +(g.note?'<div style="grid-column:span 2"><span style="font-weight:600">Note 备注:</span> '+g.note+'</div>':'')
+      +'</div>'
+    +'</div>';
+  }).join('');
+}
+window.filterGC = filterGC;
+
 function showTab(t) {
-  ['clients','analytics','import'].forEach(id=>{
-    document.getElementById('tab-'+id).style.display = id===t?'block':'none';
+  ['clients','analytics','giftcards','import'].forEach(id=>{
+    var el = document.getElementById('tab-'+id);
+    if(el) el.style.display = id===t?'block':'none';
   });
   document.querySelectorAll('.tab').forEach((el,i)=>{
-    el.classList.toggle('on', ['clients','analytics','import'][i]===t);
+    el.classList.toggle('on', ['clients','analytics','giftcards','import'][i]===t);
   });
   if (t==='analytics') renderAnalytics();
+  if (t==='giftcards' && _gcList.length===0) loadGiftCards();
 }
 
 // ── FILTER & SORT ──
