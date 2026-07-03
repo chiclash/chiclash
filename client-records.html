@@ -450,6 +450,7 @@ function renderGCList(list) {
     var markBtn = g.used
       ? '<button onclick="markGCUnused(\''+g.id+'\')" style="font-size:11px;padding:4px 10px;border:1px solid var(--border);border-radius:6px;background:var(--white);color:var(--sub);cursor:pointer;font-family:inherit">↩ 取消已使用 Undo</button>'
       : '<button onclick="markGCUsed(\''+g.id+'\')" style="font-size:11px;padding:4px 10px;border:1px solid #C0392B;border-radius:6px;background:#FFF0EE;color:#C0392B;cursor:pointer;font-family:inherit;font-weight:600">✓ 標記已使用 Mark Used</button>';
+    var delBtn = '<button onclick="deleteGCRecord(\''+g.id+'\',\''+g.code+'\')" style="font-size:11px;padding:4px 10px;border:1px solid var(--border);border-radius:6px;background:var(--white);color:var(--sub);cursor:pointer;font-family:inherit;margin-left:6px">🗑 刪除 Delete</button>';
     return '<div style="background:var(--white);border:1px solid var(--border);border-radius:12px;padding:16px 20px;margin-bottom:10px;box-shadow:0 1px 6px rgba(0,0,0,.05)'+(g.used?';opacity:0.6':'')+'\">'
       +'<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:8px">'
         +storeTag
@@ -467,10 +468,22 @@ function renderGCList(list) {
         +(g.usedAt?'<div style="grid-column:span 2"><span style="font-weight:600">Used On 使用日期:</span> '+new Date(g.usedAt).toLocaleDateString('en-US')+'</div>':'')
         +(g.note?'<div style="grid-column:span 2"><span style="font-weight:600">Note 备注:</span> '+g.note+'</div>':'')
       +'</div>'
-      +markBtn
+      +'<div style="display:flex;gap:0">'
+      +markBtn+delBtn
+      +'</div>'
     +'</div>';
   }).join('');
 }
+async function deleteGCRecord(id, code) {
+  if(!confirm('確定刪除「'+code+'」？此操作無法復原。\nDelete "'+code+'"? This cannot be undone.')) return;
+  try {
+    await window._fb.deleteDoc(window._fb.doc(window._crDb, 'gift_certificates', id));
+    _gcList = _gcList.filter(function(x){ return x.id !== id; });
+    renderGCList(_gcList);
+  } catch(e) { alert('刪除失敗 Delete failed: ' + e.message); }
+}
+window.deleteGCRecord = deleteGCRecord;
+
 async function markGCUsed(id) {
   try {
     await window._fb.updateDoc(window._fb.doc(window._crDb, 'gift_certificates', id), {

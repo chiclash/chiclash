@@ -3166,7 +3166,13 @@ function toggleGCUsed(id,checked){
 async function loadFBGiftCards(){
   var fbWrap=document.getElementById('gc-firebase-wrap');
   if(!fbWrap)return;
-  if(!window._gcFb){fbWrap.innerHTML='<div style="font-size:12px;color:var(--warn)">Firebase 尚未連線</div>';return;}
+  // 等待 _gcFb 最多 5 秒
+  var waited=0;
+  while(!window._gcFb && waited<50){
+    await new Promise(function(r){setTimeout(r,100);});
+    waited++;
+  }
+  if(!window._gcFb){fbWrap.innerHTML='<div style="font-size:12px;color:var(--warn)">Firebase 尚未連線，請重新整理頁面</div>';return;}
   fbWrap.innerHTML='<div style="font-size:12px;color:var(--sub)">載入中… Loading…</div>';
   window._gcFb.loadActive().then(function(cards){
     if(cards.length===0){fbWrap.innerHTML='<div style="font-size:12px;color:var(--faint);padding:8px 0">No active certificates · 無有效禮品卡</div>';return;}
