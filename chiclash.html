@@ -518,6 +518,7 @@ input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-
   <div class="s-sec">設定</div>
   <button class="ni" id="ni-staff" onclick="showPage('staff')"><span class="ni-ic">👥</span>員工管理</button>
   <button class="ni" id="ni-gc" onclick="showPage('gc')"><span class="ni-ic">🎁</span>Gift Card 記錄</button>
+  <button class="ni" id="ni-products" onclick="showPage('products')"><span class="ni-ic">🛍</span>產品銷售</button>
   <div class="s-sec">月結</div>
   <button class="ni" id="ni-report" onclick="showPage('report')"><span class="ni-ic">📋</span>月結報表</button>
   <button class="ni" id="ni-payroll" onclick="showPage('payroll')"><span class="ni-ic">💜</span>Lucy &amp; Luter 薪資</button>
@@ -779,7 +780,26 @@ input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-
 <div class="page" id="page-gd">
   <div class="pg-hd" style="display:flex;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;gap:12px">
     <div><div class="pg-title">GoDaddy 對帳</div><div class="pg-sub" id="gd-sub"></div></div>
-    <button onclick="document.getElementById('gd-sq-upload-area').style.display=document.getElementById('gd-sq-upload-area').style.display==='none'?'block':'none'" style="padding:8px 16px;background:var(--mv);color:#fff;border:none;border-radius:7px;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit">⚡ 上傳 Square CSV 對帳</button>
+    <div style="display:flex;gap:8px;flex-wrap:wrap">
+      <button onclick="document.getElementById('gd-sq-upload-area').style.display=document.getElementById('gd-sq-upload-area').style.display==='none'?'block':'none'" style="padding:8px 16px;background:var(--mv);color:#fff;border:none;border-radius:7px;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit">⚡ 上傳 Square CSV 對帳</button>
+      <button onclick="document.getElementById('gd-csv-upload-area').style.display=document.getElementById('gd-csv-upload-area').style.display==='none'?'block':'none'" style="padding:8px 16px;background:var(--ok);color:#fff;border:none;border-radius:7px;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit">📥 上傳 GoDaddy CSV</button>
+    </div>
+  </div>
+
+  <!-- GoDaddy CSV 上傳區 -->
+  <div id="gd-csv-upload-area" style="display:none;background:#F0FAF4;border:1px solid #A8D5B5;border-radius:10px;padding:16px;margin-bottom:14px">
+    <div style="font-size:13px;font-weight:600;color:var(--ok);margin-bottom:4px">📥 上傳 GoDaddy Payout CSV</div>
+    <div style="font-size:11px;color:var(--sub);margin-bottom:12px">上傳後自動把每天的銷售金額填入 GoDaddy 實收欄，省去手動輸入。</div>
+    <div style="border:2px dashed #A8D5B5;border-radius:8px;padding:20px;text-align:center;cursor:pointer"
+      onclick="document.getElementById('gd-csv-file').click()"
+      ondragover="event.preventDefault();this.style.borderColor='var(--ok)'"
+      ondragleave="this.style.borderColor='#A8D5B5'"
+      ondrop="event.preventDefault();this.style.borderColor='#A8D5B5';handleGDCsvFile(event.dataTransfer.files[0])">
+      <div style="font-size:28px;margin-bottom:6px">📊</div>
+      <div style="font-size:13px;font-weight:600;color:var(--ok)">點擊或拖曳 GoDaddy Payout CSV</div>
+      <div id="gd-csv-status" style="font-size:11px;color:var(--sub);margin-top:6px">Payout_Payments_*.csv</div>
+      <input type="file" id="gd-csv-file" accept=".csv" style="display:none" onchange="handleGDCsvFile(this.files[0])">
+    </div>
   </div>
 
   <!-- Square CSV 上傳區（預設隱藏） -->
@@ -932,6 +952,56 @@ input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-
 </div>
 
 <!-- 打卡記錄 -->
+<div class="page" id="page-products">
+  <div class="pg-hdr"><div><div class="pg-title">🛍 產品銷售</div><div class="pg-sub">每月產品銷售記錄，抽成 15%</div></div></div>
+  <div style="max-width:900px;margin:0 auto;padding:0 16px 40px">
+    <!-- 新增表單 -->
+    <div style="background:var(--white);border-radius:12px;padding:18px 20px;margin-bottom:16px;box-shadow:var(--shadow)">
+      <div style="font-size:13px;font-weight:600;color:var(--rose);margin-bottom:14px">＋ 新增銷售記錄</div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin-bottom:12px">
+        <div>
+          <div style="font-size:11px;color:var(--sub);margin-bottom:4px">日期 *</div>
+          <input type="date" id="prod-date" class="ti" style="width:100%">
+        </div>
+        <div>
+          <div style="font-size:11px;color:var(--sub);margin-bottom:4px">產品名稱 *</div>
+          <input type="text" id="prod-name" class="ti" placeholder="e.g. Lash Serum" style="width:100%;text-align:left">
+        </div>
+        <div>
+          <div style="font-size:11px;color:var(--sub);margin-bottom:4px">金額 ($) *</div>
+          <input type="number" id="prod-amt" class="ti" placeholder="0" min="0" step="1" style="width:100%">
+        </div>
+        <div>
+          <div style="font-size:11px;color:var(--sub);margin-bottom:4px">技師 *</div>
+          <select id="prod-staff" class="ti" style="width:100%;text-align:left">
+            <option value="">— 選擇 —</option>
+          </select>
+        </div>
+        <div>
+          <div style="font-size:11px;color:var(--sub);margin-bottom:4px">付款方式</div>
+          <select id="prod-pay" class="ti" style="width:100%;text-align:left">
+            <option value="card">刷卡</option>
+            <option value="cash">現金</option>
+            <option value="venmo">Venmo</option>
+            <option value="zelle">Zelle</option>
+          </select>
+        </div>
+        <div>
+          <div style="font-size:11px;color:var(--sub);margin-bottom:4px">顧客名稱</div>
+          <input type="text" id="prod-client" class="ti" placeholder="選填" style="width:100%;text-align:left">
+        </div>
+      </div>
+      <button onclick="addProduct()" style="background:var(--rose);color:#fff;border:none;border-radius:8px;padding:10px 24px;font-size:14px;font-weight:600;cursor:pointer;font-family:inherit">＋ 新增</button>
+    </div>
+    <!-- 本月統計 -->
+    <div id="prod-stats" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px;margin-bottom:16px"></div>
+    <!-- 記錄列表 -->
+    <div style="background:var(--white);border-radius:12px;overflow:hidden;box-shadow:var(--shadow)">
+      <div id="prod-list"><div style="text-align:center;padding:32px;font-size:13px;color:var(--faint)">本月尚無產品銷售記錄</div></div>
+    </div>
+  </div>
+</div>
+
 <div class="page" id="page-att">
   <div class="pg-hd" style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px">
     <div><div class="pg-title">打卡記錄</div><div class="pg-sub" id="att-sub"></div></div>
@@ -1210,17 +1280,17 @@ input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-
         <div id="imp-txn-st" style="font-size:11px;color:var(--faint);margin-top:6px">尚未上傳</div>
         <input type="file" id="imp-file-txn" accept=".csv" style="display:none" onchange="impHandleTxn(this.files[0])">
       </div>
-      <!-- GoDaddy PDF -->
+      <!-- GoDaddy PDF or CSV -->
       <div id="imp-drop-gd" style="border:2px dashed var(--border);border-radius:9px;padding:16px;text-align:center;cursor:pointer;transition:all .15s"
         onclick="document.getElementById('imp-file-gd').click()"
         ondragover="event.preventDefault();this.style.borderColor='#B45309'"
         ondragleave="this.style.borderColor='var(--border)'"
-        ondrop="event.preventDefault();this.style.borderColor='var(--border)';impHandleGD(event.dataTransfer.files)">
+        ondrop="event.preventDefault();this.style.borderColor='var(--border)';impHandleGDFiles(event.dataTransfer.files)">
         <div style="font-size:24px;margin-bottom:4px">📄</div>
-        <div style="font-size:12px;font-weight:600">GoDaddy PDF</div>
-        <div style="font-size:10px;color:var(--sub);margin-top:2px">Payout Report（可多個）</div>
+        <div style="font-size:12px;font-weight:600">GoDaddy PDF 或 CSV</div>
+        <div style="font-size:10px;color:var(--sub);margin-top:2px">Payout Report PDF 或 Payout_Payments CSV</div>
         <div id="imp-gd-st" style="font-size:11px;color:var(--faint);margin-top:6px">尚未上傳（選填）</div>
-        <input type="file" id="imp-file-gd" accept=".pdf" multiple style="display:none" onchange="impHandleGD(this.files)">
+        <input type="file" id="imp-file-gd" accept=".pdf,.csv" multiple style="display:none" onchange="impHandleGDFiles(this.files)">
       </div>
     </div>
     <div style="display:flex;align-items:center;gap:10px">
@@ -1310,6 +1380,7 @@ input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-
               <th style="padding:8px 10px;text-align:center;font-size:10px;color:var(--sub);font-weight:600">付款</th>
               <th style="padding:8px 10px;text-align:left;font-size:10px;color:var(--sub);font-weight:600">技師</th>
               <th style="padding:8px 10px;text-align:left;font-size:10px;color:var(--sub);font-weight:600">店</th>
+              <th style="padding:8px 10px;text-align:center;font-size:10px;color:var(--sub);font-weight:600">狀態</th>
             </tr>
           </thead>
           <tbody id="imp-tbody"></tbody>
@@ -1736,6 +1807,7 @@ function showPage(p){
     if(niEl) niEl.classList.add('on');
   }
   if(p==='gc'){renderGCPage(); loadFBGiftCards();}
+  if(p==='products')renderProductsPage();
   if(p==='staff')renderStaffPage();
   if(p==='tips')renderTipsPage();
   if(p==='att')renderAttPage();
@@ -3266,7 +3338,159 @@ function renderGCPage(){
   // Firebase GC loaded separately by loadFBGiftCards()
 }
 
-// ── TECH SELECTOR ──
+// ── PRODUCTS ──
+function prodData(){
+  if(!_D.products)_D.products={};
+  var mo=mk();
+  if(!_D.products[mo])_D.products[mo]=[];
+  return _D.products[mo];
+}
+
+function initProdStaffSel(){
+  var sel=document.getElementById('prod-staff');
+  if(!sel)return;
+  var staff=_D.staff||[];
+  sel.innerHTML='<option value="">— 選擇 —</option>'+staff.map(function(s){return'<option value="'+s+'">'+s+'</option>';}).join('');
+}
+
+function addProduct(){
+  var date=document.getElementById('prod-date').value;
+  var name=(document.getElementById('prod-name').value||'').trim();
+  var amt=parseFloat(document.getElementById('prod-amt').value)||0;
+  var staff=document.getElementById('prod-staff').value;
+  var pay=document.getElementById('prod-pay').value||'card';
+  var client=(document.getElementById('prod-client').value||'').trim();
+  if(!date||!name||amt<=0||!staff){alert('請填寫日期、產品名稱、金額和技師');return;}
+  prodData().push({id:Date.now(),date:date,name:name,amt:amt,staff:staff,pay:pay,client:client,comm:Math.round(amt*0.15*100)/100});
+  save();
+  // Clear form
+  ['prod-name','prod-amt','prod-client'].forEach(function(id){var el=document.getElementById(id);if(el)el.value='';});
+  renderProductsPage();
+}
+
+function delProduct(id){
+  if(!confirm('確定刪除？'))return;
+  _D.products[mk()]=prodData().filter(function(p){return p.id!==id;});
+  save();renderProductsPage();
+}
+
+function renderProductsPage(){
+  initProdStaffSel();
+  // Set today as default
+  var di=document.getElementById('prod-date');
+  if(di&&!di.value)di.value=new Date().toISOString().split('T')[0];
+
+  var data=prodData();
+  var staff=_D.staff||[];
+
+  // Stats
+  var totalAmt=data.reduce(function(s,p){return s+p.amt;},0);
+  var totalComm=data.reduce(function(s,p){return s+p.comm;},0);
+  var statsEl=document.getElementById('prod-stats');
+  if(statsEl){
+    var byStaff={};
+    data.forEach(function(p){if(!byStaff[p.staff])byStaff[p.staff]={amt:0,comm:0,count:0};byStaff[p.staff].amt+=p.amt;byStaff[p.staff].comm+=p.comm;byStaff[p.staff].count++;});
+    var cards=[
+      '<div style="background:var(--white);border-radius:10px;padding:14px 16px;box-shadow:var(--shadow);text-align:center"><div style="font-size:11px;color:var(--sub);margin-bottom:4px">本月銷售總額</div><div style="font-size:22px;font-weight:700;color:var(--rose)">'+$f(totalAmt)+'</div></div>',
+      '<div style="background:var(--white);border-radius:10px;padding:14px 16px;box-shadow:var(--shadow);text-align:center"><div style="font-size:11px;color:var(--sub);margin-bottom:4px">本月抽成合計（15%）</div><div style="font-size:22px;font-weight:700;color:var(--ok)">'+$f(totalComm)+'</div></div>',
+    ].concat(Object.keys(byStaff).sort().map(function(n){
+      return '<div style="background:var(--white);border-radius:10px;padding:14px 16px;box-shadow:var(--shadow);text-align:center">'
+        +'<div style="font-size:11px;color:var(--sub);margin-bottom:4px">'+n+' 抽成</div>'
+        +'<div style="font-size:18px;font-weight:700;color:var(--mv)">'+$f(byStaff[n].comm)+'</div>'
+        +'<div style="font-size:11px;color:var(--faint)">'+byStaff[n].count+'筆 / '+$f(byStaff[n].amt)+'</div>'
+        +'</div>';
+    }));
+    statsEl.innerHTML=cards.join('');
+  }
+
+  // List
+  var listEl=document.getElementById('prod-list');
+  if(!listEl)return;
+  if(data.length===0){listEl.innerHTML='<div style="text-align:center;padding:32px;font-size:13px;color:var(--faint)">本月尚無產品銷售記錄</div>';return;}
+  var sorted=data.slice().sort(function(a,b){return a.date<b.date?-1:a.date>b.date?1:a.id-b.id;});
+  var payIcon={card:'💳',cash:'💵',venmo:'📱',zelle:'⚡'};
+  listEl.innerHTML='<table style="width:100%;border-collapse:collapse;font-size:13px">'
+    +'<thead><tr style="background:var(--bg);border-bottom:1.5px solid var(--border)">'
+    +'<th style="padding:8px 14px;text-align:left;font-size:10px;color:var(--sub);font-weight:600">日期</th>'
+    +'<th style="padding:8px 14px;text-align:left;font-size:10px;color:var(--sub);font-weight:600">產品</th>'
+    +'<th style="padding:8px 14px;text-align:left;font-size:10px;color:var(--sub);font-weight:600">技師</th>'
+    +'<th style="padding:8px 14px;text-align:left;font-size:10px;color:var(--sub);font-weight:600">顧客</th>'
+    +'<th style="padding:8px 14px;text-align:right;font-size:10px;color:var(--sub);font-weight:600">金額</th>'
+    +'<th style="padding:8px 14px;text-align:right;font-size:10px;color:var(--ok);font-weight:600">抽成15%</th>'
+    +'<th style="padding:8px 14px;text-align:center;font-size:10px;color:var(--sub);font-weight:600">付款</th>'
+    +'<th style="padding:8px 14px;width:32px"></th>'
+    +'</tr></thead><tbody>'
+    +sorted.map(function(p){
+      return '<tr style="border-bottom:1px solid var(--border)">'
+        +'<td style="padding:8px 14px;color:var(--sub);font-size:12px">'+p.date.slice(5).replace('-','/')+'</td>'
+        +'<td style="padding:8px 14px;font-weight:600">'+p.name+'</td>'
+        +'<td style="padding:8px 14px">'+p.staff+'</td>'
+        +'<td style="padding:8px 14px;color:var(--sub)">'+( p.client||'—')+'</td>'
+        +'<td style="padding:8px 14px;text-align:right;font-weight:600">'+$f(p.amt)+'</td>'
+        +'<td style="padding:8px 14px;text-align:right;font-weight:700;color:var(--ok)">'+$f(p.comm)+'</td>'
+        +'<td style="padding:8px 14px;text-align:center">'+(payIcon[p.pay]||'')+'</td>'
+        +'<td style="padding:8px 14px"><button class="del-btn" onclick="delProduct('+p.id+')">×</button></td>'
+        +'</tr>';
+    }).join('')
+    +'</tbody></table>';
+}
+function handleGDCsvFile(file) {
+  if (!file) return;
+  var reader = new FileReader();
+  reader.onload = function(e) {
+    var text = e.target.result;
+    var lines = text.split('\n').filter(function(l){ return l.trim(); });
+    if (lines.length < 2) { alert('CSV 格式有誤'); return; }
+
+    // Parse header
+    var headers = parseCSVLine(lines[0]);
+    var iDate = headers.indexOf('Date');
+    var iSale = headers.indexOf('Sale amount');
+    var iTip  = headers.indexOf('Tip amount');
+    var iType = headers.indexOf('Type');
+    if (iDate < 0 || iSale < 0) { alert('找不到 Date 或 Sale amount 欄位，請確認是 GoDaddy Payout CSV'); return; }
+
+    // Group by date (MM/DD/YYYY → day number)
+    var byDate = {};
+    for (var i = 1; i < lines.length; i++) {
+      var cols = parseCSVLine(lines[i]);
+      if (cols.length < 3) continue;
+      var type = iType >= 0 ? (cols[iType]||'').trim() : 'Sale';
+      if (type !== 'Sale') continue;
+      var dateRaw = (cols[iDate]||'').trim(); // 07/08/2026 18:58
+      var dateParts = dateRaw.split(' ')[0].split('/'); // [07, 08, 2026]
+      if (dateParts.length < 3) continue;
+      var mo = dateParts[2] + '-' + dateParts[0]; // 2026-07
+      var day = parseInt(dateParts[1], 10);         // 8
+      var sale = parseFloat((cols[iSale]||'').replace(/[$,]/g,''))||0;
+      if (!byDate[mo]) byDate[mo] = {};
+      if (!byDate[mo][day]) byDate[mo][day] = 0;
+      byDate[mo][day] += sale;
+    }
+
+    // Write into _D.gd
+    var count = 0;
+    Object.keys(byDate).forEach(function(mo) {
+      if (!_D.gd) _D.gd = {};
+      if (!_D.gd[mo]) _D.gd[mo] = {};
+      Object.keys(byDate[mo]).forEach(function(day) {
+        if (!_D.gd[mo][day]) _D.gd[mo][day] = {};
+        _D.gd[mo][day].act = Math.round(byDate[mo][day] * 100) / 100;
+        count++;
+      });
+    });
+
+    save();
+    var statusEl = document.getElementById('gd-csv-status');
+    if (statusEl) statusEl.textContent = '✅ 已匯入 ' + count + ' 天的 GoDaddy 實收';
+    document.getElementById('gd-csv-upload-area').style.display = 'none';
+    renderGDPage();
+  };
+  reader.readAsText(file);
+}
+window.handleGDCsvFile = handleGDCsvFile;
+window.delProduct=delProduct;
+window.renderProductsPage=renderProductsPage;
 function buildTechSel(d,i,c){
   const staff=_D.staff||[];
   if(staff.length===0)return`<span style="font-size:10px;color:var(--faint)">無員工</span>`;
@@ -4400,7 +4624,9 @@ function buildStaffReportData(){
     var adj=reportAdjs()[name]||0;
     var effectiveTip=pooledTipVal!==undefined?pooledTipVal:totalTip;
     var bossSuppForGrand=(cfg.bonusType==='minTipPooled')?0:bossSupp;
-    var grand=basePay+effectiveTip+penTotal+mvRev+srRev+bossSuppForGrand+adj;
+    // 產品抽成 15%
+    var prodComm=Math.round((((_D.products&&_D.products[mk()])||[]).filter(function(p){return p.staff===name;}).reduce(function(s,p){return s+(p.comm||p.amt*0.15);},0))*100)/100;
+    var grand=basePay+effectiveTip+penTotal+mvRev+srRev+bossSuppForGrand+adj+prodComm;
     return{
       name:name, cfg:cfg,
       totalSales:totalSales, basePay:basePay, baseLabel:baseLabel,
@@ -4411,7 +4637,7 @@ function buildStaffReportData(){
       pens:myPens, penTotal:penTotal,
       mvRev:mvRev, srRev:srRev,
       bossSupp:bossSupp, bossSuppLabel:bossSuppLabel,
-      adj:adj, grand:grand,
+      adj:adj, prodComm:prodComm, grand:grand,
       totalNetMins:totalNetMins, workDays:workDays, hoursStr:hoursStr
     };
   });
@@ -4495,7 +4721,7 @@ function renderReportPage(){
     var detailId='rpt-detail-'+i;
     var sc=getStaffColor(d.name);
     var staffHex=sc.hex,staffBg=sc.bg,staffBd=sc.border;
-    var COLS=8; // total cols in table
+    var COLS=9; // total cols in table (added product comm)
 
     var details='';
     // Work hours
@@ -4644,6 +4870,7 @@ function renderReportPage(){
           return '<td style="padding:6px 12px;text-align:right">'+lines+'</td>';
         }())+
         '<td style="padding:10px 12px;text-align:right;font-size:12px;color:var(--gold)">'+(d.mvRev+d.srRev>0?$f(d.mvRev+d.srRev):'—')+'</td>'+
+        '<td style="padding:10px 12px;text-align:right;font-size:12px;color:#7B5EA7;font-weight:'+(d.prodComm>0?'700':'400')+'">'+(d.prodComm>0?$f(d.prodComm):'—')+'</td>'+
         '<td style="padding:10px 12px;text-align:right;font-size:12px;color:var(--warn);font-weight:'+(d.bossSupp>0?'700':'400')+'">'+(d.bossSupp>0?$f(d.bossSupp):'—')+'</td>'+
         '<td style="padding:10px 14px;text-align:right;font-size:16px;font-weight:700;color:'+grandColor+'">'+$f(d.grand)+'</td>'+
       '</tr>'+
@@ -4669,6 +4896,7 @@ function renderReportPage(){
           '<th style="padding:8px 12px;text-align:right;font-size:10px;color:var(--mv);font-weight:600">抽成/底薪</th>'+
           '<th style="padding:8px 12px;text-align:right;font-size:10px;color:var(--sub);font-weight:600">小費</th>'+
           '<th style="padding:8px 12px;text-align:right;font-size:10px;color:var(--gold);font-weight:600">評論獎勵</th>'+
+          '<th style="padding:8px 12px;text-align:right;font-size:10px;color:#7B5EA7;font-weight:600">產品抽成</th>'+
           '<th style="padding:8px 12px;text-align:right;font-size:10px;color:var(--warn);font-weight:600">老闆補款</th>'+
           '<th style="padding:8px 12px;text-align:right;font-size:10px;color:var(--ok);font-weight:600">實領合計</th>'+
         '</tr></thead>'+
@@ -5003,11 +5231,41 @@ function downloadAllPDFs(){
         +(d.mvRev>0?'<tr><td>MV 評論獎勵</td><td style="color:#7A5A10">$'+d.mvRev.toFixed(2)+'</td></tr>':'')
         +(d.srRev>0?'<tr><td>SR 評論獎勵</td><td style="color:#7A5A10">$'+d.srRev.toFixed(2)+'</td></tr>':'')
         +penRows
+        +(d.prodComm>0?'<tr><td>產品抽成 (15%)</td><td style="color:#7B5EA7;font-weight:600">$'+d.prodComm.toFixed(2)+'</td></tr>':'')
         +(d.bossSupp>0?'<tr><td>老闆補款</td><td style="color:#B45309;font-weight:600">$'+d.bossSupp.toFixed(2)+'</td></tr>':'')
         +'<tr class="total"><td>合計應得</td><td style="color:'+grandColor+'">'+$f2(d.grand)+'</td></tr>'
       +'</table>'
       +txnSection2
       +attSection
+      +(function(){
+        // 產品銷售明細
+        var prods=((_D.products&&_D.products[mk()])||[]).filter(function(p){return p.staff===d.name;});
+        if(!prods.length)return '';
+        var payIcon={card:'💳',cash:'💵',venmo:'📱',zelle:'⚡'};
+        return '<div style="margin-top:12px;border:1px solid #ddd;border-radius:6px;overflow:hidden">'
+          +'<div style="background:#F3EFF9;padding:7px 10px;border-bottom:1px solid #ddd;display:flex;justify-content:space-between">'
+            +'<span style="font-size:10px;font-weight:700;text-transform:uppercase;color:#7B5EA7">產品銷售明細</span>'
+            +'<span style="font-size:11px;font-weight:700;color:#7B5EA7">抽成合計 $'+d.prodComm.toFixed(2)+'</span>'
+          +'</div>'
+          +'<table style="width:100%;border-collapse:collapse;font-size:11px">'
+            +'<thead><tr style="background:#f7f7f7">'
+              +'<th style="padding:4px 8px;text-align:left;font-weight:600">日期</th>'
+              +'<th style="padding:4px 8px;text-align:left;font-weight:600">產品</th>'
+              +'<th style="padding:4px 8px;text-align:left;font-weight:600">顧客</th>'
+              +'<th style="padding:4px 8px;text-align:right;font-weight:600">售價</th>'
+              +'<th style="padding:4px 8px;text-align:right;color:#7B5EA7;font-weight:600">抽成15%</th>'
+            +'</tr></thead><tbody>'
+            +prods.sort(function(a,b){return a.date<b.date?-1:1;}).map(function(p){
+              return '<tr style="border-bottom:1px solid #eee">'
+                +'<td style="padding:4px 8px;color:#666">'+p.date.slice(5).replace('-','/')+'</td>'
+                +'<td style="padding:4px 8px">'+p.name+'</td>'
+                +'<td style="padding:4px 8px;color:#888">'+( p.client||'—')+'</td>'
+                +'<td style="padding:4px 8px;text-align:right">$'+p.amt.toFixed(2)+'</td>'
+                +'<td style="padding:4px 8px;text-align:right;color:#7B5EA7;font-weight:700">$'+p.comm.toFixed(2)+'</td>'
+                +'</tr>';
+            }).join('')
+          +'</tbody></table></div>';
+      }())
       +(note?'<div class="note"><strong>備註：</strong>'+note+'</div>':'')
       +'<div class="footer">Chic Lash Studio · '+moLabel+' · 列印日期：'+new Date().toLocaleDateString('zh-TW')+'</div>'
     +'</div>';
@@ -5106,7 +5364,8 @@ function parseSqItemsCSV(text) {
   var iDate=fi(['Date']), iTime=fi(['Time']), iLoc=fi(['Location']),
       iEmp=fi(['Employee']), iDesc=fi(['Item']), iNet=fi(['Net Sales']),
       iGross=fi(['Gross Sales']), iDisc=fi(['Discounts']),
-      iTxn=fi(['Transaction ID']), iStatus=fi(['Event Type']), iCust=fi(['Customer Name']);
+      iTxn=fi(['Transaction ID']), iStatus=fi(['Event Type']), iCust=fi(['Customer Name']),
+      iCat=fi(['Category']), iItemType=fi(['Itemization Type']);
 
   var rows = [];
   for (var i = 1; i < lines.length; i++) {
@@ -5133,6 +5392,8 @@ function parseSqItemsCSV(text) {
       locDisplay: cols[iLoc] || '',
       tech: applyNameMap(iEmp >= 0 ? (cols[iEmp] || '').trim() : ''),
       desc: iDesc >= 0 ? (cols[iDesc] || '').trim() : '',
+      category: iCat >= 0 ? (cols[iCat] || '').trim() : '',
+      itemType: iItemType >= 0 ? (cols[iItemType] || '').trim() : '',
       net: svc,
       gross: gross,
       customer: iCust >= 0 ? (cols[iCust] || '').trim() : '',
@@ -5436,11 +5697,50 @@ function mergeSqFiles() {
     }
     if (!txn) return;
 
-    var totalNet = items.reduce(function(s, it) { return s + it.net; }, 0);
+    var totalNet = items.reduce(function(s, it) {
+      var itType=(it.itemType||'').toLowerCase();
+      var itIsProduct = itType==='physical good'
+        || (it.desc && it.desc.toLowerCase().startsWith('products,'));
+      return itIsProduct ? s : s + it.net;
+    }, 0);
     var tipTotal = txn.tip || 0;
     var tipRate = totalNet > 0 ? tipTotal / totalNet : 0;
 
     items.forEach(function(item) {
+      // 判斷是否為產品：Itemization Type = Physical Good，或描述以 "products," 開頭，或 Category 含 retail/product
+      var cat=(item.category||'').toLowerCase();
+      var itemType=(item.itemType||'').toLowerCase();
+      var isProduct = itemType==='physical good'
+        || (item.desc && item.desc.toLowerCase().startsWith('products,'))
+        || cat.includes('retail') || cat==='products';
+      var productName = isProduct
+        ? (item.desc.replace(/^products,\s*/i,'').trim() || item.desc)
+        : '';
+
+      if(isProduct && item.net > 0) {
+        // 自動加入產品銷售記錄
+        if(!_D.products)_D.products={};
+        var mo=item.date.slice(0,7);
+        if(!_D.products[mo])_D.products[mo]=[];
+        // 避免重複（用 txnId + productName）
+        var dupKey=item.txnId+'|'+productName;
+        var exists=_D.products[mo].some(function(p){return p.sqKey===dupKey;});
+        if(!exists){
+          _D.products[mo].push({
+            id:Date.now()+Math.random(),
+            sqKey:dupKey,
+            date:item.date,
+            name:productName,
+            amt:item.net,
+            comm:Math.round(item.net*0.15*100)/100,
+            staff:item.tech||'',
+            pay:txn.pay||'card',
+            client:txn.customer||item.customer||''
+          });
+        }
+        return; // 不加入服務記錄
+      }
+
       // Tip proportional to this item's net sales
       var itemTip = totalNet > 0 ? Math.round(item.net * tipRate * 100) / 100 : 0;
       var dayNum = parseInt(item.date.split('-')[2], 10);
@@ -5469,7 +5769,23 @@ function mergeSqFiles() {
     return (a.date + a.time) < (b.date + b.time) ? -1 : 1;
   });
 
+  // ── 對帳狀態比對 ──
+  sqRows.forEach(function(r) {
+    if (r.cp) { r.matched = 'cp'; return; }
+    if (r.isGC) { r.matched = 'gc'; return; }
+    var mo = r.date.slice(0,7);
+    var day = parseInt(r.date.slice(8,10), 10);
+    var store = r.store;
+    var clients = (_D[store]&&_D[store][mo]&&_D[store][mo][day]&&_D[store][mo][day].clients)||[];
+    // 比對：同日期、金額相差 $2 以內
+    var found = clients.some(function(c) {
+      return Math.abs((parseFloat(c.svc)||0) - r.gross) <= 2;
+    });
+    r.matched = found ? 'ok' : 'warn';
+  });
+
   // Square 匯入頁已移除，只在有元素時才操作
+  if(_D.products)saveOnly(); // 儲存自動識別的產品銷售
   var sqUpload=document.getElementById('sq-upload-area');
   var sqContent=document.getElementById('sq-content');
   if(sqUpload) sqUpload.style.display='none';
@@ -5557,6 +5873,12 @@ function renderSqTable(){
     var sc=r.tech?getStaffColor(r.tech):{hex:'var(--border)',bg:'var(--white)',border:'var(--border)'};
     var payBadge='<span style="font-size:10px;padding:2px 7px;border-radius:4px;font-weight:600;background:'+(r.pay==='cash'?'var(--gold-bg)':'var(--mv-bg)')+';color:'+(r.pay==='cash'?'var(--gold)':'var(--mv)')+'">'+( r.pay==='cash'?'現金':'刷卡')+'</span>';
     var tipHtml=r.tip>0?('<span style="color:var(--cash);font-weight:700">'+$f(r.tip)+'</span>'+(r.tipTotal>0&&Math.abs(r.tip-r.tipTotal)>0.01?'<span style="font-size:9px;color:var(--faint);margin-left:3px">/ '+$f(r.tipTotal)+'</span>':'')):'<span style="color:var(--faint)">—</span>';
+    var matchBadge='';
+    if(r.matched==='ok') matchBadge='<span style="font-size:10px;padding:2px 7px;border-radius:4px;font-weight:600;background:#EDFAF3;color:#1A7A45">✓ 已對帳</span>';
+    else if(r.matched==='warn') matchBadge='<span style="font-size:10px;padding:2px 7px;border-radius:4px;font-weight:600;background:#FEF3F2;color:#B42318">⚠ 找不到</span>';
+    else if(r.matched==='cp') matchBadge='<span style="font-size:10px;padding:2px 7px;border-radius:4px;font-weight:600;background:var(--mv-bg);color:var(--mv)">CP</span>';
+    else if(r.matched==='gc') matchBadge='<span style="font-size:10px;padding:2px 7px;border-radius:4px;font-weight:600;background:#FFF7ED;color:#B45309">GC</span>';
+    else matchBadge='<span style="font-size:10px;color:var(--faint)">—</span>';
     return '<tr style="border-bottom:1px solid var(--border);background:'+(r.tech?sc.bg:'var(--white)')+'">'+
       '<td style="padding:7px 10px;white-space:nowrap;font-size:11px">'+
         '<div style="font-weight:600;color:var(--text)">'+r.date.slice(5).replace('-','/')+'</div>'+
@@ -5575,6 +5897,7 @@ function renderSqTable(){
           (r.store==='mv'?'MV':'SR')+
         '</span>'+
       '</td>'+
+      '<td style="padding:7px 10px">'+matchBadge+'</td>'+
     '</tr>';
   }).join('');
 
@@ -5601,7 +5924,13 @@ function renderSqTable(){
   '</tr>';
 
   var tag=document.getElementById('sq-summary-tag');
-  if(tag)tag.textContent=filtered.length+' 筆 · 服務合計 '+$f(totalGross)+' · 小費 '+$f(totalTip);
+  var unmatched=filtered.filter(function(r){return r.matched==='warn';}).length;
+  var matchedOk=filtered.filter(function(r){return r.matched==='ok';}).length;
+  var cpCount=filtered.filter(function(r){return r.matched==='cp';}).length;
+  var gcCount=filtered.filter(function(r){return r.matched==='gc';}).length;
+  if(tag)tag.textContent=filtered.length+' 筆，服務 '+$f(totalGross)+' + 小費 '+$f(totalTip)+
+    (matchedOk>0?' · ✓ '+matchedOk:'')+(unmatched>0?' · ⚠ '+unmatched+' 找不到':'')+
+    (cpCount>0?' · CP '+cpCount:'')+(gcCount>0?' · GC '+gcCount:'');
 
   // Warn about techs not in staff list
   var staffList=_D.staff||[];
@@ -6871,6 +7200,78 @@ function impHandleTxn(file) {
   document.getElementById('imp-file-txn').value = '';
 }
 
+function impHandleGDFiles(files) {
+  var csvFiles = [], pdfFiles = [];
+  for (var i = 0; i < files.length; i++) {
+    if (files[i].name.toLowerCase().endsWith('.csv')) csvFiles.push(files[i]);
+    else pdfFiles.push(files[i]);
+  }
+  if (csvFiles.length > 0) impHandleGDCsvMulti(csvFiles);
+  if (pdfFiles.length > 0) impHandleGD(pdfFiles);
+}
+window.impHandleGDFiles = impHandleGDFiles;
+
+function impHandleGDCsvMulti(files) {
+  var allTxns = [];
+  var remaining = files.length;
+  // 清空舊資料
+  Object.keys(impGDTxns).forEach(function(k){ delete impGDTxns[k]; });
+  Array.from(files).forEach(function(file) {
+    var reader = new FileReader();
+    reader.onload = function(e) {
+      var text = e.target.result;
+      var lines = text.split('\n').filter(function(l){ return l.trim(); });
+      if (lines.length >= 2) {
+        var headers = parseCSVLine(lines[0]);
+        var iDate = headers.indexOf('Date');
+        var iSale = headers.indexOf('Sale amount');
+        var iTip  = headers.indexOf('Tip amount');
+        var iType = headers.indexOf('Type');
+        var iPayout = headers.indexOf('Amount in Payout');
+        if (iDate >= 0 && iSale >= 0) {
+          for (var i = 1; i < lines.length; i++) {
+            var cols = parseCSVLine(lines[i]);
+            if (cols.length < 3) continue;
+            var type = iType >= 0 ? (cols[iType]||'').trim() : 'Sale';
+            if (type !== 'Sale') continue;
+            var dateRaw = (cols[iDate]||'').trim();
+            var dateParts = dateRaw.split(' ')[0].split('/');
+            if (dateParts.length < 3) continue;
+            var dateStr = dateParts[2]+'-'+dateParts[0].padStart(2,'0')+'-'+dateParts[1].padStart(2,'0');
+            var sale = parseFloat((cols[iSale]||'').replace(/[$,]/g,''))||0;
+            var tip  = iTip >= 0 ? parseFloat((cols[iTip]||'').replace(/[$,]/g,''))||0 : 0;
+            var payout = iPayout >= 0 ? parseFloat((cols[iPayout]||'').replace(/[$,]/g,''))||0 : sale+tip;
+            allTxns.push({date:dateStr, sale:sale, tip:tip, payout:payout});
+          }
+        }
+      }
+      remaining--;
+      if (remaining === 0) {
+        // All files read - commit to impGDTxns
+        var byDate = {};
+        allTxns.forEach(function(t) {
+          if (!byDate[t.date]) byDate[t.date] = [];
+          byDate[t.date].push({sale:t.sale, tip:t.tip, amt:t.sale+t.tip, payout:t.payout});
+        });
+        Object.keys(byDate).forEach(function(d) {
+          if (!impGDTxns[d]) impGDTxns[d] = [];
+          impGDTxns[d] = impGDTxns[d].concat(byDate[d]);
+          // 填入 impGDData 讓 GD×Square 對帳區塊顯示（用 Amount in Payout 合計）
+          if (!impGDData[d]) impGDData[d] = 0;
+          impGDData[d] += byDate[d].reduce(function(s,t){return s+(t.payout||t.sale+t.tip);},0);
+        });
+        var days = Object.keys(byDate).length;
+        var stEl = document.getElementById('imp-gd-st');
+        if (stEl) stEl.textContent = '✅ '+files.length+' 個 CSV，'+allTxns.length+' 筆，'+days+' 天';
+        var btn = document.getElementById('imp-merge-btn');
+        if (btn) { btn.disabled = false; btn.style.opacity = '1'; }
+      }
+    };
+    reader.readAsText(file);
+  });
+}
+window.impHandleGDCsvMulti = impHandleGDCsvMulti;
+
 function impHandleGD(files) {
   if (!files || !files.length) return;
   impGDData = {};
@@ -7099,7 +7500,12 @@ function impRenderTable() {
     var storeTag = r.store==='mv'
       ? '<span style="color:var(--mv);font-weight:600;font-size:10px">MV</span>'
       : '<span style="color:var(--sr);font-weight:600;font-size:10px">SR</span>';
-    return '<tr style="border-bottom:1px solid var(--border)">'
+    var matchBadge = '';
+    if(r.matched==='ok') matchBadge='<span style="font-size:10px;padding:2px 6px;border-radius:4px;font-weight:600;background:#EDFAF3;color:#1A7A45">✓</span>';
+    else if(r.matched==='warn') matchBadge='<span style="font-size:10px;padding:2px 6px;border-radius:4px;font-weight:600;background:#FEF3F2;color:#B42318">⚠</span>';
+    else if(r.matched==='cp') matchBadge='<span style="font-size:10px;padding:2px 6px;border-radius:4px;font-weight:600;background:var(--mv-bg);color:var(--mv)">CP</span>';
+    else if(r.matched==='gc') matchBadge='<span style="font-size:10px;padding:2px 6px;border-radius:4px;font-weight:600;background:#FFF7ED;color:#B45309">GC</span>';
+    return '<tr style="border-bottom:1px solid var(--border)'+(r.matched==='warn'?';background:#FFF8F8':'')+'">'
       +'<td style="padding:7px 10px;color:var(--sub);white-space:nowrap">'+(r.date||'')+'<br><span style="font-size:10px">'+(r.time||'')+'</span></td>'
       +'<td style="padding:7px 10px;max-width:100px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+(r.customer||'—')+'</td>'
       +'<td style="padding:7px 10px;color:var(--sub);max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+(r.desc||'—')+'</td>'
@@ -7108,6 +7514,7 @@ function impRenderTable() {
       +'<td style="padding:7px 10px;text-align:center">'+payTag+'</td>'
       +'<td style="padding:7px 10px;color:var(--mv)">'+(r.tech||'<span style="color:var(--faint)">未指定</span>')+'</td>'
       +'<td style="padding:7px 10px">'+storeTag+'</td>'
+      +'<td style="padding:7px 10px;text-align:center">'+matchBadge+'</td>'
       +'</tr>';
   }).join('');
 
@@ -7115,10 +7522,18 @@ function impRenderTable() {
     +'<td colspan="3" style="padding:7px 10px;font-size:11px;color:var(--sub)">合計 '+rows.length+' 筆'+(totCash>0?' ｜ 現金 $'+totCash.toFixed(2):'')+'</td>'
     +'<td style="padding:7px 10px;text-align:right;font-family:monospace">$'+totSvc.toFixed(2)+'</td>'
     +'<td style="padding:7px 10px;text-align:right;font-family:monospace;color:var(--ok)">$'+totTip.toFixed(2)+'</td>'
-    +'<td colspan="3"></td>'
+    +'<td colspan="4"></td>'
     +'</tr>';
 
-  if (summary) summary.textContent = rows.length + ' 筆，服務 $'+totSvc.toFixed(2)+' + 小費 $'+totTip.toFixed(2);
+  if (summary) {
+    var unmatched = rows.filter(function(r){return r.matched==='warn';}).length;
+    var matchedOk = rows.filter(function(r){return r.matched==='ok';}).length;
+    var cpCount = rows.filter(function(r){return r.matched==='cp';}).length;
+    var gcCount = rows.filter(function(r){return r.matched==='gc';}).length;
+    summary.textContent = rows.length + ' 筆，服務 $'+totSvc.toFixed(2)+' + 小費 $'+totTip.toFixed(2)
+      +(matchedOk>0?' · ✓ '+matchedOk:'')+(unmatched>0?' · ⚠ '+unmatched+' 找不到':'')
+      +(cpCount>0?' · CP '+cpCount:'')+(gcCount>0?' · GC '+gcCount:'');
+  }
 }
 
 
@@ -7841,6 +8256,7 @@ changeMonth = function(d) {
   if (document.getElementById('page-bankr')?.classList.contains('on')) renderBnkPage();
   if (document.getElementById('page-att')?.classList.contains('on')) renderAttPage();
   if (document.getElementById('page-cd')?.classList.contains('on')) renderCDPage();
+  if (document.getElementById('page-products')?.classList.contains('on')) renderProductsPage();
   if (document.getElementById('page-payroll')?.classList.contains('on')) renderPayrollPage();
   if (document.getElementById('page-reviews')?.classList.contains('on')) renderReviewsPage();
   if (document.getElementById('page-report')?.classList.contains('on')) renderReportPage();
