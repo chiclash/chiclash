@@ -517,8 +517,8 @@ input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-
   <button class="ni" id="ni-tips" onclick="showPage('tips')"><span class="ni-ic">💰</span>小費分配</button>
   <div class="s-sec">設定</div>
   <button class="ni" id="ni-staff" onclick="showPage('staff')"><span class="ni-ic">👥</span>員工管理</button>
-  <button class="ni" id="ni-gc" onclick="showPage('gc')"><span class="ni-ic">🎁</span>Gift Card 記錄</button>
   <button class="ni" id="ni-products" onclick="showPage('products')"><span class="ni-ic">🛍</span>產品銷售</button>
+  <button class="ni" id="ni-gc" onclick="showPage('gc')"><span class="ni-ic">🎁</span>Gift Card 記錄</button>
   <div class="s-sec">月結</div>
   <button class="ni" id="ni-report" onclick="showPage('report')"><span class="ni-ic">📋</span>月結報表</button>
   <button class="ni" id="ni-payroll" onclick="showPage('payroll')"><span class="ni-ic">💜</span>Lucy &amp; Luter 薪資</button>
@@ -958,40 +958,40 @@ input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-
     <!-- 新增表單 -->
     <div style="background:var(--white);border-radius:12px;padding:18px 20px;margin-bottom:16px;box-shadow:var(--shadow)">
       <div style="font-size:13px;font-weight:600;color:var(--rose);margin-bottom:14px">＋ 新增銷售記錄</div>
-      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin-bottom:12px">
-        <div>
-          <div style="font-size:11px;color:var(--sub);margin-bottom:4px">日期 *</div>
-          <input type="date" id="prod-date" class="ti" style="width:100%">
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin-bottom:14px">
+          <div>
+            <div style="font-size:11px;color:var(--sub);margin-bottom:4px">日期 *</div>
+            <input type="date" id="prod-date" class="ti" style="width:100%">
+          </div>
+          <div>
+            <div style="font-size:11px;color:var(--sub);margin-bottom:4px">產品名稱 *</div>
+            <input type="text" id="prod-name" class="ti" placeholder="e.g. Lash Serum" style="width:100%;text-align:left">
+          </div>
+          <div>
+            <div style="font-size:11px;color:var(--sub);margin-bottom:4px">金額 ($) *</div>
+            <input type="number" id="prod-amt" class="ti" placeholder="0" min="0" step="1" style="width:100%">
+          </div>
+          <div>
+            <div style="font-size:11px;color:var(--sub);margin-bottom:4px">技師 *</div>
+            <select id="prod-staff" class="ti" style="width:100%;text-align:left">
+              <option value="">— 選擇 —</option>
+            </select>
+          </div>
+          <div>
+            <div style="font-size:11px;color:var(--sub);margin-bottom:4px">付款方式</div>
+            <select id="prod-pay" class="ti" style="width:100%;text-align:left">
+              <option value="card">刷卡</option>
+              <option value="cash">現金</option>
+              <option value="venmo">Venmo</option>
+              <option value="zelle">Zelle</option>
+            </select>
+          </div>
+          <div>
+            <div style="font-size:11px;color:var(--sub);margin-bottom:4px">顧客名稱</div>
+            <input type="text" id="prod-client" class="ti" placeholder="選填" style="width:100%;text-align:left">
+          </div>
         </div>
-        <div>
-          <div style="font-size:11px;color:var(--sub);margin-bottom:4px">產品名稱 *</div>
-          <input type="text" id="prod-name" class="ti" placeholder="e.g. Lash Serum" style="width:100%;text-align:left">
-        </div>
-        <div>
-          <div style="font-size:11px;color:var(--sub);margin-bottom:4px">金額 ($) *</div>
-          <input type="number" id="prod-amt" class="ti" placeholder="0" min="0" step="1" style="width:100%">
-        </div>
-        <div>
-          <div style="font-size:11px;color:var(--sub);margin-bottom:4px">技師 *</div>
-          <select id="prod-staff" class="ti" style="width:100%;text-align:left">
-            <option value="">— 選擇 —</option>
-          </select>
-        </div>
-        <div>
-          <div style="font-size:11px;color:var(--sub);margin-bottom:4px">付款方式</div>
-          <select id="prod-pay" class="ti" style="width:100%;text-align:left">
-            <option value="card">刷卡</option>
-            <option value="cash">現金</option>
-            <option value="venmo">Venmo</option>
-            <option value="zelle">Zelle</option>
-          </select>
-        </div>
-        <div>
-          <div style="font-size:11px;color:var(--sub);margin-bottom:4px">顧客名稱</div>
-          <input type="text" id="prod-client" class="ti" placeholder="選填" style="width:100%;text-align:left">
-        </div>
-      </div>
-      <button onclick="addProduct()" style="background:var(--rose);color:#fff;border:none;border-radius:8px;padding:10px 24px;font-size:14px;font-weight:600;cursor:pointer;font-family:inherit">＋ 新增</button>
+      <button onclick="addProduct()" style="display:block;width:100%;background:var(--rose);color:#fff;border:none;border-radius:8px;padding:14px;font-size:16px;font-weight:700;cursor:pointer;font-family:inherit">＋ 新增產品銷售</button>
     </div>
     <!-- 本月統計 -->
     <div id="prod-stats" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px;margin-bottom:16px"></div>
@@ -5379,11 +5379,12 @@ function parseSqItemsCSV(text) {
     var net = parseFloat((cols[iNet] || '').replace(/[$,]/g, '')) || 0;
     var gross = parseFloat((cols[iGross] || '').replace(/[$,]/g, '')) || 0;
     var disc = parseFloat((cols[iDisc] || '').replace(/[$,]/g, '')) || 0;
-    var svc = net > 0 ? net : (gross + disc); // net = gross - discount
-    // Skip $0 items (products, gifts, comps with no value)
-    if(svc <= 0) continue;
+    var svc = net > 0 ? net : (gross + disc);
     var locRaw = (cols[iLoc] || '').toLowerCase();
     var store = locRaw.indexOf('san rafael') >= 0 ? 'sr' : 'mv';
+    // Skip $0 items with no value — BUT keep them if they belong to a txn that might have tip
+    // We'll filter in mergeSqFiles after tip assignment
+    if(svc <= 0 && !isGCSale) continue;
     rows.push({
       txnId: (cols[iTxn] || '').trim(),
       date: dateStr,
@@ -5704,7 +5705,22 @@ function mergeSqFiles() {
       return itIsProduct ? s : s + it.net;
     }, 0);
     var tipTotal = txn.tip || 0;
-    var tipRate = totalNet > 0 ? tipTotal / totalNet : 0;
+    // 如果 items 全部被 skip（全 $0），但這個 txn 有小費，需要補一個 $0 服務費的 row
+    var nonZeroItems = items.filter(function(it){ return it.net > 0; });
+    if (nonZeroItems.length === 0 && tipTotal > 0) {
+      // 建立一個虛擬 item 來承接小費
+      sqRows.push({
+        date:txn.date, time:txn.time, store:txn.store||items[0]&&items[0].store||'mv',
+        gross:0, svc:0, tip:tipTotal, pay:txn.pay||'card',
+        customer:txn.customer||(items[0]&&items[0].customer)||'',
+        tech:(items[0]&&items[0].tech)||'',
+        desc:(items[0]&&items[0].desc)||'Complimentary',
+        txnId:txnId, cp:false, isGC:false, matched:null
+      });
+      return;
+    }
+    // 如果服務費 $0 但有小費，tipRate 設 -1 讓第一筆 item 拿到全部小費
+    var tipRate = totalNet > 0 ? tipTotal / totalNet : (tipTotal > 0 ? -1 : 0);
 
     items.forEach(function(item) {
       // 判斷是否為產品：Itemization Type = Physical Good，或描述以 "products," 開頭，或 Category 含 retail/product
@@ -5743,6 +5759,9 @@ function mergeSqFiles() {
 
       // Tip proportional to this item's net sales
       var itemTip = totalNet > 0 ? Math.round(item.net * tipRate * 100) / 100 : 0;
+
+      // Skip $0 items with no tip
+      if (item.net <= 0 && itemTip <= 0 && !isProduct) return;
       var dayNum = parseInt(item.date.split('-')[2], 10);
       sqRows.push({
         txnId: txnId,
