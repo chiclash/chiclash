@@ -243,12 +243,16 @@ input[type=file]{font-size:12px;font-family:'Inter',sans-serif;color:var(--sub)}
     </div>
 
     <div class="import-box" style="border-left:3px solid var(--ok)">
-      <div class="import-title" style="color:var(--ok)">ℹ 資料說明</div>
+      <div class="import-title" style="color:var(--ok)">ℹ 資料說明 Data Notes</div>
       <div style="font-size:12px;color:var(--sub);line-height:1.8">
         客人填完表單 → 自動存進 Firebase → 這裡立即可以查到<br>
+        Client submits form → auto-saved to Firebase → appears here instantly<br>
         填表時間以 <b>洛杉磯時間</b> 記錄（ISO格式轉換）<br>
+        Submission time is recorded in <b>Los Angeles time</b> (ISO format conversion)<br>
         Square 客戶匯入後，系統用電話號碼配對，自動合併資料<br>
-        Items CSV 匯入後，只存在本地瀏覽器，不上傳雲端
+        After importing Square customers, the system matches by phone number and merges data automatically<br>
+        Items CSV 匯入後，只存在本地瀏覽器，不上傳雲端<br>
+        Items CSV import stays in your local browser only — it is not uploaded to the cloud
       </div>
     </div>
   </div>
@@ -610,13 +614,13 @@ function openPanel(id) {
       '<div class="p-row"><span class="p-lbl">生日</span><span class="p-val" id="pe-dob" onclick="editField(\'dob\',this)">'+( r.dob||'—')+'</span></div>'+
       '<div class="p-row"><span class="p-lbl">來源</span><span class="p-val">'+(r._source==='sq'?'Square匯入':'客人填表')+'</span></div>'+
       (r.squareSyncStatus?(
-        '<div class="p-row"><span class="p-lbl">Square同步</span><span class="p-val" style="color:'+(r.squareSyncStatus==='synced'?'#3A7D5A':'#B23B2E')+'">'+
-          (r.squareSyncStatus==='synced'?'✓ 已同步'+(r.squareCustomerId?'（ID: '+r.squareCustomerId+'）':''):
-           r.squareSyncStatus==='skipped_no_valid_phone'?'⚠ 電話號碼格式無法同步':
-           '⚠ 同步失敗：'+(r.squareSyncError||''))+
+        '<div class="p-row"><span class="p-lbl">Square同步 Sync</span><span class="p-val" style="color:'+(r.squareSyncStatus==='synced'?'#3A7D5A':'#B23B2E')+'">'+
+          (r.squareSyncStatus==='synced'?'✓ 已同步 Synced'+(r.squareCustomerId?'（ID: '+r.squareCustomerId+'）':''):
+           r.squareSyncStatus==='skipped_no_valid_phone'?'⚠ 電話號碼格式無法同步 Invalid Phone Format':
+           '⚠ 同步失敗 Sync Failed：'+(r.squareSyncError||''))+
         '</span></div>'+
         (r.squareSyncStatus!=='synced'?
-          '<div style="margin-top:6px"><button id="retry-sync-btn" onclick="retrySquareSync(\''+id+'\')" style="padding:6px 14px;background:var(--rose-light,#F5EDED);color:var(--rose,#C4726A);border:1px solid var(--rose,#C4726A);border-radius:7px;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit">🔄 重新同步到 Square</button></div>'
+          '<div style="margin-top:6px"><button id="retry-sync-btn" onclick="retrySquareSync(\''+id+'\')" style="padding:6px 14px;background:var(--rose-light,#F5EDED);color:var(--rose,#C4726A);border:1px solid var(--rose,#C4726A);border-radius:7px;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit">🔄 重新同步 Retry Sync</button></div>'
         :'')
       ):'')+
       (r.lastVisit?'<div class="p-row"><span class="p-lbl">最後到訪</span><span class="p-val">'+fmtDate(r.lastVisit)+'</span></div>':'')+
@@ -642,7 +646,7 @@ async function retrySquareSync(id) {
   var r = allRecords.find(x=>x.id===id);
   if(!r) return;
   var btn = document.getElementById('retry-sync-btn');
-  if(btn){ btn.disabled = true; btn.textContent = '同步中…'; }
+  if(btn){ btn.disabled = true; btn.textContent = '同步中… Syncing…'; }
   try {
     var res = await fetch(SQUARE_SYNC_WORKER_URL, {
       method: 'POST',
@@ -661,8 +665,8 @@ async function retrySquareSync(id) {
     openPanel(id); // 重新畫面板，顯示最新的同步狀態
   } catch(e) {
     console.error('重新同步失敗', e);
-    alert('重新同步失敗，請確認網路連線後再試一次：' + (e && e.message || e));
-    if(btn){ btn.disabled = false; btn.textContent = '🔄 重新同步到 Square'; }
+    alert('重新同步失敗，請確認網路連線後再試一次 Retry failed, please check your connection and try again：' + (e && e.message || e));
+    if(btn){ btn.disabled = false; btn.textContent = '🔄 重新同步 Retry Sync'; }
   }
 }
 window.retrySquareSync = retrySquareSync;
