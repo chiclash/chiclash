@@ -360,7 +360,7 @@ async function reloadAll() {
         byPhone[key]._visits = visits;
         byPhone[key]._source = r._source||'form';
       }
-      byPhone[key]._visits.push({date: r.submittedAt, svc: r.service, store: r.store});
+      byPhone[key]._visits.push(r); // 保留完整這次填表的資料，方便之後點開查看細節（不再只留日期/服務）
     });
     allRecords = Object.values(byPhone);
     updateStats();
@@ -596,6 +596,31 @@ function renderTable() {
 }
 
 // ── DETAIL PANEL ──
+// 把一筆記錄（問卷回答/簽名/條款）組成 HTML —— 共用給「目前資料」跟「每次到訪記錄」使用
+function buildRecordDetailHtml(rec) {
+  var resp = rec.responses || {};
+  var respHtml = Object.entries(resp).filter(([k, v]) => v && (Array.isArray(v) ? v.length : v)).map(([k, v]) => {
+    var label = RESP_LABELS[k] || k;
+    var val = Array.isArray(v) ? v.join(', ') : v;
+    return '<div class="p-row"><span class="p-lbl">' + label + '</span><span class="p-val">' + val + '</span></div>';
+  }).join('');
+  return (respHtml ?
+    '<div class="p-sec"><div class="p-sec-title">問卷回答 Questionnaire</div>' + respHtml + '</div>' :
+    '<div style="font-size:12px;color:var(--faint,#B8B0A8);padding:8px 0">沒有問卷記錄 No questionnaire data</div>') +
+    (rec.signature ? '<div class="p-sec"><div class="p-sec-title">簽名</div><img src="' + rec.signature + '" style="max-width:100%;border:1px solid var(--border);border-radius:8px"></div>' : '') +
+    (rec.agreementText ? '<div class="p-sec"><div class="p-sec-title">📄 Agreement 條款（客人簽署版本）</div><pre style="font-size:11px;color:var(--sub);white-space:pre-wrap;line-height:1.7;font-family:inherit;background:var(--bg);border-radius:8px;padding:12px">' + rec.agreementText + '</pre></div>' : '');
+}
+
+function toggleVisitDetail(id) {
+  var el = document.getElementById('visit-detail-' + id);
+  if (!el) return;
+  var isOpen = el.style.display !== 'none';
+  el.style.display = isOpen ? 'none' : 'block';
+  var arrow = document.getElementById('visit-arrow-' + id);
+  if (arrow) arrow.textContent = isOpen ? '▼ 點擊查看細節 Click for details' : '▲ 收起 Collapse';
+}
+window.toggleVisitDetail = toggleVisitDetail;
+
 function openPanel(id) {
   _currentPanelId = id;
   var r=allRecords.find(x=>x.id===id);if(!r)return;
@@ -603,12 +628,17 @@ function openPanel(id) {
   document.getElementById('p-name').textContent=name;
   document.getElementById('p-svc').textContent=(SVC_LABELS[r.service]||r.service||'')+(r.submittedAt?'　'+fmtDate(getLastActivity(r)):'');
   var resp=r.responses||{};
-  var respHtml=Object.entries(resp).filter(([k,v])=>v&&(Array.isArray(v)?v.length:v)).map(([k,v])=>{
-    var label=RESP_LABELS[k]||k;
-    var val=Array.isArray(v)?v.join(', '):v;
-    return '<div class="p-row"><span class="p-lbl">'+label+'</span><span class="p-val">'+val+'</span></div>';
+  var visitsHtml=(r._visits||[]).map(function(v){
+    return '<div class="visit-item">'+
+      '<div onclick="toggleVisitDetail(\''+v.id+'\')" style="cursor:pointer">'+
+        '<div class="visit-date">'+fmtDate(v.submittedAt)+'</div>'+
+        '<div class="visit-sub">'+(SVC_LABELS[v.service]||v.service||'')+(v.store?' · '+v.store.toUpperCase():'')+
+          '　<span id="visit-arrow-'+v.id+'" style="color:var(--faint,#B8B0A8);font-size:11px">▼ 點擊查看細節 Click for details</span>'+
+        '</div>'+
+      '</div>'+
+      '<div id="visit-detail-'+v.id+'" style="display:none;margin-top:10px;padding-top:10px;border-top:1px dashed var(--border,#E8E2DC)">'+buildRecordDetailHtml(v)+'</div>'+
+    '</div>';
   }).join('');
-  var visitsHtml=(r._visits||[]).map(v=>'<div class="visit-item"><div class="visit-date">'+fmtDate(v.date)+'</div><div class="visit-sub">'+(SVC_LABELS[v.svc]||v.svc||'')+(v.store?' · '+v.store.toUpperCase():'')+'</div></div>').join('');
   document.getElementById('p-body').innerHTML=
     '<div class="p-sec"><div class="p-sec-title">基本資料</div>'+
       '<div class="p-row"><span class="p-lbl">電話</span><span class="p-val" id="pe-phone" onclick="editField(\'phone\',this)">'+( r.phone||'—')+'</span></div>'+
@@ -631,10 +661,9 @@ function openPanel(id) {
         '<button onclick="deleteClient(\''+id+'\')" style="padding:8px 16px;background:var(--warn-bg);color:var(--warn);border:1px solid #F0B8A8;border-radius:7px;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit">🗑 刪除此客戶</button>'+
       '</div>'+
     '</div>'+
-    (respHtml?'<div class="p-sec"><div class="p-sec-title">問卷回答 Questionnaire</div>'+respHtml+'</div>':'')+
-    (r.signature?'<div class="p-sec"><div class="p-sec-title">簽名</div><img src="'+r.signature+'" style="max-width:100%;border:1px solid var(--border);border-radius:8px"></div>':'')+
-    (r.agreementText?'<div class="p-sec"><div class="p-sec-title">📄 Agreement 條款（客人簽署版本）</div><pre style="font-size:11px;color:var(--sub);white-space:pre-wrap;line-height:1.7;font-family:inherit;background:var(--bg);border-radius:8px;padding:12px">'+r.agreementText+'</pre></div>':'')+
-    (visitsHtml?'<div class="p-sec"><div class="p-sec-title">填表/到訪記錄 ('+( r._visits||[]).length+'次)</div>'+visitsHtml+'</div>':'');
+    '<div class="p-sec"><div class="p-sec-title">最新一次 Most Recent（'+(SVC_LABELS[r.service]||r.service||'')+'）</div></div>'+
+    buildRecordDetailHtml(r)+
+    (visitsHtml?'<div class="p-sec"><div class="p-sec-title">填表/到訪記錄 ('+( r._visits||[]).length+'次) — 點擊每筆查看當時完整細節</div>'+visitsHtml+'</div>':'');
   document.getElementById('overlay').classList.add('on');
   document.getElementById('detail-panel').classList.add('on');
 }
@@ -685,17 +714,32 @@ async function syncAllToSquare() {
     return r._source !== 'sq' && r.squareSyncStatus !== 'synced';
   });
   if (!targets.length) { alert('目前沒有需要同步的記錄 No records need syncing right now.'); return; }
-  if (!confirm('要同步 ' + targets.length + ' 筆記錄到 Square 嗎？\nSync ' + targets.length + ' record(s) to Square?\n\n（只會補齊還沒同步過的，不會重複影響已經同步成功的 Only affects records not yet synced.）')) return;
+
+  var estMin = Math.ceil(targets.length * 0.8 / 60); // 粗估每筆約 0.8 秒
+  if (!confirm(
+    '要同步 ' + targets.length + ' 筆記錄到 Square 嗎？\nSync ' + targets.length + ' record(s) to Square?\n\n' +
+    '（只會補齊還沒同步過的，不會重複影響已經同步成功的 Only affects records not yet synced.）\n\n' +
+    '⏱ 預估需要約 ' + estMin + ' 分鐘，過程中請不要關閉這個分頁或切換到別的網站\n' +
+    '⏱ Estimated ' + estMin + ' minute(s) — please keep this tab open and active the whole time.\n\n' +
+    '如果中途不小心中斷了也沒關係，之後再點一次「全部同步」會自動接著跑剩下的\n' +
+    'If interrupted, just click "Sync All" again later — it will resume where it left off.'
+  )) return;
 
   var btn = document.getElementById('sync-all-btn');
   var prog = document.getElementById('sync-all-progress');
   btn.disabled = true;
   prog.style.display = 'block';
 
+  // 同步進行中，離開分頁前跳出瀏覽器原生警告，減少不小心中斷的機會
+  var origTitle = document.title;
+  function beforeUnloadWarn(e){ e.preventDefault(); e.returnValue = ''; return ''; }
+  window.addEventListener('beforeunload', beforeUnloadWarn);
+
   var ok = 0, fail = 0;
   for (var i = 0; i < targets.length; i++) {
     var r = targets[i];
     prog.textContent = '同步中 Syncing… ' + (i+1) + ' / ' + targets.length + '（' + (r.firstName||'') + ' ' + (r.lastName||'') + '）';
+    document.title = '(' + (i+1) + '/' + targets.length + ') 同步中 Syncing…';
     try {
       var res = await fetch(SQUARE_SYNC_WORKER_URL, {
         method: 'POST',
@@ -719,6 +763,8 @@ async function syncAllToSquare() {
     await new Promise(function(res){ setTimeout(res, 400); }); // 稍微間隔一下，避免瞬間打爆 Square API
   }
 
+  window.removeEventListener('beforeunload', beforeUnloadWarn);
+  document.title = origTitle;
   prog.textContent = '✓ 完成 Done — 成功 Success: ' + ok + '，失敗 Failed: ' + fail;
   btn.disabled = false;
   renderTable();
