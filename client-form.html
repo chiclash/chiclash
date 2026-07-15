@@ -360,8 +360,7 @@ body{background:var(--cream);font-family:'Inter',sans-serif;color:var(--ink);min
   <div style="background:#fff;border-radius:16px;box-shadow:0 4px 24px rgba(0,0,0,.1);overflow:hidden">
     <div style="background:var(--rose);color:#fff;padding:20px 24px">
       <div style="font-size:11px;letter-spacing:.12em;text-transform:uppercase;opacity:.8;margin-bottom:4px">Staff Review — <span id="review-store-label"></span></div>
-      <div style="font-size:20px;font-weight:600">Staff: Please Review Client Info 员工：请审核客户信息
-请确认客户信息 Please confirm client information 请确认客户信息</div>
+      <div style="font-size:20px;font-weight:600">Please Review Client Info<br>请审核客户信息</div>
     </div>
     <!-- Client info summary -->
     <div style="padding:20px 24px" id="review-body"></div>
@@ -542,11 +541,11 @@ function buildLash() {
     </div>
     <div class="field">
       <div class="ql">Do you wear contact lenses? 您戴隐形眼镜吗？</div>
-      ${radio('contacts',['Yes','No'],true)}
+      ${radio('contacts',['Yes 是','No 否'],true)}
     </div>
     <div class="field">
       <div class="ql">Any known allergies? (glue, latex, tape) 已知过敏？（胶水、乳胶、胶带）</div>
-      ${radio('lash-allergy',['Yes','No'],true)}
+      ${radio('lash-allergy',['Yes 是','No 否'],true)}
       <div id="lash-allergy-detail" style="margin-top:8px;display:none">
         <input type="text" id="f-lash-allergy-detail" placeholder="Please specify... 请说明...">
       </div>
@@ -580,25 +579,25 @@ function buildFacial() {
     <div class="sec-title">Skin Analysis — Daily Care 皮肤分析 — 日常护理</div>
     <div class="field">
       <div class="ql">1. Do you wear makeup? 您使用化妆品吗？</div>
-      ${radio('makeup',['Yes','No'],true)}
-      <div style="margin-top:8px"><div class="ql" style="font-size:12px;color:var(--sub)">Makeup removal method: 卸妆方式：</div>${checkbox('makeup-removal',['Oil','Wipes','Soap','Other'],true)}</div>
+      ${radio('makeup',['Yes 是','No 否'],true)}
+      <div style="margin-top:8px"><div class="ql" style="font-size:12px;color:var(--sub)">Makeup removal method: 卸妆方式：</div>${checkbox('makeup-removal',['Oil 油','Wipes 湿巾','Soap 肥皂','Other 其他'],true)}</div>
     </div>
     <div class="field">
       <div class="ql">2. Face wash type: 洗脸产品类型：</div>
-      ${checkbox('face-wash',['Foam','Soap','Other'],true)}
+      ${checkbox('face-wash',['Foam 泡沫','Soap 肥皂','Other 其他'],true)}
     </div>
     <div class="field">
       <div class="ql">3. Water temperature preference: 用水温度偏好：</div>
-      ${radio('water-temp',['Cold','Warm 暖'],true)}
+      ${radio('water-temp',['Cold 冷','Warm 暖'],true)}
     </div>
     <div class="field">
       <div class="ql">4. Do you use exfoliators / enzymatic products? 您使用去角质/酵素产品吗？</div>
-      ${radio('exfoliator',['Yes','No'],true)}
+      ${radio('exfoliator',['Yes 是','No 否'],true)}
     </div>
     <div class="field">
       <div class="ql">5. Vitamin C or Brightening/Whitening products? 维他命C或美白产品？</div>
-      ${radio('vitc',['Yes','No'],true)}
-      <div style="margin-top:8px"><div class="ql" style="font-size:12px;color:var(--sub)">Usage frequency: 使用频率：</div>${radio('vitc-freq',['Daily','Weekly','Sometimes'],true)}</div>
+      ${radio('vitc',['Yes 是','No 否'],true)}
+      <div style="margin-top:8px"><div class="ql" style="font-size:12px;color:var(--sub)">Usage frequency: 使用频率：</div>${radio('vitc-freq',['Daily 每天','Weekly 每周','Sometimes 有时'],true)}</div>
     </div>
   </div>
   <div class="sec">
@@ -609,7 +608,7 @@ function buildFacial() {
       <div style="margin-top:8px">
         <div class="opt-btn" data-name="claustrophobia" data-val="Yes" onclick="pickOpt(this,'check');toggleClaus()"><span class="sq"></span>Claustrophobia</div>
         <div id="claus-opts" style="display:none;margin-top:8px;margin-left:24px">
-          ${checkbox('claus-pref',['A: Do not cover my eyes and lip','B: Masks OK, let me know before applying','C: I need to keep the lights on'],false)}
+          ${checkbox('claus-pref',['A: Do not cover my eyes and lip 请不要遮住我的眼睛和嘴唇','B: Masks OK, let me know before applying 可以敷面膜，敷之前请先告知我','C: I need to keep the lights on 我需要开着灯'],false)}
         </div>
       </div>
     </div>
@@ -627,11 +626,11 @@ function buildFacial() {
     <div class="sec-title">Add-ons & Waxing 附加服务与除毛</div>
     <div class="field">
       <div class="ql">Add-ons 附加服务:</div>
-      ${checkbox('addons',['Ultrasonic Cleaning ($25)','Eye Treatment Device ($45)','Eye Treatment Upgrade Pola ($25)'],true)}
+      ${checkbox('addons',['Ultrasonic Cleaning 超声波清洁 ($25)','Eye Treatment Device 眼部护理仪 ($45)','Eye Treatment Upgrade Pola 眼部护理升级Pola ($25)'],true)}
     </div>
     <div class="field">
       <div class="ql">Waxing 除毛:</div>
-      ${checkbox('waxing',['Brow ($30)','Full Face ($55)','Chin Lip ($15)','Under Arm ($40)','Brow Lip ($40)'],true)}
+      ${checkbox('waxing',['Brow 眉毛 ($30)','Full Face 全脸 ($55)','Chin Lip 下巴嘴唇 ($15)','Under Arm 腋下 ($40)','Brow Lip 眉毛嘴唇 ($40)'],true)}
     </div>
   </div>
   <div class="sec">
@@ -654,25 +653,25 @@ function buildHeadSpa() {
     <div class="sec-title">Head Spa Consultation 头疗咨询</div>
     <div class="field">
       <div class="ql">1. Have you received a scalp massage before? 您之前有做过头皮按摩吗？</div>
-      ${radio('prev-spa',['Yes','No'],true)}
+      ${radio('prev-spa',['Yes 是','No 否'],true)}
     </div>
     <div class="field">
       <div class="ql">2. Are you on any medication? 您目前有服用药物吗？</div>
-      ${radio('medication',['Yes','No'],true)}
+      ${radio('medication',['Yes 是','No 否'],true)}
       <div style="margin-top:8px"><input type="text" id="f-medication-detail" placeholder="If yes, which ones... 如是，请说明..."></div>
     </div>
     <div class="field">
       <div class="ql">3. Do you have any allergies? 您有任何过敏吗？</div>
-      ${radio('spa-allergy',['Yes','No'],true)}
+      ${radio('spa-allergy',['Yes 是','No 否'],true)}
       <div style="margin-top:8px"><input type="text" id="f-spa-allergy-detail" placeholder="If yes, which ones... 如是，请说明"></div>
     </div>
     <div class="field">
       <div class="ql">4. Are you pregnant? 您目前怀孕吗？</div>
-      ${radio('pregnant-spa',['Yes','No'],true)}
+      ${radio('pregnant-spa',['Yes 是','No 否'],true)}
     </div>
     <div class="field">
       <div class="ql">5. Water temperature preference: 水温偏好：</div>
-      ${radio('water-pref',['Cool 凉','Normal 普通','Warm','Extra Warm 热'],true)}
+      ${radio('water-pref',['Cool 凉','Normal 普通','Warm 温','Extra Warm 热'],true)}
     </div>
     <div class="field">
       <div class="ql">6. Head Massage Pressure: 头部按摩力度：</div>
@@ -680,7 +679,7 @@ function buildHeadSpa() {
     </div>
     <div class="field">
       <div class="ql">7. Neck & Shoulder Massage Pressure: 颈肩按摩力度：</div>
-      ${radio('neck-pressure',['Soft','Medium','Hard'],true)}
+      ${radio('neck-pressure',['Soft 轻','Medium 中','Hard 重'],true)}
     </div>
     <div class="field">
       <div class="ql">8. Please indicate if you have any of the following: 请指出以下哪项适用于您：</div>
@@ -711,11 +710,11 @@ function buildMassage() {
     <div class="sec-title">1. Massage Preferences 按摩偏好</div>
     <div class="field">
       <div class="ql">Desired Pressure: 期望力度：</div>
-      ${radio('pressure',['Light 轻','Medium','Firm / Deep Tissue 深层组织'],true)}
+      ${radio('pressure',['Light 轻','Medium 中','Firm / Deep Tissue 深层组织'],true)}
     </div>
     <div class="field">
       <div class="ql">Areas to Focus On: 重点部位：</div>
-      ${checkbox('focus-areas',['Neck','Shoulders 肩部','Upper Back 上背部','Lower Back 下背部','Hips/Glutes 臀部','Arms/Hands 手臂/双手','Legs/Feet 腿部/双脚','Scalp/Face 头皮/脸部'],true)}
+      ${checkbox('focus-areas',['Neck 颈部','Shoulders 肩部','Upper Back 上背部','Lower Back 下背部','Hips/Glutes 臀部','Arms/Hands 手臂/双手','Legs/Feet 腿部/双脚','Scalp/Face 头皮/脸部'],true)}
     </div>
   </div>
   <div class="sec">
@@ -923,27 +922,50 @@ async function submitForm() {
   var name = data.firstName + ' ' + data.lastName;
   var resp = data.responses || {};
 
-  // Translation map for English options
+  // Translation map for English-only options（統一用簡體中文，跟員工薪資報表/Square備註一致）
   var TRANS = {
-    'High Blood Pressure':'高血壓','Varicose Veins':'靜脈曲張','Blood Clots/DVT':'血栓',
-    'Osteoporosis':'骨質疏鬆','Recent Surgery':'近期手術','Pregnancy':'懷孕',
-    'Skin Rashes':'皮膚疹','Numbness/Tingling':'麻木/刺痛',
-    'Neck':'頸部','Shoulders':'肩部','Upper Back':'上背','Lower Back':'下背',
-    'Hips/Glutes':'臀部','Arms/Hands':'手臂/手','Legs/Feet':'腿/腳','Scalp/Face':'頭皮/臉',
-    'Light':'輕','Medium':'中','Firm / Deep Tissue':'深層/深組織',
-    'Soft':'輕','Hard':'重',
-    'Cool':'涼','Normal':'正常','Warm':'溫','Extra Warm':'非常溫',
-    'Skin Conditions':'皮膚狀況','Dandruff':'頭皮屑','Eczema':'濕疹','Psoriasis':'牛皮癬',
+    'High Blood Pressure':'高血压','Varicose Veins':'静脉曲张','Blood Clots/DVT':'血栓',
+    'Osteoporosis':'骨质疏松','Recent Surgery':'近期手术','Pregnancy':'怀孕',
+    'Skin Rashes':'皮肤疹','Numbness/Tingling':'麻木/刺痛',
+    'Neck':'颈部','Shoulders':'肩部','Upper Back':'上背','Lower Back':'下背',
+    'Hips/Glutes':'臀部','Arms/Hands':'手臂/手','Legs/Feet':'腿/脚','Scalp/Face':'头皮/脸',
+    'Light':'轻','Medium':'中','Firm / Deep Tissue':'深层/深组织',
+    'Soft':'轻','Hard':'重',
+    'Cool':'凉','Normal':'正常','Warm':'温','Extra Warm':'非常温',
+    'Skin Conditions':'皮肤状况','Dandruff':'头皮屑','Eczema':'湿疹','Psoriasis':'牛皮癣',
     'Yes':'是','No':'否',
-    'Oil':'油','Wipes':'濕巾','Soap':'肥皂','Foam':'泡沫',
-    'Cold':'冷','Daily':'每天','Weekly':'每週','Sometimes':'有時',
-    'Currently Pregnant':'懷孕中','Metal implants in body':'體內金屬植入物',
+    'Oil':'油','Wipes':'湿巾','Soap':'肥皂','Foam':'泡沫',
+    'Cold':'冷','Daily':'每天','Weekly':'每周','Sometimes':'有时',
+    'Currently Pregnant':'怀孕中','Metal implants in body':'体内金属植入物',
     'A: Do not cover my eyes and lip':'A: 不要遮眼睛和嘴唇',
-    'B: Masks OK, let me know before applying':'B: 可以敷膜，請提前告知',
-    'C: I need to keep the lights on':'C: 需要開燈'
+    'B: Masks OK, let me know before applying':'B: 可以敷膜，请提前告知',
+    'C: I need to keep the lights on':'C: 需要开灯'
   };
-  function tr(v){ return TRANS[v] || v; }
+  function tr(v){
+    if(!v) return v;
+    // 選項文字如果已經內含中文字（例如表單裡本來就寫「Soft 轻」），代表已經是雙語，不用再處理
+    if(/[\u4e00-\u9fff]/.test(v)) return v;
+    // 純英文的選項，如果查得到翻譯，用「英文 中文」附加顯示，不要整個取代掉英文
+    var zh = TRANS[v];
+    return zh ? (v + ' ' + zh) : v;
+  }
   function trArr(arr){ return (arr||[]).map(tr).join('、'); }
+
+  // 完整欄位標籤對照表（英文 中文），用來把問卷裡「所有」有填的欄位都列出來給員工看
+  var ALL_LABELS = {
+    'sensitive':'Sensitive eyes 眼睛敏感','prev-lash':'Prev lash exp 睫毛延伸經驗','contacts':'Contacts 隱形眼鏡',
+    'lash-allergy':'Lash allergy 睫毛過敏','makeup':'Makeup 有化妝','makeup-removal':'Makeup removal 卸妝方式',
+    'face-wash':'Face wash 洗臉方式','water-temp':'Water temp 水溫偏好','exfoliator':'Exfoliator 去角質',
+    'vitc':'Vitamin C 美白產品','vitc-freq':'Frequency 使用頻率','medical':'Medical condition 醫療狀況',
+    'claustrophobia':'Claustrophobia 幽閉恐懼','claus-pref':'Preference 偏好','addons':'Add-ons 加購項目',
+    'waxing':'Waxing 蜜蠟','prev-spa':'Prev spa exp 頭皮按摩經驗','medication':'Medication 用藥',
+    'spa-allergy':'Allergy 過敏','pregnant-spa':'Pregnant 懷孕','water-pref':'Water pref 水溫偏好',
+    'head-pressure':'Head pressure 頭部力道','neck-pressure':'Neck/shoulder pressure 肩頸力道',
+    'scalp-cond':'Scalp condition 頭皮狀況','pressure':'Pressure 按摩力道','focus-areas':'Focus areas 重點部位',
+    'health':'Health condition 健康狀況','hear':'How heard 從哪得知','allergyDetail':'Allergy detail 過敏詳情',
+    'medicationDetail':'Medication detail 用藥詳情','surgery':'Surgery history 手術史',
+    'massageIntensity':'Massage intensity 按摩強度'
+  };
 
   // Build flags with Chinese
   var flags = [];
@@ -977,6 +999,19 @@ async function submitForm() {
     '<div style="font-size:14px;color:#1A1714;padding:4px 0;border-bottom:1px solid #F0EBE5">'+p+'</div>'
   ).join('') : '';
 
+  // 所有問卷回答（不管有沒有觸發上面的警示，全部列出來，避免員工漏看任何一項）
+  var allAnswers = [];
+  Object.keys(resp).forEach(function(key){
+    if(key==='allergyDetail'||key==='medicationDetail') return; // 已經在 Important Notes 裡顯示過了，不重複列
+    var val = resp[key];
+    var hasVal = Array.isArray(val) ? val.length>0 : !!val;
+    if(!hasVal) return;
+    var label = ALL_LABELS[key] || key;
+    var display = Array.isArray(val) ? trArr(val) : tr(val);
+    allAnswers.push('<div style="display:flex;justify-content:space-between;gap:12px;font-size:13px;color:#1A1714;padding:6px 0;border-bottom:1px solid #F0EBE5"><span style="color:#6B6560">'+label+'</span><span style="font-weight:600;text-align:right">'+display+'</span></div>');
+  });
+  var allAnswersHtml = allAnswers.join('');
+
   var hasSig = !!data.signature;
   var needsInitials = curSvc === 'lash';
   var initialsOk = !needsInitials || (data.initials >= 5);
@@ -992,6 +1027,7 @@ async function submitForm() {
       flagHtml+
     '</div>'+
     (prefs.length?'<div style="margin-bottom:16px"><div style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.1em;color:#C4726A;margin-bottom:8px">Preferences 偏好</div>'+prefHtml+'</div>':'')+
+    (allAnswers.length?'<div style="margin-bottom:16px"><div style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.1em;color:#C4726A;margin-bottom:8px">All Answers 完整問卷回答</div>'+allAnswersHtml+'</div>':'')+
     '<div style="display:flex;align-items:center;gap:8px;font-size:13px;color:'+(hasSig?'#3A7D5A':'#B83010')+';margin-bottom:16px">'+
       (hasSig?'✓ Signed 已签名':'⚠ Not signed — please ask client to sign | 尚未签名，请让客户补签')+
     '</div>'+
