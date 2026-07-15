@@ -383,7 +383,7 @@ Please hand the iPad back to your technician.<br>Please hand the iPad back to yo
 
 <script type="module">
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
-import { getFirestore, collection, addDoc } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
+import { getFirestore, collection, addDoc, doc, updateDoc } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
 const app = initializeApp({
   apiKey:"AIzaSyCbiJE0WiBy9oOPp0Vh0AdsEOcPjyNsVwk",
   authDomain:"chiclash-2a154.firebaseapp.com",
@@ -395,6 +395,8 @@ const app = initializeApp({
 window._db2 = getFirestore(app);
 window._addDoc = addDoc;
 window._collection = collection;
+window._doc = doc;
+window._updateDoc = updateDoc;
 window._gcSave = async function(data) {
   return await addDoc(collection(getFirestore(app), 'gift_certificates'), data);
 };
@@ -1028,12 +1030,16 @@ async function confirmAndSave() {
   var btn = document.querySelector('#step-review button:last-child');
   btn.disabled = true; btn.textContent = 'Saving...';
   try {
+    var docRef = null;
     if(window._db2) {
-      await window._addDoc(window._collection(window._db2, 'client_forms'), _pendingData);
+      docRef = await window._addDoc(window._collection(window._db2, 'client_forms'), _pendingData);
     }
     document.getElementById('step-review').style.display = 'none';
     document.getElementById('step-done').style.display = 'block';
     window.scrollTo(0,0);
+
+    // 背景同步到 Square（不擋顧客看到完成畫面；就算 Square 那邊暫時失敗，表單資料已經安全存進 Firestore 了）
+    if(docRef) syncClientToSquare(docRef, _pendingData);
   } catch(e) {
     console.error(e);
     alert('Connection failed. Please check WiFi and try again.');
@@ -1041,6 +1047,36 @@ async function confirmAndSave() {
     btn.textContent = '✓ Confirm & Save 确认并保存';
   }
 }
+
+// ── SQUARE SYNC ──
+// 換成你自己部署好的 Cloudflare Worker 網址（wrangler deploy 之後會印出來）
+var SQUARE_SYNC_WORKER_URL = 'https://chiclash-square-sync.chiclashboutique.workers.dev';
+
+async function syncClientToSquare(docRef, data) {
+  try {
+    var res = await fetch(SQUARE_SYNC_WORKER_URL, {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify(data)
+    });
+    var result = await res.json();
+    await window._updateDoc(window._doc(window._db2, 'client_forms', docRef.id), {
+      squareCustomerId: result.squareCustomerId || null,
+      squareSyncStatus: result.status || 'error',
+      squareSyncError: result.error || null,
+      squareSyncedAt: new Date().toISOString()
+    });
+  } catch(e) {
+    console.error('Square sync failed', e);
+    try {
+      await window._updateDoc(window._doc(window._db2, 'client_forms', docRef.id), {
+        squareSyncStatus: 'error',
+        squareSyncError: String(e && e.message || e)
+      });
+    } catch(e2) { /* Firestore write also failed — nothing more we can do here */ }
+  }
+}
+window.syncClientToSquare = syncClientToSquare;
 
 // ── GIFT CARD FLOW ──
 var _gcStore = null;

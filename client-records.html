@@ -609,6 +609,13 @@ function openPanel(id) {
       '<div class="p-row"><span class="p-lbl">Email</span><span class="p-val" id="pe-email" onclick="editField(\'email\',this)">'+( r.email||'—')+'</span></div>'+
       '<div class="p-row"><span class="p-lbl">生日</span><span class="p-val" id="pe-dob" onclick="editField(\'dob\',this)">'+( r.dob||'—')+'</span></div>'+
       '<div class="p-row"><span class="p-lbl">來源</span><span class="p-val">'+(r._source==='sq'?'Square匯入':'客人填表')+'</span></div>'+
+      (r.squareSyncStatus?(
+        '<div class="p-row"><span class="p-lbl">Square同步</span><span class="p-val" style="color:'+(r.squareSyncStatus==='synced'?'#3A7D5A':'#B23B2E')+'">'+
+          (r.squareSyncStatus==='synced'?'✓ 已同步'+(r.squareCustomerId?'（ID: '+r.squareCustomerId+'）':''):
+           r.squareSyncStatus==='skipped_no_valid_phone'?'⚠ 電話號碼格式無法同步':
+           '⚠ 同步失敗：'+(r.squareSyncError||''))+
+        '</span></div>'
+      ):'')+
       (r.lastVisit?'<div class="p-row"><span class="p-lbl">最後到訪</span><span class="p-val">'+fmtDate(r.lastVisit)+'</span></div>':'')+
       (r.firstVisit?'<div class="p-row"><span class="p-lbl">首次到訪</span><span class="p-val">'+fmtDate(r.firstVisit)+'</span></div>':'')+
       '<div style="margin-top:14px;display:flex;gap:8px">'+
