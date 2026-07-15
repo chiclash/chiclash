@@ -1591,7 +1591,7 @@ input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-
       }
 
       // 補上另一邊獨有的設定 key
-      const safeKeys = ['staffPay','payroll','sqNameMap','tipConfirmed','reviewSel','reviews','att','penalties','bnkBal','cdManual','tipSchedule'];
+      const safeKeys = ['staffPay','payroll','sqNameMap','tipConfirmed','tipSplitState','reviewSel','reviews','att','penalties','bnkBal','cdManual','tipSchedule'];
       const merged = Object.assign({}, base);
       safeKeys.forEach(function(key){
         if(other[key] !== undefined && base[key] === undefined){
@@ -2260,8 +2260,8 @@ function updateAll(){
 // ── GODADDY CSV IMPORT ──
 var gdImportedRows = []; // [{date:'2026-04-01', act:1234.56}]
 
-function saveGDCutoff(){ /* cutoff fixed at 5PM - no UI needed */ }
-function loadGDCutoff(){ /* cutoff fixed at 5PM - no UI needed */ }
+function saveGDCutoff(){ /* GoDaddy 已改為每天 00:00 結算，與 Square 同日對齊，無需切分設定 */ }
+function loadGDCutoff(){ /* GoDaddy 已改為每天 00:00 結算，與 Square 同日對齊，無需切分設定 */ }
 
 function handleGDFile(file){
   if(!file)return;
@@ -2351,12 +2351,8 @@ function clearGDImport(){
   saveOnly();
 }
 
-// Get GoDaddy actual for a given calendar day, considering time offset
-// GD cutoff at e.g. 6pm: GD "day D" includes Square transactions from D-1 6pm to D 6pm
-// So Square "day D" (midnight-midnight) maps to GD data spanning two GD days
-// Strategy: for each Square day, find the best-matching GD day(s) and sum/split
-// Simpler approach: show GD day's amount next to Square day+1 (since GD day D ~ Square day D)
-// Let user see side-by-side and flag discrepancies
+// Get GoDaddy actual for a given calendar day.
+// GoDaddy now settles at midnight (00:00), same as Square, so GD "day D" = calendar day D directly — no time-shift needed.
 function getGDActForDay(d){
   // Returns {manual, imported, importedDate} for day d
   var gdR=gdDay(d);
@@ -2501,22 +2497,23 @@ function buildGDTable(){
   var sub=document.getElementById('gd-sub');
   if(sub)sub.textContent=cur.toLocaleDateString('zh-TW',{year:'numeric',month:'long'});
 
-  // 資料來源：gdSqCalc（上傳 Square CSV 計算）優先，否則用每日記帳自然日應收
+  // 資料來源：GD應收永遠以「匯入中心」逐筆記帳資料（calcDay）為主。
+  // 若有上傳 Square CSV 對帳，只拿來當作交叉核對提醒，不會蓋掉主要數字。
   var gdSqCalc=(_D.gdSqCalc&&_D.gdSqCalc[mo])||null;
-  var useGDSqCalc=gdSqCalc&&Object.keys(gdSqCalc).length>0;
+  var hasCsvCalc=gdSqCalc&&Object.keys(gdSqCalc).length>0;
 
   var statusEl=document.getElementById('gd-import-status');
   var msgEl=document.getElementById('gd-import-msg');
   if(statusEl&&msgEl){
-    if(useGDSqCalc){
+    if(hasCsvCalc){
       statusEl.style.display='flex';
       var calcDates=Object.keys(gdSqCalc).sort();
-      msgEl.textContent='✓ 已上傳 Square CSV（'+calcDates[0]+' 至 '+calcDates[calcDates.length-1]+'）';
+      msgEl.textContent='✓ 已上傳 Square CSV（'+calcDates[0]+' 至 '+calcDates[calcDates.length-1]+'）— 僅作交叉核對提醒，主要數字仍以匯入中心記帳為準';
       msgEl.style.color='var(--ok)';
     } else {
       statusEl.style.display='flex';
       msgEl.style.color='var(--sub)';
-      msgEl.textContent='💡 點右上角「上傳 Square CSV 對帳」可啟用精準比對，現在顯示每日記帳應收';
+      msgEl.textContent='💡 GD應收以匯入中心逐筆記帳資料自動算出；若想額外交叉核對，可上傳 Square CSV';
     }
   }
 
@@ -2555,15 +2552,15 @@ function buildGDTable(){
   // 說明列
   var noteEl=document.createElement('div');
   noteEl.style.cssText='padding:8px 14px;background:var(--gold-bg);border-bottom:1px solid #EEE0BB;font-size:11px;color:var(--gold)';
-  noteEl.innerHTML=useGDSqCalc
-    ? '✓ Square CSV 對帳模式：每天應收由 Square CSV 精準計算（兩店刷卡合計 × 0.977），與每日記帳無關'
-    : '💡 點右上角上傳 Square CSV 可啟用精準對帳，現在顯示每日記帳應收';
+  noteEl.innerHTML=hasCsvCalc
+    ? '✓ GD應收以匯入中心逐筆記帳資料為準。已上傳的 Square CSV 精算結果僅作交叉核對，若某天差異較大會標示 ⚠ 提醒你檢查'
+    : '💡 GD應收以匯入中心逐筆記帳資料自動計算。點右上角可上傳 Square CSV 做額外交叉核對';
   tbl.appendChild(noteEl);
 
   // 表頭
   var hdr=document.createElement('div');
   hdr.style.cssText='display:grid;grid-template-columns:90px 1fr 1fr 90px;align-items:center;gap:8px;padding:7px 14px;background:var(--bg);border-bottom:1.5px solid var(--border);font-size:10px;text-transform:uppercase;letter-spacing:.07em;color:var(--sub);font-weight:600';
-  hdr.innerHTML='<span>日期</span><span style="color:var(--ok)">GD應收（5PM切分）</span><span>你填入的 Payout</span><span style="text-align:center">差異</span>';
+  hdr.innerHTML='<span>日期</span><span style="color:var(--ok)">GD應收（匯入中心記帳）</span><span>你填入的 Payout</span><span style="text-align:center">差異</span>';
   tbl.appendChild(hdr);
 
   var totalDue=0,totalAct=0,monthHasDiff=false;
@@ -2573,11 +2570,14 @@ function buildGDTable(){
     var isWk=dt2.getDay()===0||dt2.getDay()===6;
     var dateStr=y+'-'+String(m+1).padStart(2,'0')+'-'+String(d).padStart(2,'0');
 
-    // 計算應收（優先用 gdSqCalc，否則用每日記帳自然日應收）
-    var due=useGDSqCalc
-      ? (gdSqCalc[dateStr]||0)
-      : (function(){var mv=calcDay('mv',d),sr=calcDay('sr',d);return mv.gdDue+sr.gdDue;}());
+    // 主要應收數字：永遠用匯入中心（每日記帳）自然日計算
+    var due=(function(){var mv=calcDay('mv',d),sr=calcDay('sr',d);return mv.gdDue+sr.gdDue;}());
     totalDue+=due;
+
+    // Square CSV 精算（若有上傳）——僅作交叉核對提醒，不覆蓋 due
+    var csvDue=hasCsvCalc&&gdSqCalc[dateStr]!==undefined?gdSqCalc[dateStr]:null;
+    var csvDiff=csvDue!==null?Math.round((csvDue-due)*100)/100:null;
+    var csvMismatch=csvDiff!==null&&Math.abs(csvDiff)>=1;
 
     // 讀取手動填入的 Payout
     var gdR=gdDay(d);
@@ -2595,7 +2595,9 @@ function buildGDTable(){
     row.innerHTML=
       '<div><div style="font-weight:600;font-size:12px">'+String(m+1).padStart(2,'0')+'/'+String(d).padStart(2,'0')+'</div>'+
         '<div style="font-size:10px;color:'+(isWk?'var(--warn)':'var(--sub)')+'">'+DAYS[dt2.getDay()]+'</div></div>'+
-      '<span style="color:var(--ok);font-weight:600">'+(due>0?$f(due):'—')+'</span>'+
+      '<div><span style="color:var(--ok);font-weight:600">'+(due>0?$f(due):'—')+'</span>'+
+        (csvMismatch?'<div style="font-size:10px;color:var(--warn);margin-top:2px">⚠ CSV精算 '+$f(csvDue)+'（差 '+(csvDiff>=0?'+':'')+$f(csvDiff)+'）</div>':'')+
+      '</div>'+
       '<input type="text" inputmode="decimal" style="width:120px;border:1px solid '+(warn?'var(--warn-bd)':'var(--border)')+';border-radius:5px;padding:5px 8px;font-size:13px;font-family:inherit;text-align:right;outline:none;background:var(--white)" placeholder="填入 Payout" min="0" step="0.01" value="'+(actVal!==null?actVal:'')+'" onchange="updGD('+d+',this.value)">'+
       '<div style="text-align:center;font-size:14px">'+
         (actVal===null?'<span style="color:var(--faint)">—</span>':
@@ -3546,10 +3548,19 @@ function renderStaffTipSummary(d){
 }
 
 // ── TIPS PAGE ──
-// tipSplitSel: { key: { card: Set, cash: Set } }  — in-memory UI selection only
+// tipSplitSel: { key: { card: Set, cash: Set } }  — in-memory UI selection cache (rebuilt from _D.tipSplitState below)
 const tipSplitSel={};
 
 function getTipKey(store,d){return`${mk()}_${store}_${d}`;}
+
+// Persisted per-transaction split selections, survives reload/reopen:
+// _D.tipSplitState[YYYY-MM][d][txnKey] = [name1, name2, ...]
+function getTipSplitStateDay(mo,d){
+  if(!_D.tipSplitState)_D.tipSplitState={};
+  if(!_D.tipSplitState[mo])_D.tipSplitState[mo]={};
+  if(!_D.tipSplitState[mo][d])_D.tipSplitState[mo][d]={};
+  return _D.tipSplitState[mo][d];
+}
 
 // Saved confirmed splits stored in _D.tipConfirmed[YYYY-MM][store][d] = { card:{name:amount}, cash:{name:amount} }
 function getTipConfirmed(store,d){
@@ -3739,14 +3750,19 @@ function buildTipDayBody(d){
   if(!tipSplitSel[splitKey]){
     tipSplitSel[splitKey]={};
   }
-  // Init any new clients not yet in splitSel
+  // Init any new clients not yet in splitSel — restore saved selection first, else default to single tech
+  var savedSplitState=getTipSplitStateDay(mk(),d);
   allClients.forEach(function(cl,i){
     var txnKey=cl.store+'_'+cl.idx; // stable key: store + client index in day
     if(!tipSplitSel[splitKey][txnKey]){
-      // Auto-select if client has exactly one tech
-      var autoSet=new Set();
-      if(cl.tech) autoSet.add(cl.tech);
-      tipSplitSel[splitKey][txnKey]=autoSet;
+      if(savedSplitState[txnKey]&&savedSplitState[txnKey].length){
+        tipSplitSel[splitKey][txnKey]=new Set(savedSplitState[txnKey]);
+      }else{
+        // Auto-select if client has exactly one tech
+        var autoSet=new Set();
+        if(cl.tech) autoSet.add(cl.tech);
+        tipSplitSel[splitKey][txnKey]=autoSet;
+      }
     }
   });
 
@@ -3907,6 +3923,10 @@ function toggleTipTxnStaff(splitKey,txnKey,name){
   var s=tipSplitSel[splitKey][txnKey];
   if(s.has(name)) s.delete(name); else s.add(name);
   var d=parseInt(splitKey.split('_').pop());
+  // Persist selection immediately so it survives reload/reopen, even before "確認分配" is pressed
+  var state=getTipSplitStateDay(mk(),d);
+  state[txnKey]=Array.from(s);
+  localStorage.setItem('rev19',JSON.stringify(_D));
   var body=document.getElementById('tip-body-'+d);
   if(body){var sy=window.scrollY;body.innerHTML=buildTipDayBody(d);requestAnimationFrame(function(){window.scrollTo(0,sy);});}
 }
@@ -3943,6 +3963,13 @@ function confirmTipTxnSplit(splitKey,d){
   if(!_D.tipConfirmed[mo])_D.tipConfirmed[mo]={};
   if(!_D.tipConfirmed[mo]['mv'])_D.tipConfirmed[mo]['mv']={};
   _D.tipConfirmed[mo]['mv'][d]={card:cardTotals,cash:cashTotals};
+  // Also persist the full per-client selection so re-opening this day shows the same split, not the default
+  var splitState=getTipSplitStateDay(mo,d);
+  allClients.forEach(function(cl,i){
+    var txnKey=cl.store+'_'+cl.idx;
+    var selSet=tipSplitSel[splitKey][txnKey]||new Set();
+    splitState[txnKey]=Array.from(selSet);
+  });
   saveOnly();
   var body=document.getElementById('tip-body-'+d);
   if(body){var sy=window.scrollY;body.innerHTML=buildTipDayBody(d);requestAnimationFrame(function(){window.scrollTo(0,sy);});}
@@ -4510,6 +4537,31 @@ function buildStaffReportData(){
     groupBonusMap[pairKey]=Math.round(total*100)/100;
   });
 
+  // 判斷某人某天是否有上班：以打卡記錄為準（有實際上下班時間才算）
+  function workedOnDate(member,dateStr){
+    var recs=(attD.records&&attD.records[member])||[];
+    return recs.some(function(r){
+      return r.date===dateStr && r.startTime && r.endTime && netMins(r.rawMins,r.breakDeducted)>0;
+    });
+  }
+  // 取得某人在某天已確認的小費總額（跨店加總，適用小費保底平分逐日計算）
+  function confirmedTipMemberDay(member,d){
+    var total=0;
+    var sqMap=_D.sqNameMap||{};
+    function resolveName(n){return sqMap[n]||n;}
+    var stores=(_D.tipConfirmed&&_D.tipConfirmed[mo])||{};
+    Object.keys(stores).forEach(function(store){
+      var dayConf=stores[store][d];
+      if(!dayConf)return;
+      ['card','cash'].forEach(function(type){
+        Object.entries(dayConf[type]||{}).forEach(function(e){
+          if(resolveName(e[0])===member)total+=e[1];
+        });
+      });
+    });
+    return Math.round(total*100)/100;
+  }
+
   return staffList.map(function(name){
     var cfg=staffPayCfg(name);
     var tips=tipMap[name]||{mv:{card:0,cash:0},sr:{card:0,cash:0}};
@@ -4582,39 +4634,53 @@ function buildStaffReportData(){
       var y3=cur.getFullYear(),m3c=cur.getMonth();
       var days3=new Date(y3,m3c+1,0).getDate();
 
-      // Step 1: per-member boss top-up using merged transactions
-      var topupByMember={};
-      allPoolMembers.forEach(function(member){
-        var memberTopUp=0;
-        ['mv','sr'].forEach(function(store){
-          for(var d3=1;d3<=days3;d3++){
+      // 逐日計算：每一天只在「當天真的有打卡上班」的成員之間平分當天的小費池
+      // （不再是整月加總後固定除以全部人數，避免沒上班的日子也被算進去）
+      var myPooledTotal=0, myTopupTotal=0;
+      for(var d3=1;d3<=days3;d3++){
+        var dateStr3=y3+'-'+String(m3c+1).padStart(2,'0')+'-'+String(d3).padStart(2,'0');
+
+        // 當天每人的老闆補款（小費不足服務費%的差額）
+        var topupDay={};
+        allPoolMembers.forEach(function(member){
+          var t=0;
+          ['mv','sr'].forEach(function(store){
             mergeClientTxns(sDay(store,d3).clients).forEach(function(mc){
               if(mc.techName!==member)return;
               if(mc.svc<=0)return;
               if(mc.cashTipOk)return; // 已標記現金已收
               var minT=Math.round(mc.svc*tipPct2*100)/100;
-              if(mc.tip<minT)memberTopUp+=Math.round((minT-mc.tip)*100)/100;
+              if(mc.tip<minT)t+=Math.round((minT-mc.tip)*100)/100;
             });
-          }
+          });
+          topupDay[member]=Math.round(t*100)/100;
         });
-        topupByMember[member]=Math.round(memberTopUp*100)/100;
-      });
 
-      // Step 2: pool (confirmedTip + topup)
-      var totalPoolPot=0;
-      allPoolMembers.forEach(function(member){
-        var mt=tipMap[member]||{mv:{card:0,cash:0},sr:{card:0,cash:0}};
-        var memberConfirmedTip=(mt.mv.card||0)+(mt.mv.cash||0)+(mt.sr.card||0)+(mt.sr.cash||0);
-        totalPoolPot+=memberConfirmedTip+(topupByMember[member]||0);
-      });
-      var eachGets=allPoolMembers.length>0?Math.round(totalPoolPot/allPoolMembers.length*100)/100:0;
+        // 當天實際有打卡上班的成員
+        var workedToday=allPoolMembers.filter(function(m){return workedOnDate(m,dateStr3);});
+        if(!workedToday.length) workedToday=allPoolMembers.slice(); // 沒有任何人有打卡記錄時，保守 fallback 為全體平分，避免小費憑空消失
 
-      var totalPoolTopUp=allPoolMembers.reduce(function(s,pm){return s+(topupByMember[pm]||0);},0);
-      bossSupp=Math.round(totalPoolTopUp/allPoolMembers.length*100)/100;
-      if(bossSupp>0||totalPoolPot>0)
-        bossSuppLabel='小費補款後與 '+poolPartners.join('、')+' 平分';
+        // 當天池子總額：所有夥伴當天已確認小費 + 補款
+        var dayPoolTotal=0;
+        allPoolMembers.forEach(function(member){
+          dayPoolTotal+=confirmedTipMemberDay(member,d3)+(topupDay[member]||0);
+        });
 
-      pooledTipVal=eachGets;
+        var eachShare=workedToday.length>0?Math.round(dayPoolTotal/workedToday.length*100)/100:0;
+        if(workedToday.indexOf(name)>=0) myPooledTotal+=eachShare;
+
+        // 老闆補款也依同樣方式平分（顯示用：自己分到的補款份額，而非自己原始未平分的補款金額）
+        var dayTopupTotal=0;
+        allPoolMembers.forEach(function(member){dayTopupTotal+=topupDay[member]||0;});
+        var eachTopupShare=workedToday.length>0?Math.round(dayTopupTotal/workedToday.length*100)/100:0;
+        if(workedToday.indexOf(name)>=0) myTopupTotal+=eachTopupShare;
+      }
+
+      bossSupp=Math.round(myTopupTotal*100)/100;
+      if(bossSupp>0||myPooledTotal>0)
+        bossSuppLabel='小費補款後，依當天實際打卡上班的夥伴平分（'+poolPartners.join('、')+'）';
+
+      pooledTipVal=Math.round(myPooledTotal*100)/100;
     } else if(cfg.bonusType==='group'&&cfg.bonusGroup){
       var pairKey=[name,cfg.bonusGroup].sort().join('|');
       bossSupp=Math.round((groupBonusMap[pairKey]||0)/2*100)/100; // split equally between the two
