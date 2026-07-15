@@ -1053,28 +1053,42 @@ async function confirmAndSave() {
 var SQUARE_SYNC_WORKER_URL = 'https://chiclash-square-sync.chiclashboutique.workers.dev';
 
 async function syncClientToSquare(docRef, data) {
-  try {
-    var res = await fetch(SQUARE_SYNC_WORKER_URL, {
-      method: 'POST',
-      headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify(data)
-    });
-    var result = await res.json();
-    await window._updateDoc(window._doc(window._db2, 'client_forms', docRef.id), {
-      squareCustomerId: result.squareCustomerId || null,
-      squareSyncStatus: result.status || 'error',
-      squareSyncError: result.error || null,
-      squareSyncedAt: new Date().toISOString()
-    });
-  } catch(e) {
-    console.error('Square sync failed', e);
+  var MAX_TRIES = 3;
+  var lastErr = null;
+
+  for (var attempt = 1; attempt <= MAX_TRIES; attempt++) {
     try {
-      await window._updateDoc(window._doc(window._db2, 'client_forms', docRef.id), {
-        squareSyncStatus: 'error',
-        squareSyncError: String(e && e.message || e)
+      var res = await fetch(SQUARE_SYNC_WORKER_URL, {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify(data)
       });
-    } catch(e2) { /* Firestore write also failed — nothing more we can do here */ }
+      var result = await res.json();
+      await window._updateDoc(window._doc(window._db2, 'client_forms', docRef.id), {
+        squareCustomerId: result.squareCustomerId || null,
+        squareSyncStatus: result.status || 'error',
+        squareSyncError: result.error || null,
+        squareSyncedAt: new Date().toISOString()
+      });
+      return; // 成功（或 Square 回報明確的 error/skipped 狀態）就結束，不用再重試
+    } catch(e) {
+      // 這裡的 catch 通常是「網路連線本身失敗」（例如訊號瞬斷），跟 Square 的回應內容無關 —— 值得重試
+      lastErr = e;
+      console.warn('Square sync attempt ' + attempt + ' failed', e);
+      if (attempt < MAX_TRIES) {
+        await new Promise(function(r){ setTimeout(r, attempt * 1500); }); // 每次重試前多等一點時間
+      }
+    }
   }
+
+  // 重試 3 次都還是連線失敗，記錄下來，之後可以在 client-records.html 手動按「重新同步」
+  console.error('Square sync failed after ' + MAX_TRIES + ' attempts', lastErr);
+  try {
+    await window._updateDoc(window._doc(window._db2, 'client_forms', docRef.id), {
+      squareSyncStatus: 'error',
+      squareSyncError: String(lastErr && lastErr.message || lastErr)
+    });
+  } catch(e2) { /* Firestore write also failed — nothing more we can do here */ }
 }
 window.syncClientToSquare = syncClientToSquare;
 

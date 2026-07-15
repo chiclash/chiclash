@@ -614,7 +614,10 @@ function openPanel(id) {
           (r.squareSyncStatus==='synced'?'✓ 已同步'+(r.squareCustomerId?'（ID: '+r.squareCustomerId+'）':''):
            r.squareSyncStatus==='skipped_no_valid_phone'?'⚠ 電話號碼格式無法同步':
            '⚠ 同步失敗：'+(r.squareSyncError||''))+
-        '</span></div>'
+        '</span></div>'+
+        (r.squareSyncStatus!=='synced'?
+          '<div style="margin-top:6px"><button id="retry-sync-btn" onclick="retrySquareSync(\''+id+'\')" style="padding:6px 14px;background:var(--rose-light,#F5EDED);color:var(--rose,#C4726A);border:1px solid var(--rose,#C4726A);border-radius:7px;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit">🔄 重新同步到 Square</button></div>'
+        :'')
       ):'')+
       (r.lastVisit?'<div class="p-row"><span class="p-lbl">最後到訪</span><span class="p-val">'+fmtDate(r.lastVisit)+'</span></div>':'')+
       (r.firstVisit?'<div class="p-row"><span class="p-lbl">首次到訪</span><span class="p-val">'+fmtDate(r.firstVisit)+'</span></div>':'')+
@@ -630,6 +633,39 @@ function openPanel(id) {
   document.getElementById('detail-panel').classList.add('on');
 }
 function closePanel(){document.getElementById('overlay').classList.remove('on');document.getElementById('detail-panel').classList.remove('on');}
+
+// ── SQUARE SYNC RETRY ──
+// 換成你在 client-form.html 裡用的同一個 Cloudflare Worker 網址
+var SQUARE_SYNC_WORKER_URL = 'https://chiclash-square-sync.chiclashboutique.workers.dev';
+
+async function retrySquareSync(id) {
+  var r = allRecords.find(x=>x.id===id);
+  if(!r) return;
+  var btn = document.getElementById('retry-sync-btn');
+  if(btn){ btn.disabled = true; btn.textContent = '同步中…'; }
+  try {
+    var res = await fetch(SQUARE_SYNC_WORKER_URL, {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify(r)
+    });
+    var result = await res.json();
+    var update = {
+      squareCustomerId: result.squareCustomerId || null,
+      squareSyncStatus: result.status || 'error',
+      squareSyncError: result.error || null,
+      squareSyncedAt: new Date().toISOString()
+    };
+    await window._fb.update(id, update);
+    Object.assign(r, update);
+    openPanel(id); // 重新畫面板，顯示最新的同步狀態
+  } catch(e) {
+    console.error('重新同步失敗', e);
+    alert('重新同步失敗，請確認網路連線後再試一次：' + (e && e.message || e));
+    if(btn){ btn.disabled = false; btn.textContent = '🔄 重新同步到 Square'; }
+  }
+}
+window.retrySquareSync = retrySquareSync;
 
 // ── LAPSED ──
 function toggleLapsed(){
