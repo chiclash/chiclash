@@ -2598,7 +2598,7 @@ function buildGDTable(){
       '<div><span style="color:var(--ok);font-weight:600">'+(due>0?$f(due):'—')+'</span>'+
         (csvMismatch?'<div style="font-size:10px;color:var(--warn);margin-top:2px">⚠ CSV精算 '+$f(csvDue)+'（差 '+(csvDiff>=0?'+':'')+$f(csvDiff)+'）</div>':'')+
       '</div>'+
-      '<input type="text" inputmode="decimal" style="width:120px;border:1px solid '+(warn?'var(--warn-bd)':'var(--border)')+';border-radius:5px;padding:5px 8px;font-size:13px;font-family:inherit;text-align:right;outline:none;background:var(--white)" placeholder="填入 Payout" min="0" step="0.01" value="'+(actVal!==null?actVal:'')+'" onchange="updGD('+d+',this.value)">'+
+      '<input type="text" inputmode="decimal" style="width:120px;border:1px solid '+(warn?'var(--warn-bd)':'var(--border)')+';border-radius:5px;padding:5px 8px;font-size:13px;font-family:inherit;text-align:right;outline:none;background:var(--white)" placeholder="填入 Payout" min="0" step="0.01" value="'+(actVal!==null?Math.round(actVal*100)/100:'')+'" onchange="updGD('+d+',this.value)">'+
       '<div style="text-align:center;font-size:14px">'+
         (actVal===null?'<span style="color:var(--faint)">—</span>':
          ok?'<span style="color:var(--ok);font-size:18px">✓</span>':
@@ -2630,7 +2630,7 @@ function buildGDTable(){
 function updGD(d,v){
   if(!_D.gd)_D.gd={};if(!_D.gd[mk()])_D.gd[mk()]={};
   if(!_D.gd[mk()][d])_D.gd[mk()][d]={};
-  _D.gd[mk()][d].act=v===''?'':parseFloat(v)||0;
+  _D.gd[mk()][d].act=v===''?'':Math.round((parseFloat(v)||0)*100)/100;
   saveOnly();
   updateAll();
 }
@@ -7344,6 +7344,7 @@ function impHandleGDCsvMulti(files) {
           // 填入 impGDData 讓 GD×Square 對帳區塊顯示（用 Amount in Payout 合計）
           if (!impGDData[d]) impGDData[d] = 0;
           impGDData[d] += byDate[d].reduce(function(s,t){return s+(t.payout||t.sale+t.tip);},0);
+          impGDData[d]=Math.round(impGDData[d]*100)/100;
         });
         var days = Object.keys(byDate).length;
         var stEl = document.getElementById('imp-gd-st');
@@ -7503,6 +7504,7 @@ function impParseGDText(text) {
   Object.keys(byDate).forEach(function(d) {
     if (!impGDData[d]) impGDData[d] = 0;
     impGDData[d] += byDate[d];
+    impGDData[d]=Math.round(impGDData[d]*100)/100;
   });
 }
 
@@ -8191,7 +8193,7 @@ function impCommitGD() {
   if (!_D.gd[mo]) _D.gd[mo] = {};
   Object.keys(impGDData).forEach(function(dateStr) {
     if (dateStr.startsWith(mo)) {
-      var amt = impGDData[dateStr];
+      var amt = Math.round((impGDData[dateStr]||0)*100)/100;
       // Write to gdImport (used by getGDActForDay / bank page)
       _D.gdImport[mo][dateStr] = amt;
       // ALSO write to _D.gd[mo][d].act so GoDaddy table shows the payout
