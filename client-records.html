@@ -165,7 +165,9 @@ input[type=file]{font-size:12px;font-family:'Inter',sans-serif;color:var(--sub)}
       <button class="tb-btn ok" onclick="exportCSV()">⬇ 匯出 CSV Export</button>
       <button class="tb-btn secondary" onclick="toggleLapsed()">⚠ 流失客戶 Lapsed</button>
       <button class="tb-btn secondary" onclick="reloadAll()">🔄 重新整理 Refresh</button>
+      <button class="tb-btn secondary" id="sync-all-btn" onclick="syncAllToSquare()">🔁 全部同步 Sync All</button>
     </div>
+    <div id="sync-all-progress" style="display:none;font-size:12px;color:var(--sub);padding:6px 14px"></div>
 
     <div class="lapsed-panel" id="lapsed-panel">
       <div class="lapsed-title">⚠ 流失客戶 Lapsed Clients — 超過 8 週未回 Over 8 Weeks</div>
@@ -670,6 +672,58 @@ async function retrySquareSync(id) {
   }
 }
 window.retrySquareSync = retrySquareSync;
+
+async function syncAllToSquare() {
+  // 密碼保護：只是防止前台不小心手滑按到，不是真正的資安機制
+  // （純前端網頁，密碼寫在程式碼裡，技術人員檢視原始碼還是看得到，如果要調整密碼直接改下面這個字串就好）
+  var SYNC_ALL_PASSWORD = 'Chiclash94941';
+  var pw = prompt('請輸入密碼以執行「全部同步」\nEnter password to run "Sync All"：');
+  if (pw === null) return; // 按取消
+  if (pw !== SYNC_ALL_PASSWORD) { alert('密碼錯誤 Incorrect password'); return; }
+
+  var targets = allRecords.filter(function(r){
+    return r._source !== 'sq' && r.squareSyncStatus !== 'synced';
+  });
+  if (!targets.length) { alert('目前沒有需要同步的記錄 No records need syncing right now.'); return; }
+  if (!confirm('要同步 ' + targets.length + ' 筆記錄到 Square 嗎？\nSync ' + targets.length + ' record(s) to Square?\n\n（只會補齊還沒同步過的，不會重複影響已經同步成功的 Only affects records not yet synced.）')) return;
+
+  var btn = document.getElementById('sync-all-btn');
+  var prog = document.getElementById('sync-all-progress');
+  btn.disabled = true;
+  prog.style.display = 'block';
+
+  var ok = 0, fail = 0;
+  for (var i = 0; i < targets.length; i++) {
+    var r = targets[i];
+    prog.textContent = '同步中 Syncing… ' + (i+1) + ' / ' + targets.length + '（' + (r.firstName||'') + ' ' + (r.lastName||'') + '）';
+    try {
+      var res = await fetch(SQUARE_SYNC_WORKER_URL, {
+        method: 'POST',
+        headers: {'Content-Type':'application/json'},
+        body: JSON.stringify(r)
+      });
+      var result = await res.json();
+      var update = {
+        squareCustomerId: result.squareCustomerId || null,
+        squareSyncStatus: result.status || 'error',
+        squareSyncError: result.error || null,
+        squareSyncedAt: new Date().toISOString()
+      };
+      await window._fb.update(r.id, update);
+      Object.assign(r, update);
+      if (result.status === 'synced') ok++; else fail++;
+    } catch(e) {
+      fail++;
+      try { await window._fb.update(r.id, {squareSyncStatus:'error', squareSyncError: String(e && e.message || e)}); } catch(e2){}
+    }
+    await new Promise(function(res){ setTimeout(res, 400); }); // 稍微間隔一下，避免瞬間打爆 Square API
+  }
+
+  prog.textContent = '✓ 完成 Done — 成功 Success: ' + ok + '，失敗 Failed: ' + fail;
+  btn.disabled = false;
+  renderTable();
+}
+window.syncAllToSquare = syncAllToSquare;
 
 // ── LAPSED ──
 function toggleLapsed(){
