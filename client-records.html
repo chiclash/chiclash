@@ -673,17 +673,25 @@ function closePanel(){document.getElementById('overlay').classList.remove('on');
 // 換成你在 client-form.html 裡用的同一個 Cloudflare Worker 網址
 var SQUARE_SYNC_WORKER_URL = 'https://chiclash-square-sync.chiclashboutique.workers.dev';
 
+// Promise 加上逾時保護，網路卡住時不要傻等
+function withTimeout(promise, ms) {
+  return Promise.race([
+    promise,
+    new Promise(function(_, reject){ setTimeout(function(){ reject(new Error('timeout after ' + ms + 'ms')); }, ms); })
+  ]);
+}
+
 async function retrySquareSync(id) {
   var r = allRecords.find(x=>x.id===id);
   if(!r) return;
   var btn = document.getElementById('retry-sync-btn');
   if(btn){ btn.disabled = true; btn.textContent = '同步中… Syncing…'; }
   try {
-    var res = await fetch(SQUARE_SYNC_WORKER_URL, {
+    var res = await withTimeout(fetch(SQUARE_SYNC_WORKER_URL, {
       method: 'POST',
       headers: {'Content-Type':'application/json'},
       body: JSON.stringify(r)
-    });
+    }), 10000);
     var result = await res.json();
     var update = {
       squareCustomerId: result.squareCustomerId || null,
@@ -741,11 +749,11 @@ async function syncAllToSquare() {
     prog.textContent = '同步中 Syncing… ' + (i+1) + ' / ' + targets.length + '（' + (r.firstName||'') + ' ' + (r.lastName||'') + '）';
     document.title = '(' + (i+1) + '/' + targets.length + ') 同步中 Syncing…';
     try {
-      var res = await fetch(SQUARE_SYNC_WORKER_URL, {
+      var res = await withTimeout(fetch(SQUARE_SYNC_WORKER_URL, {
         method: 'POST',
         headers: {'Content-Type':'application/json'},
         body: JSON.stringify(r)
-      });
+      }), 10000);
       var result = await res.json();
       var update = {
         squareCustomerId: result.squareCustomerId || null,

@@ -1056,29 +1056,55 @@ function goBackToForm() {
   window.scrollTo(0,0);
 }
 
+// Promise 加上逾時保護，網路卡住時不要傻等，時間到就判定失敗、進入重試
+function withTimeout(promise, ms) {
+  return Promise.race([
+    promise,
+    new Promise(function(_, reject){ setTimeout(function(){ reject(new Error('timeout after ' + ms + 'ms')); }, ms); })
+  ]);
+}
+
 async function confirmAndSave() {
   var cb = document.getElementById('staff-agreement-cb');
   if(cb && !cb.checked) { alert('Please check the agreement box before saving.'); return; }
   _pendingData.store = _selectedStore || 'mv';
   var btn = document.querySelector('#step-review button:last-child');
   btn.disabled = true; btn.textContent = 'Saving...';
-  try {
-    var docRef = null;
-    if(window._db2) {
-      docRef = await window._addDoc(window._collection(window._db2, 'client_forms'), _pendingData);
-    }
-    document.getElementById('step-review').style.display = 'none';
-    document.getElementById('step-done').style.display = 'block';
-    window.scrollTo(0,0);
 
-    // 背景同步到 Square（不擋顧客看到完成畫面；就算 Square 那邊暫時失敗，表單資料已經安全存進 Firestore 了）
-    if(docRef) syncClientToSquare(docRef, _pendingData);
-  } catch(e) {
-    console.error(e);
-    alert('Connection failed. Please check WiFi and try again.');
-    btn.disabled = false;
-    btn.textContent = '✓ Confirm & Save 确认并保存';
+  var docRef = null;
+  var MAX_TRIES = 3;
+  var saved = false;
+  for (var attempt = 1; attempt <= MAX_TRIES; attempt++) {
+    try {
+      if (window._db2) {
+        // 每次嘗試最多等 10 秒，網路卡頓時不會一直卡住看不到任何反應
+        docRef = await withTimeout(
+          window._addDoc(window._collection(window._db2, 'client_forms'), _pendingData),
+          10000
+        );
+      }
+      saved = true;
+      break;
+    } catch(e) {
+      console.warn('Save attempt ' + attempt + ' failed', e);
+      if (attempt === MAX_TRIES) {
+        alert('網路連線異常，儲存失敗，請確認 WiFi 後再試一次\nConnection issue — please check WiFi and try again.');
+        btn.disabled = false;
+        btn.textContent = '✓ Confirm & Save 确认并保存';
+        return;
+      }
+      btn.textContent = 'Retrying... 重試中… (' + (attempt+1) + '/' + MAX_TRIES + ')';
+      await new Promise(function(r){ setTimeout(r, 1000); });
+    }
   }
+  if (!saved) return;
+
+  document.getElementById('step-review').style.display = 'none';
+  document.getElementById('step-done').style.display = 'block';
+  window.scrollTo(0,0);
+
+  // 背景同步到 Square（不擋顧客看到完成畫面；就算 Square 那邊暫時失敗，表單資料已經安全存進 Firestore 了）
+  if(docRef) syncClientToSquare(docRef, _pendingData);
 }
 
 // ── SQUARE SYNC ──
@@ -1091,11 +1117,11 @@ async function syncClientToSquare(docRef, data) {
 
   for (var attempt = 1; attempt <= MAX_TRIES; attempt++) {
     try {
-      var res = await fetch(SQUARE_SYNC_WORKER_URL, {
+      var res = await withTimeout(fetch(SQUARE_SYNC_WORKER_URL, {
         method: 'POST',
         headers: {'Content-Type': 'application/json'},
         body: JSON.stringify(data)
-      });
+      }), 10000);
       var result = await res.json();
       await window._updateDoc(window._doc(window._db2, 'client_forms', docRef.id), {
         squareCustomerId: result.squareCustomerId || null,
