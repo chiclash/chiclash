@@ -485,7 +485,7 @@ function commonInfo() {
       <div class="field"><label>First Name * 名字</label><input type="text" id="f-first" placeholder="First name 名字" autocomplete="off" oninput="autoFillPrintName()"></div>
       <div class="field"><label>Last Name * 姓氏</label><input type="text" id="f-last" placeholder="Last name 姓氏" autocomplete="off" oninput="autoFillPrintName()"></div>
     </div>
-    <div class="field"><label>Phone Number * 电话</label><input type="tel" id="f-phone" placeholder="(415) 000-0000" autocomplete="off"></div>
+    <div class="field"><label>Phone Number * 电话</label><input type="tel" id="f-phone" placeholder="(415) 000-0000" autocomplete="off" inputmode="numeric" oninput="formatPhoneInput(this)"></div>
     <div class="field"><label>E-mail 电邮</label><input type="email" id="f-email" placeholder="email@example.com" autocomplete="off"></div>
     <div class="field"><label>Date of Birth 生日</label>
 <div style="display:flex;gap:8px;align-items:center">
@@ -1407,6 +1407,16 @@ window.autoFillPrintName = function(){
   var last=(document.getElementById('f-last')?.value||'').trim();
   var pn=document.getElementById('f-print-name');
   if(pn) pn.value=[first,last].filter(Boolean).join(' ');
+};
+// 電話輸入自動排版：不管客人打純數字、加-、加空格，畫面上都會自動統一成 (415) 470-6495 這種格式
+// 只留數字，最多 10 碼（美國號碼），超過的部分（例如不小心打了國碼1）會被忽略
+window.formatPhoneInput = function(input){
+  var digits = input.value.replace(/\D/g,'').slice(0,10);
+  var formatted = digits;
+  if(digits.length > 6) formatted = '('+digits.slice(0,3)+') '+digits.slice(3,6)+'-'+digits.slice(6);
+  else if(digits.length > 3) formatted = '('+digits.slice(0,3)+') '+digits.slice(3);
+  else if(digits.length > 0) formatted = '('+digits;
+  input.value = formatted;
 };
 </script>
 </body>
