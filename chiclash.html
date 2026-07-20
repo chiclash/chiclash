@@ -5448,9 +5448,11 @@ function parseSqItemsCSV(text) {
     var svc = net > 0 ? net : (gross + disc);
     var locRaw = (cols[iLoc] || '').toLowerCase();
     var store = locRaw.indexOf('san rafael') >= 0 ? 'sr' : 'mv';
-    // Skip $0 items with no value — BUT keep them if they belong to a txn that might have tip
-    // We'll filter in mergeSqFiles after tip assignment
-    if(svc <= 0 && !isGCSale) continue;
+    // 注意：$0 項目（例如 Free Touch up）不能在這裡直接濾掉！
+    // 因為這筆交易本身可能還是有小費（例如客人補做免費項目但還是給了小費），
+    // 後面 mergeSqFiles() 會用 Transaction ID 把這裡的項目跟交易資料合併，
+    // 如果一筆交易底下的項目全部是 $0，但交易本身有小費，mergeSqFiles 會自動補一筆
+    // $0 服務費、只帶小費的紀錄，確保小費不會不見。所以這裡要保留 $0 項目往下傳。
     rows.push({
       txnId: (cols[iTxn] || '').trim(),
       date: dateStr,
@@ -5775,8 +5777,9 @@ function mergeSqFiles() {
     var nonZeroItems = items.filter(function(it){ return it.net > 0; });
     if (nonZeroItems.length === 0 && tipTotal > 0) {
       // 建立一個虛擬 item 來承接小費
+      var vDayNum = parseInt(txn.date.split('-')[2], 10);
       sqRows.push({
-        date:txn.date, time:txn.time, store:txn.store||items[0]&&items[0].store||'mv',
+        date:txn.date, day:vDayNum, time:txn.time, store:txn.store||items[0]&&items[0].store||'mv',
         gross:0, svc:0, tip:tipTotal, pay:txn.pay||'card',
         customer:txn.customer||(items[0]&&items[0].customer)||'',
         tech:(items[0]&&items[0].tech)||'',
