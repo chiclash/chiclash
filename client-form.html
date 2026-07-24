@@ -118,8 +118,8 @@ body{background:var(--cream);font-family:'Inter',sans-serif;color:var(--ink);min
 <!-- STEP 0: Store Selection (Staff) -->
 <div id="step-store" style="padding:32px 20px;max-width:500px;margin:0 auto">
   <div style="text-align:center;margin-bottom:28px">
-    <div style="font-size:22px;font-weight:600;margin-bottom:6px">Select Location 选择门店</div>
-    <div style="font-size:14px;color:var(--sub)">Please select today's location 请选择今天的门店</div>
+    <div style="font-size:22px;font-weight:600;margin-bottom:6px">Select Location 選擇門店</div>
+    <div style="font-size:14px;color:var(--sub)">Please select today's location 請選擇今天的門店</div>
   </div>
   <div style="display:flex;gap:16px;max-width:400px;margin:0 auto">
     <div onclick="pickStore('mv',this)" style="flex:1;background:var(--white);border:2px solid var(--border);border-radius:16px;padding:32px 16px;cursor:pointer;text-align:center;transition:all .2s">
@@ -137,10 +137,27 @@ body{background:var(--cream);font-family:'Inter',sans-serif;color:var(--ink);min
     <div onclick="showGiftCardForm()" style="background:var(--white);border:2px solid var(--border);border-radius:16px;padding:20px 24px;cursor:pointer;display:flex;align-items:center;gap:14px;transition:border-color .2s" onmouseover="this.style.borderColor='var(--rose)'" onmouseout="this.style.borderColor='var(--border)'">
       <span style="font-size:28px">🎁</span>
       <div>
-        <div style="font-size:16px;font-weight:600;color:var(--ink)">Gift Certificate 礼品卡</div>
-        <div style="font-size:12px;color:var(--sub);margin-top:2px">Purchase a gift certificate 购买礼品卡</div>
+        <div style="font-size:16px;font-weight:600;color:var(--ink)">Gift Certificate 禮品卡</div>
+        <div style="font-size:12px;color:var(--sub);margin-top:2px">Purchase a gift certificate 購買禮品卡</div>
       </div>
     </div>
+  </div>
+</div>
+
+<!-- STEP 0.5: Language Selection -->
+<div id="step-lang" style="display:none;padding:32px 20px;max-width:500px;margin:0 auto">
+  <button onclick="goBackFromLangToStore()" style="display:flex;align-items:center;gap:6px;background:none;border:none;color:var(--sub);font-size:14px;font-family:'Inter',sans-serif;cursor:pointer;padding:4px 0;margin-bottom:16px">← <span data-i18n="back">Back</span></button>
+  <div style="text-align:center;margin-bottom:28px">
+    <div style="font-size:22px;font-weight:600;margin-bottom:6px" data-i18n="select_language">Select Language</div>
+    <div style="font-size:14px;color:var(--sub)" data-i18n="select_language_sub">Please choose your preferred language</div>
+  </div>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;max-width:420px;margin:0 auto">
+    <div class="svc-btn" onclick="pickLanguage('en')" style="padding:20px 14px">English</div>
+    <div class="svc-btn" onclick="pickLanguage('es')" style="padding:20px 14px">Español</div>
+    <div class="svc-btn" onclick="pickLanguage('ja')" style="padding:20px 14px">日本語</div>
+    <div class="svc-btn" onclick="pickLanguage('ko')" style="padding:20px 14px">한국어</div>
+    <div class="svc-btn" onclick="pickLanguage('zhTW')" style="padding:20px 14px">中文（繁體）</div>
+    <div class="svc-btn" onclick="pickLanguage('zhCN')" style="padding:20px 14px">中文（简体）</div>
   </div>
 </div>
 
@@ -152,18 +169,18 @@ body{background:var(--cream);font-family:'Inter',sans-serif;color:var(--ink);min
   <div style="background:linear-gradient(135deg,var(--rose) 0%,#B85C55 100%);border-radius:16px;padding:22px 24px;color:#fff;margin-bottom:20px;box-shadow:0 4px 20px rgba(196,114,106,.3);position:relative;overflow:hidden">
     <div style="position:absolute;top:-24px;right:-24px;width:100px;height:100px;border-radius:50%;background:rgba(255,255,255,.08)"></div>
     <div style="font-size:10px;letter-spacing:.18em;text-transform:uppercase;opacity:.75;margin-bottom:2px">Chic Lash Boutique</div>
-    <div style="font-size:19px;font-weight:700;margin-bottom:14px">Gift Certificate 礼品卡</div>
+    <div style="font-size:19px;font-weight:700;margin-bottom:14px">Gift Certificate 禮品卡</div>
     <div style="font-size:28px;font-weight:700;letter-spacing:-.5px;margin-bottom:10px" id="gc-prev-amt">$—</div>
-    <div style="font-size:13px;opacity:.9;margin-bottom:3px">For 赠予: <span id="gc-prev-for" style="font-weight:600">—</span></div>
-    <div style="font-size:13px;opacity:.9;margin-bottom:3px">From 购买者: <span id="gc-prev-from" style="font-weight:600">—</span></div>
+    <div style="font-size:13px;opacity:.9;margin-bottom:3px">For 贈予: <span id="gc-prev-for" style="font-weight:600">—</span></div>
+    <div style="font-size:13px;opacity:.9;margin-bottom:3px">From 購買者: <span id="gc-prev-from" style="font-weight:600">—</span></div>
     <div style="font-size:13px;opacity:.9;margin-bottom:3px">Date 日期: <span id="gc-prev-date" style="font-weight:600"></span></div>
     <div style="font-size:13px;opacity:.9">Expires 到期: <span id="gc-prev-exp" style="font-weight:600">—</span></div>
-    <div style="font-size:10px;opacity:.6;margin-top:10px;font-family:monospace;letter-spacing:.1em">Card # auto-generated · 卡号自动生成</div>
+    <div style="font-size:10px;opacity:.6;margin-top:10px;font-family:monospace;letter-spacing:.1em">Card # auto-generated · 卡號自動生成</div>
   </div>
 
   <!-- Store -->
   <div style="background:var(--white);border-radius:var(--radius);padding:18px 20px;margin-bottom:14px;box-shadow:var(--shadow)">
-    <div style="font-size:12px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:var(--rose);margin-bottom:12px;padding-bottom:8px;border-bottom:1px solid var(--rose-light)">Store 门店</div>
+    <div style="font-size:12px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:var(--rose);margin-bottom:12px;padding-bottom:8px;border-bottom:1px solid var(--rose-light)">Store 門店</div>
     <div style="display:flex;gap:10px">
       <div onclick="pickGCStore('mv',this)" id="gc-store-mv" style="flex:1;border:1.5px solid var(--border);border-radius:10px;padding:12px;cursor:pointer;text-align:center;transition:all .15s">
         <div style="font-size:18px;font-weight:700;color:var(--mv)">MV</div>
@@ -178,7 +195,7 @@ body{background:var(--cream);font-family:'Inter',sans-serif;color:var(--ink);min
 
   <!-- Amount -->
   <div style="background:var(--white);border-radius:var(--radius);padding:18px 20px;margin-bottom:14px;box-shadow:var(--shadow)">
-    <div style="font-size:12px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:var(--rose);margin-bottom:12px;padding-bottom:8px;border-bottom:1px solid var(--rose-light)">Amount 金额 *</div>
+    <div style="font-size:12px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:var(--rose);margin-bottom:12px;padding-bottom:8px;border-bottom:1px solid var(--rose-light)">Amount 金額 *</div>
     <div style="display:flex;align-items:center;gap:8px">
       <span style="font-size:22px;font-weight:600;color:var(--sub)">$</span>
       <input type="number" id="gc-amount" placeholder="0" min="1" step="1" oninput="updateGCPreview()" style="flex:1;border:1.5px solid var(--border);border-radius:9px;padding:12px 14px;font-size:22px;font-weight:700;font-family:'Inter',sans-serif;color:var(--ink);background:var(--white);outline:none;-webkit-appearance:none" onfocus="this.style.borderColor='var(--rose-mid)'" onblur="this.style.borderColor='var(--border)'">
@@ -187,22 +204,22 @@ body{background:var(--cream);font-family:'Inter',sans-serif;color:var(--ink);min
 
   <!-- Gift Details -->
   <div style="background:var(--white);border-radius:var(--radius);padding:18px 20px;margin-bottom:14px;box-shadow:var(--shadow)">
-    <div style="font-size:12px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:var(--rose);margin-bottom:14px;padding-bottom:8px;border-bottom:1px solid var(--rose-light)">Gift Details 礼品信息</div>
+    <div style="font-size:12px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:var(--rose);margin-bottom:14px;padding-bottom:8px;border-bottom:1px solid var(--rose-light)">Gift Details 禮品資訊</div>
     <div class="field">
-      <label>Gift For 赠予 *<br><span style="font-weight:400;font-size:11px;color:var(--faint)">Recipient's name · 收礼人姓名</span></label>
+      <label>Gift For 贈予 *<br><span style="font-weight:400;font-size:11px;color:var(--faint)">Recipient's name · 收禮人姓名</span></label>
       <input type="text" id="gc-for" placeholder="e.g. Jennifer Kelly" autocomplete="off" oninput="updateGCPreview()">
     </div>
     <div class="field">
-      <label>From 购买者 *<br><span style="font-weight:400;font-size:11px;color:var(--faint)">Purchaser's name · 购买人姓名</span></label>
+      <label>From 購買者 *<br><span style="font-weight:400;font-size:11px;color:var(--faint)">Purchaser's name · 購買人姓名</span></label>
       <input type="text" id="gc-from" placeholder="e.g. Shannon" autocomplete="off" oninput="updateGCPreview()">
     </div>
     <div class="field" style="margin-bottom:0">
       <label>Expire Date 到期日</label>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px">
         <div class="gc-exp-btn" onclick="pickExpiry(12,this)">1 Year 一年</div>
-        <div class="gc-exp-btn" onclick="pickExpiry(6,this)">6 Months 六个月</div>
-        <div class="gc-exp-btn" onclick="pickExpiry(3,this)">3 Months 三个月</div>
-        <div class="gc-exp-btn" onclick="pickExpiry(1,this)">1 Month 一个月</div>
+        <div class="gc-exp-btn" onclick="pickExpiry(6,this)">6 Months 六個月</div>
+        <div class="gc-exp-btn" onclick="pickExpiry(3,this)">3 Months 三個月</div>
+        <div class="gc-exp-btn" onclick="pickExpiry(1,this)">1 Month 一個月</div>
         <div class="gc-exp-btn" style="grid-column:span 2" onclick="pickExpiry(0,this)">Custom 自訂日期</div>
       </div>
       <input type="date" id="gc-exp" oninput="updateGCPreview()" style="display:none;width:100%;border:1.5px solid var(--border);border-radius:9px;padding:12px 14px;font-size:16px;font-family:'Inter',sans-serif;color:var(--ink);background:var(--white);outline:none;box-sizing:border-box">
@@ -213,7 +230,7 @@ body{background:var(--cream);font-family:'Inter',sans-serif;color:var(--ink);min
   <div style="background:var(--white);border-radius:var(--radius);padding:18px 20px;margin-bottom:14px;box-shadow:var(--shadow)">
     <div style="font-size:12px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:var(--rose);margin-bottom:14px;padding-bottom:8px;border-bottom:1px solid var(--rose-light)">Payment 付款方式 *</div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
-      <div class="gc-pay-btn" onclick="pickGCPay('cash',this)">💵 Cash 现金</div>
+      <div class="gc-pay-btn" onclick="pickGCPay('cash',this)">💵 Cash 現金</div>
       <div class="gc-pay-btn" onclick="pickGCPay('card',this)">💳 Card 刷卡</div>
       <div class="gc-pay-btn" onclick="pickGCPay('venmo',this)">📱 Venmo</div>
       <div class="gc-pay-btn" onclick="pickGCPay('zelle',this)">⚡ Zelle</div>
@@ -224,23 +241,23 @@ body{background:var(--cream);font-family:'Inter',sans-serif;color:var(--ink);min
   <div style="background:var(--white);border-radius:var(--radius);padding:18px 20px;margin-bottom:14px;box-shadow:var(--shadow)">
     <div style="font-size:12px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:var(--rose);margin-bottom:12px;padding-bottom:8px;border-bottom:1px solid var(--rose-light)">Sold By 售卡人 *</div>
     <select id="gc-soldby" onchange="validateGC()" style="width:100%;border:1.5px solid var(--border);border-radius:9px;padding:12px 14px;font-size:17px;font-family:'Inter',sans-serif;color:var(--ink);background:var(--white);outline:none;-webkit-appearance:none">
-      <option value="">⏳ Loading staff... 载入中</option>
+      <option value="">⏳ Loading staff... 載入中</option>
     </select>
   </div>
 
   <!-- Staff Note -->
   <div style="background:#FFFBF0;border:1px dashed #D4B483;border-radius:var(--radius);padding:14px 18px;margin-bottom:20px">
-    <div style="font-size:11px;font-weight:600;color:#9A7030;letter-spacing:.08em;text-transform:uppercase;margin-bottom:8px">Staff Note 内部备注 (not printed 不打印)</div>
-    <input type="text" id="gc-note" placeholder="e.g. tip included $20 · 含小费" autocomplete="off" style="width:100%;border:1px solid #E0C88A;border-radius:7px;padding:9px 12px;font-size:14px;font-family:'Inter',sans-serif;color:var(--ink);background:#fff;outline:none">
+    <div style="font-size:11px;font-weight:600;color:#9A7030;letter-spacing:.08em;text-transform:uppercase;margin-bottom:8px">Staff Note 內部備註 (not printed 不列印)</div>
+    <input type="text" id="gc-note" placeholder="e.g. tip included $20 · 含小費" autocomplete="off" style="width:100%;border:1px solid #E0C88A;border-radius:7px;padding:9px 12px;font-size:14px;font-family:'Inter',sans-serif;color:var(--ink);background:#fff;outline:none">
   </div>
 
-  <button id="gc-submit-btn" onclick="submitGC()" disabled style="display:block;width:100%;background:var(--rose);color:#fff;border:none;border-radius:12px;padding:17px;font-size:18px;font-weight:500;cursor:pointer;font-family:'Inter',sans-serif;opacity:.45;transition:opacity .2s">🎁 Issue Gift Certificate 开出礼品卡</button>
+  <button id="gc-submit-btn" onclick="submitGC()" disabled style="display:block;width:100%;background:var(--rose);color:#fff;border:none;border-radius:12px;padding:17px;font-size:18px;font-weight:500;cursor:pointer;font-family:'Inter',sans-serif;opacity:.45;transition:opacity .2s">🎁 Issue Gift Certificate 開出禮品卡</button>
 </div>
 
 <!-- STEP GC-DONE: Staff fill-in reference -->
 <div id="step-gc-done" style="display:none;padding:24px 20px;max-width:520px;margin:0 auto">
   <div style="background:var(--white);border-radius:14px;box-shadow:0 3px 16px rgba(0,0,0,.09);overflow:hidden;margin-bottom:14px">
-    <div style="background:var(--rose);color:#fff;padding:10px 18px;font-size:11px;font-weight:600;letter-spacing:.12em;text-transform:uppercase">Customer Copy 顾客联</div>
+    <div style="background:var(--rose);color:#fff;padding:10px 18px;font-size:11px;font-weight:600;letter-spacing:.12em;text-transform:uppercase">Customer Copy 顧客聯</div>
     <div style="padding:18px 20px">
       <div style="margin-bottom:14px">
         <div style="font-size:11px;color:var(--sub);font-weight:600;letter-spacing:.06em;margin-bottom:5px">A GIFT FOR</div>
@@ -267,7 +284,7 @@ body{background:var(--cream);font-family:'Inter',sans-serif;color:var(--ink);min
         </div>
       </div>
       <div style="margin-bottom:14px">
-        <div style="font-size:11px;color:var(--sub);font-weight:600;letter-spacing:.06em;margin-bottom:5px">CERTIFICATE NUMBER 卡号</div>
+        <div style="font-size:11px;color:var(--sub);font-weight:600;letter-spacing:.06em;margin-bottom:5px">CERTIFICATE NUMBER 卡號</div>
         <div style="font-size:16px;font-weight:700;font-family:monospace;color:var(--rose);border-bottom:1.5px solid var(--border);padding-bottom:6px;letter-spacing:.08em" id="gc-fill-code-customer">—</div>
       </div>
       <div>
@@ -298,7 +315,7 @@ body{background:var(--cream);font-family:'Inter',sans-serif;color:var(--ink);min
           <div style="font-size:15px;font-weight:600;color:var(--ink);border-bottom:1.5px solid var(--border);padding-bottom:6px" id="gc-fill-soldby">—</div>
         </div>
         <div style="grid-column:span 2">
-          <div style="font-size:11px;color:var(--sub);font-weight:600;letter-spacing:.06em;margin-bottom:5px">NUMBER 卡号</div>
+          <div style="font-size:11px;color:var(--sub);font-weight:600;letter-spacing:.06em;margin-bottom:5px">NUMBER 卡號</div>
           <div style="font-size:16px;font-weight:700;font-family:monospace;color:var(--rose);border-bottom:1.5px solid var(--border);padding-bottom:6px;letter-spacing:.1em" id="gc-done-code">—</div>
         </div>
       </div>
@@ -306,51 +323,51 @@ body{background:var(--cream);font-family:'Inter',sans-serif;color:var(--ink);min
   </div>
 
   <div id="gc-done-note-wrap" style="display:none;background:#FFFBF0;border:1px dashed #D4B483;border-radius:10px;padding:12px 16px;margin-bottom:14px">
-    <div style="font-size:11px;font-weight:600;color:#9A7030;margin-bottom:4px">Staff Note 备注 (internal)</div>
+    <div style="font-size:11px;font-weight:600;color:#9A7030;margin-bottom:4px">Staff Note 備註 (internal)</div>
     <div style="font-size:14px;color:var(--ink)" id="gc-done-note"></div>
   </div>
 
   <button onclick="resetGC()" style="display:block;width:100%;padding:15px;background:var(--ink);color:#fff;border:none;border-radius:12px;font-size:16px;font-weight:600;cursor:pointer;font-family:'Inter',sans-serif">New Transaction 新交易 →</button>
-  <div style="text-align:center;margin-top:12px;font-size:11px;color:var(--faint)">Record saved · 记录已保存</div>
+  <div style="text-align:center;margin-top:12px;font-size:11px;color:var(--faint)">Record saved · 記錄已儲存</div>
 </div>
 
 <!-- STEP 1: Pick service -->
 <div id="step-pick" style="display:none">
   <div style="display:flex;align-items:center;padding:12px 20px;border-bottom:1px solid var(--border);background:var(--white)">
-    <button onclick="goBackToStore()" style="background:none;border:none;color:var(--sub);font-size:14px;font-family:'Inter',sans-serif;cursor:pointer;padding:4px 0;margin-right:12px">← Back 返回</button>
+    <button onclick="goBackToStore()" style="background:none;border:none;color:var(--sub);font-size:14px;font-family:'Inter',sans-serif;cursor:pointer;padding:4px 0;margin-right:12px">← <span data-i18n="back">Back</span></button>
     <span id="pick-store-badge" style="font-size:13px;font-weight:600;color:var(--sub)"></span>
   </div>
-  <div class="step-title" style="margin-top:24px">Welcome! 欢迎！</div>
-  <div class="step-sub">Please select your service today 请选择今天的服务</div>
+  <div class="step-title" style="margin-top:24px" data-i18n="welcome">Welcome!</div>
+  <div class="step-sub" data-i18n="select_service_sub">Please select your service today</div>
   <div class="svc-grid">
     <div class="svc-btn" onclick="pickSvc('lash',this)">
-            <div class="svc-name">Eyelash 睫毛</div>
-      <div class="svc-desc">Extensions & Lifting 延伸与卷翘</div>
+            <div class="svc-name" data-i18n="svc_lash_name">Eyelash</div>
+      <div class="svc-desc" data-i18n="svc_lash_desc">Extensions & Lifting</div>
     </div>
     <div class="svc-btn" onclick="pickSvc('facial',this)">
-            <div class="svc-name">Facial 护脸</div>
-      <div class="svc-desc">Skin Care & Treatment 护肤疗程</div>
+            <div class="svc-name" data-i18n="svc_facial_name">Facial</div>
+      <div class="svc-desc" data-i18n="svc_facial_desc">Skin Care & Treatment</div>
     </div>
     <div class="svc-btn" onclick="pickSvc('headspa',this)">
-            <div class="svc-name">Head Spa 头疗</div>
-      <div class="svc-desc">Scalp Treatment 头皮护理</div>
+            <div class="svc-name" data-i18n="svc_headspa_name">Head Spa</div>
+      <div class="svc-desc" data-i18n="svc_headspa_desc">Scalp Treatment</div>
     </div>
     <div class="svc-btn" onclick="pickSvc('massage',this)">
-            <div class="svc-name">Massage 按摩</div>
-      <div class="svc-desc">Body & Relaxation 全身放松</div>
+            <div class="svc-name" data-i18n="svc_massage_name">Massage</div>
+      <div class="svc-desc" data-i18n="svc_massage_desc">Body & Relaxation</div>
     </div>
   </div>
-  <button class="next-btn" id="next-btn" disabled onclick="showForm()">Continue 继续 →</button>
+  <button class="next-btn" id="next-btn" disabled onclick="showForm()"><span data-i18n="continue">Continue</span> →</button>
 </div>
 
 <!-- STEP 2: Form -->
 <div id="step-form">
   <div class="form-wrap" autocomplete="off">
-    <button onclick="goBack()" style="display:flex;align-items:center;gap:6px;background:none;border:none;color:var(--sub);font-size:14px;font-family:'Inter',sans-serif;cursor:pointer;padding:4px 0;margin-bottom:16px">← Back 返回</button>
+    <button onclick="goBack()" style="display:flex;align-items:center;gap:6px;background:none;border:none;color:var(--sub);font-size:14px;font-family:'Inter',sans-serif;cursor:pointer;padding:4px 0;margin-bottom:16px">← <span data-i18n="back">Back</span></button>
     <div class="form-title" id="form-title"></div>
     <div class="form-subtitle" id="form-subtitle"></div>
     <div id="form-body"></div>
-    <button class="submit-btn" id="submit-btn" onclick="submitForm()">Submit Form 提交表单</button>
+    <button class="submit-btn" id="submit-btn" onclick="submitForm()" data-i18n="submit_form">Submit Form</button>
   </div>
 </div>
 
@@ -360,21 +377,21 @@ body{background:var(--cream);font-family:'Inter',sans-serif;color:var(--ink);min
   <div style="background:#fff;border-radius:16px;box-shadow:0 4px 24px rgba(0,0,0,.1);overflow:hidden">
     <div style="background:var(--rose);color:#fff;padding:20px 24px">
       <div style="font-size:11px;letter-spacing:.12em;text-transform:uppercase;opacity:.8;margin-bottom:4px">Staff Review — <span id="review-store-label"></span></div>
-      <div style="font-size:20px;font-weight:600">Please Review Client Info<br>请审核客户信息</div>
+      <div style="font-size:20px;font-weight:600">Please Review Client Info<br>請稽核客戶資訊</div>
     </div>
     <!-- Client info summary -->
     <div style="padding:20px 24px" id="review-body"></div>
     <div style="padding:0 24px 24px;display:flex;gap:12px">
       <button onclick="goBackToForm()" style="flex:1;padding:14px;background:none;border:1.5px solid var(--border);border-radius:10px;font-size:15px;font-weight:500;cursor:pointer;font-family:'Inter',sans-serif;color:var(--sub)">← Back</button>
-      <button onclick="confirmAndSave()" style="flex:2;padding:14px;background:var(--ok);color:#fff;border:none;border-radius:10px;font-size:15px;font-weight:600;cursor:pointer;font-family:'Inter',sans-serif">✓ Confirm & Save 确认并保存</button>
+      <button onclick="confirmAndSave()" style="flex:2;padding:14px;background:var(--ok);color:#fff;border:none;border-radius:10px;font-size:15px;font-weight:600;cursor:pointer;font-family:'Inter',sans-serif">✓ Confirm & Save 確認並儲存</button>
     </div>
   </div>
 </div>
 <div id="step-done">
   <div class="done-icon">🌸</div>
-  <div class="done-title">Thank you! 谢谢！</div>
-  <div class="done-sub">Your information has been saved. 您的信息已保存。<br>Please hand the iPad back to your technician. 请将iPad交还给您的技师。</div>
-  <button class="reset-btn" onclick="resetForm()">New Client 新客人 →</button>
+  <div class="done-title" data-i18n="thank_you">Thank you!</div>
+  <div class="done-sub"><span data-i18n="info_saved">Your information has been saved.</span><br><span data-i18n="hand_ipad_back">Please hand the iPad back to your technician.</span></div>
+  <button class="reset-btn" onclick="resetForm()"><span data-i18n="new_client">New Client</span> →</button>
 </div>
 
 <script type="module">
@@ -412,7 +429,7 @@ window._gcSave = async function(data) {
         ? staffArray.filter(n => n && n !== 'undefined').sort()
         : Object.keys(staffPay).filter(n => n && n !== 'undefined').sort();
       if (names.length > 0) {
-        sel.innerHTML = '<option value="">-- Select staff 选择员工 --</option>';
+        sel.innerHTML = '<option value="">-- Select staff 選擇員工 --</option>';
         names.forEach(function(name) {
           const opt = document.createElement('option');
           opt.value = name; opt.textContent = name;
@@ -436,7 +453,7 @@ function fallbackSoldByToInput(){
   var input = document.createElement('input');
   input.type = 'text';
   input.id = 'gc-soldby';
-  input.placeholder = 'Staff name · 员工姓名';
+  input.placeholder = 'Staff name · 員工姓名';
   input.autocomplete = 'off';
   input.oninput = validateGC;
   input.style.cssText = 'width:100%;border:1.5px solid var(--border);border-radius:9px;padding:12px 14px;font-size:17px;font-family:\'Inter\',sans-serif;color:var(--ink);background:var(--white);outline:none;box-sizing:border-box';
@@ -447,6 +464,31 @@ window.fallbackSoldByToInput = fallbackSoldByToInput;
 
 <script>
 var curSvc = null;
+var curLang = 'en';
+
+// ── I18N ──
+var T = {
+  en: {"back": "Back", "or": "OR", "select_location": "Select Location", "select_location_sub": "Please select today's location", "select_language": "Select Language", "select_language_sub": "Please choose your preferred language", "gift_certificate": "Gift Certificate", "purchase_gift_certificate": "Purchase a gift certificate", "welcome": "Welcome!", "select_service_sub": "Please select your service today", "continue": "Continue", "submit_form": "Submit Form", "clear": "Clear", "thank_you": "Thank you!", "info_saved": "Your information has been saved.", "hand_ipad_back": "Please hand the iPad back to your technician.", "new_client": "New Client", "form_subtitle": "Please complete all fields and sign below", "svc_lash_name": "Eyelash", "svc_lash_desc": "Extensions & Lifting", "svc_facial_name": "Facial", "svc_facial_desc": "Skin Care & Treatment", "svc_headspa_name": "Head Spa", "svc_headspa_desc": "Scalp Treatment", "svc_massage_name": "Massage", "svc_massage_desc": "Body & Relaxation", "sec_personal_info": "Personal Information", "lbl_first_name": "First Name *", "ph_first_name": "First name", "lbl_last_name": "Last Name *", "ph_last_name": "Last name", "lbl_phone": "Phone Number *", "lbl_email": "E-mail", "lbl_dob": "Date of Birth", "month": "Month", "day": "Day", "lbl_hear": "How did you hear about us?", "sec_signature": "Signature", "lbl_print_name": "Print Name", "ph_auto_filled": "Auto-filled", "lbl_date": "Date", "lbl_signature": "Signature", "sec_client_info": "Client Information", "q_sensitive_eyes": "Do you think you have sensitive eyes?", "q_prev_lash": "Have you had eyelash extensions before?", "q_contacts": "Do you wear contact lenses?", "q_lash_allergy": "Any known allergies? (glue, latex, tape)", "ph_please_specify": "Please specify...", "sec_skin_analysis": "Skin Analysis — Daily Care", "q_makeup": "1. Do you wear makeup?", "lbl_makeup_removal": "Makeup removal method:", "q_face_wash": "2. Face wash type:", "q_water_temp": "3. Water temperature preference:", "q_exfoliator": "4. Do you use exfoliators / enzymatic products?", "q_vitc": "5. Vitamin C or Brightening/Whitening products?", "lbl_usage_freq": "Usage frequency:", "sec_medical": "Medical & Special Requirements", "q_medical_check": "6. Please check if apply:", "opt_claustrophobia": "Claustrophobia", "lbl_allergies_7": "7. Allergies (Aspirin, Iodine, Nuts, etc.)", "ph_list_allergies": "List any allergies...", "lbl_massage_intensity_8": "8. Shoulder/Neck Massage intensity (1–10)", "ph_eg_5": "e.g. 5", "sec_addons_waxing": "Add-ons & Waxing", "lbl_addons": "Add-ons:", "lbl_waxing": "Waxing:", "sec_headspa_consult": "Head Spa Consultation", "q_prev_spa": "1. Have you received a scalp massage before?", "q_medication": "2. Are you on any medication?", "ph_if_yes_specify": "If yes, which ones...", "q_spa_allergy": "3. Do you have any allergies?", "q_pregnant_spa": "4. Are you pregnant?", "q_water_pref": "5. Water temperature preference:", "q_head_pressure": "6. Head Massage Pressure:", "q_neck_pressure": "7. Neck & Shoulder Massage Pressure:", "q_scalp_indicate": "8. Please indicate if you have any of the following:", "lbl_surgery_9": "9. Head, neck or shoulder surgery (if any):", "ph_describe_if_applicable": "Describe if applicable...", "sec_massage_pref": "1. Massage Preferences", "lbl_desired_pressure": "Desired Pressure:", "lbl_focus_areas": "Areas to Focus On:", "sec_health_history": "2. Health History", "q_health_conditions": "Do you have any of the following?", "Yes": "Yes", "No": "No", "Yes, love them": "Yes, love them", "Yes, had reactions": "Yes, had reactions", "No, first time": "No, first time", "Oil": "Oil", "Wipes": "Wipes", "Soap": "Soap", "Other": "Other", "Foam": "Foam", "Cold": "Cold", "Warm": "Warm", "Daily": "Daily", "Weekly": "Weekly", "Sometimes": "Sometimes", "Currently Pregnant": "Currently Pregnant", "Metal implants in body": "Metal implants in body", "A: Do not cover my eyes and lip": "A: Do not cover my eyes and lip", "B: Masks OK, let me know before applying": "B: Masks OK, let me know before applying", "C: I need to keep the lights on": "C: I need to keep the lights on", "Google": "Google", "Yelp": "Yelp", "Friend": "Friend", "Pass By": "Pass By", "Ultrasonic Cleaning ($25)": "Ultrasonic Cleaning ($25)", "Eye Treatment Device ($45)": "Eye Treatment Device ($45)", "Eye Treatment Upgrade Pola ($25)": "Eye Treatment Upgrade Pola ($25)", "Brow ($30)": "Brow ($30)", "Full Face ($55)": "Full Face ($55)", "Chin Lip ($15)": "Chin Lip ($15)", "Under Arm ($40)": "Under Arm ($40)", "Brow Lip ($40)": "Brow Lip ($40)", "Cool": "Cool", "Normal": "Normal", "Extra Warm": "Extra Warm", "Soft": "Soft", "Medium": "Medium", "Hard": "Hard", "Skin Conditions": "Skin Conditions", "Dandruff": "Dandruff", "Eczema": "Eczema", "Psoriasis": "Psoriasis", "Light": "Light", "Firm / Deep Tissue": "Firm / Deep Tissue", "Neck": "Neck", "Shoulders": "Shoulders", "Upper Back": "Upper Back", "Lower Back": "Lower Back", "Hips/Glutes": "Hips/Glutes", "Arms/Hands": "Arms/Hands", "Legs/Feet": "Legs/Feet", "Scalp/Face": "Scalp/Face", "High Blood Pressure": "High Blood Pressure", "Varicose Veins": "Varicose Veins", "Blood Clots/DVT": "Blood Clots/DVT", "Osteoporosis": "Osteoporosis", "Recent Surgery": "Recent Surgery", "Pregnancy": "Pregnancy", "Skin Rashes": "Skin Rashes", "Numbness/Tingling": "Numbness/Tingling"},
+  es: {"back": "Atrás", "or": "O", "select_location": "Seleccionar Ubicación", "select_location_sub": "Seleccione la ubicación de hoy", "select_language": "Seleccionar Idioma", "select_language_sub": "Elija su idioma preferido", "gift_certificate": "Certificado de Regalo", "purchase_gift_certificate": "Comprar un certificado de regalo", "welcome": "¡Bienvenido/a!", "select_service_sub": "Seleccione su servicio de hoy", "continue": "Continuar", "submit_form": "Enviar Formulario", "clear": "Borrar", "thank_you": "¡Gracias!", "info_saved": "Su información ha sido guardada.", "hand_ipad_back": "Por favor devuelva el iPad a su especialista.", "new_client": "Nuevo Cliente", "form_subtitle": "Complete todos los campos y firme abajo", "svc_lash_name": "Pestañas", "svc_lash_desc": "Extensiones y Lifting", "svc_facial_name": "Facial", "svc_facial_desc": "Cuidado de la Piel", "svc_headspa_name": "Spa Capilar", "svc_headspa_desc": "Tratamiento del Cuero Cabelludo", "svc_massage_name": "Masaje", "svc_massage_desc": "Cuerpo y Relajación", "sec_personal_info": "Información Personal", "lbl_first_name": "Nombre *", "ph_first_name": "Nombre", "lbl_last_name": "Apellido *", "ph_last_name": "Apellido", "lbl_phone": "Número de Teléfono *", "lbl_email": "Correo electrónico", "lbl_dob": "Fecha de Nacimiento", "month": "Mes", "day": "Día", "lbl_hear": "¿Cómo se enteró de nosotros?", "sec_signature": "Firma", "lbl_print_name": "Nombre en Letra de Molde", "ph_auto_filled": "Rellenado automáticamente", "lbl_date": "Fecha", "lbl_signature": "Firma", "sec_client_info": "Información del Cliente", "q_sensitive_eyes": "¿Cree que tiene los ojos sensibles?", "q_prev_lash": "¿Se ha hecho extensiones de pestañas antes?", "q_contacts": "¿Usa lentes de contacto?", "q_lash_allergy": "¿Alguna alergia conocida? (pegamento, látex, cinta)", "ph_please_specify": "Por favor especifique...", "sec_skin_analysis": "Análisis de la Piel — Cuidado Diario", "q_makeup": "1. ¿Usa maquillaje?", "lbl_makeup_removal": "Método para quitar el maquillaje:", "q_face_wash": "2. Tipo de limpiador facial:", "q_water_temp": "3. Preferencia de temperatura del agua:", "q_exfoliator": "4. ¿Usa exfoliantes / productos enzimáticos?", "q_vitc": "5. ¿Productos con Vitamina C o Iluminadores/Blanqueadores?", "lbl_usage_freq": "Frecuencia de uso:", "sec_medical": "Requisitos Médicos y Especiales", "q_medical_check": "6. Marque si corresponde:", "opt_claustrophobia": "Claustrofobia", "lbl_allergies_7": "7. Alergias (Aspirina, Yodo, Nueces, etc.)", "ph_list_allergies": "Enumere cualquier alergia...", "lbl_massage_intensity_8": "8. Intensidad del masaje de hombro/cuello (1–10)", "ph_eg_5": "p.ej. 5", "sec_addons_waxing": "Adicionales y Depilación con Cera", "lbl_addons": "Adicionales:", "lbl_waxing": "Depilación con cera:", "sec_headspa_consult": "Consulta de Spa Capilar", "q_prev_spa": "1. ¿Ha recibido un masaje de cuero cabelludo antes?", "q_medication": "2. ¿Está tomando algún medicamento?", "ph_if_yes_specify": "Si es así, ¿cuáles?...", "q_spa_allergy": "3. ¿Tiene alguna alergia?", "q_pregnant_spa": "4. ¿Está embarazada?", "q_water_pref": "5. Preferencia de temperatura del agua:", "q_head_pressure": "6. Presión del masaje de cabeza:", "q_neck_pressure": "7. Presión del masaje de cuello y hombros:", "q_scalp_indicate": "8. Indique si tiene alguno de los siguientes:", "lbl_surgery_9": "9. Cirugía de cabeza, cuello u hombros (si corresponde):", "ph_describe_if_applicable": "Describa si corresponde...", "sec_massage_pref": "1. Preferencias de Masaje", "lbl_desired_pressure": "Presión deseada:", "lbl_focus_areas": "Áreas a enfocar:", "sec_health_history": "2. Historial de Salud", "q_health_conditions": "¿Tiene alguna de las siguientes condiciones?", "Yes": "Sí", "No": "No", "Yes, love them": "Sí, me encantan", "Yes, had reactions": "Sí, tuve reacciones", "No, first time": "No, es la primera vez", "Oil": "Aceite", "Wipes": "Toallitas", "Soap": "Jabón", "Other": "Otro", "Foam": "Espuma", "Cold": "Fría", "Warm": "Tibia", "Daily": "Diario", "Weekly": "Semanal", "Sometimes": "A veces", "Currently Pregnant": "Actualmente embarazada", "Metal implants in body": "Implantes metálicos en el cuerpo", "A: Do not cover my eyes and lip": "A: No cubrir mis ojos ni labios", "B: Masks OK, let me know before applying": "B: Mascarillas está bien, avíseme antes de aplicar", "C: I need to keep the lights on": "C: Necesito que las luces estén encendidas", "Google": "Google", "Yelp": "Yelp", "Friend": "Amigo/a", "Pass By": "Al pasar por aquí", "Ultrasonic Cleaning ($25)": "Limpieza Ultrasónica ($25)", "Eye Treatment Device ($45)": "Dispositivo de Tratamiento para Ojos ($45)", "Eye Treatment Upgrade Pola ($25)": "Mejora de Tratamiento para Ojos Pola ($25)", "Brow ($30)": "Cejas ($30)", "Full Face ($55)": "Rostro Completo ($55)", "Chin Lip ($15)": "Mentón y Labio ($15)", "Under Arm ($40)": "Axila ($40)", "Brow Lip ($40)": "Cejas y Labio ($40)", "Cool": "Fresca", "Normal": "Normal", "Extra Warm": "Muy tibia", "Soft": "Suave", "Medium": "Media", "Hard": "Fuerte", "Skin Conditions": "Afecciones de la piel", "Dandruff": "Caspa", "Eczema": "Eccema", "Psoriasis": "Psoriasis", "Light": "Ligera", "Firm / Deep Tissue": "Firme / Tejido Profundo", "Neck": "Cuello", "Shoulders": "Hombros", "Upper Back": "Espalda alta", "Lower Back": "Espalda baja", "Hips/Glutes": "Caderas/Glúteos", "Arms/Hands": "Brazos/Manos", "Legs/Feet": "Piernas/Pies", "Scalp/Face": "Cuero cabelludo/Rostro", "High Blood Pressure": "Presión arterial alta", "Varicose Veins": "Venas varicosas", "Blood Clots/DVT": "Coágulos de sangre/TVP", "Osteoporosis": "Osteoporosis", "Recent Surgery": "Cirugía reciente", "Pregnancy": "Embarazo", "Skin Rashes": "Erupciones cutáneas", "Numbness/Tingling": "Entumecimiento/Hormigueo"},
+  zhTW: {"back": "返回", "or": "或", "select_location": "選擇門店", "select_location_sub": "請選擇今天的門店", "select_language": "選擇語言", "select_language_sub": "請選擇您偏好的語言", "gift_certificate": "禮品卡", "purchase_gift_certificate": "購買禮品卡", "welcome": "歡迎！", "select_service_sub": "請選擇今天的服務", "continue": "繼續", "submit_form": "提交表單", "clear": "清除", "thank_you": "謝謝！", "info_saved": "您的資訊已儲存。", "hand_ipad_back": "請將iPad交還給您的技師。", "new_client": "新客人", "form_subtitle": "請完成以下所有欄位並簽名", "svc_lash_name": "睫毛延長", "svc_lash_desc": "延伸與捲翹", "svc_facial_name": "臉部護理", "svc_facial_desc": "護膚療程", "svc_headspa_name": "頭部護理", "svc_headspa_desc": "頭皮護理", "svc_massage_name": "按摩", "svc_massage_desc": "全身放鬆", "sec_personal_info": "個人資訊", "lbl_first_name": "名字 *", "ph_first_name": "名字", "lbl_last_name": "姓氏 *", "ph_last_name": "姓氏", "lbl_phone": "電話 *", "lbl_email": "電郵", "lbl_dob": "生日", "month": "月", "day": "日", "lbl_hear": "如何得知我們？", "sec_signature": "簽名", "lbl_print_name": "印刷體姓名", "ph_auto_filled": "自動填入", "lbl_date": "日期", "lbl_signature": "簽名", "sec_client_info": "客戶資訊", "q_sensitive_eyes": "您認為您有敏感眼睛嗎？", "q_prev_lash": "您以前有做過睫毛延伸嗎？", "q_contacts": "您戴隱形眼鏡嗎？", "q_lash_allergy": "已知過敏？（膠水、乳膠、膠帶）", "ph_please_specify": "請說明...", "sec_skin_analysis": "皮膚分析 — 日常護理", "q_makeup": "1. 您使用化妝品嗎？", "lbl_makeup_removal": "卸妝方式：", "q_face_wash": "2. 洗臉產品類型：", "q_water_temp": "3. 用水溫度偏好：", "q_exfoliator": "4. 您使用去角質/酵素產品嗎？", "q_vitc": "5. 維他命C或美白產品？", "lbl_usage_freq": "使用頻率：", "sec_medical": "醫療與特殊需求", "q_medical_check": "6. 請勾選適用項：", "opt_claustrophobia": "幽閉恐懼", "lbl_allergies_7": "7. 過敏 (阿斯匹靈、碘、堅果等)", "ph_list_allergies": "列出所有過敏...", "lbl_massage_intensity_8": "8. 肩頸按摩力度 (1–10)", "ph_eg_5": "例如：5", "sec_addons_waxing": "附加服務與除毛", "lbl_addons": "附加服務：", "lbl_waxing": "除毛：", "sec_headspa_consult": "頭療諮詢", "q_prev_spa": "1. 您之前有做過頭皮按摩嗎？", "q_medication": "2. 您目前有服用藥物嗎？", "ph_if_yes_specify": "如是，請說明...", "q_spa_allergy": "3. 您有任何過敏嗎？", "q_pregnant_spa": "4. 您目前懷孕嗎？", "q_water_pref": "5. 水溫偏好：", "q_head_pressure": "6. 頭部按摩力度：", "q_neck_pressure": "7. 頸肩按摩力度：", "q_scalp_indicate": "8. 請指出以下哪項適用於您：", "lbl_surgery_9": "9. 頭部、頸部或肩部手術（如有）：", "ph_describe_if_applicable": "如適用請描述...", "sec_massage_pref": "1. 按摩偏好", "lbl_desired_pressure": "期望力度：", "lbl_focus_areas": "重點部位：", "sec_health_history": "2. 健康狀況", "q_health_conditions": "您有以下任何狀況嗎？", "Yes": "是", "No": "否", "Yes, love them": "是，喜歡", "Yes, had reactions": "是，有過敏反應", "No, first time": "否，第一次", "Oil": "油", "Wipes": "溼巾", "Soap": "肥皂", "Other": "其他", "Foam": "泡沫", "Cold": "冷", "Warm": "暖", "Daily": "每天", "Weekly": "每週", "Sometimes": "有時", "Currently Pregnant": "目前懷孕", "Metal implants in body": "體內有金屬植入物", "A: Do not cover my eyes and lip": "A: 請不要遮住我的眼睛和嘴唇", "B: Masks OK, let me know before applying": "B: 可以敷面膜，敷之前請先告知我", "C: I need to keep the lights on": "C: 我需要開著燈", "Google": "Google", "Yelp": "Yelp", "Friend": "朋友推薦", "Pass By": "路過", "Ultrasonic Cleaning ($25)": "超聲波清潔 ($25)", "Eye Treatment Device ($45)": "眼部護理儀 ($45)", "Eye Treatment Upgrade Pola ($25)": "眼部護理升級Pola ($25)", "Brow ($30)": "眉毛 ($30)", "Full Face ($55)": "全臉 ($55)", "Chin Lip ($15)": "下巴嘴唇 ($15)", "Under Arm ($40)": "腋下 ($40)", "Brow Lip ($40)": "眉毛嘴唇 ($40)", "Cool": "涼", "Normal": "正常", "Extra Warm": "熱", "Soft": "輕", "Medium": "中", "Hard": "重", "Skin Conditions": "皮膚問題", "Dandruff": "頭皮屑", "Eczema": "溼疹", "Psoriasis": "牛皮癬", "Light": "輕", "Firm / Deep Tissue": "深層組織", "Neck": "頸部", "Shoulders": "肩部", "Upper Back": "上背部", "Lower Back": "下背部", "Hips/Glutes": "臀部", "Arms/Hands": "手臂/雙手", "Legs/Feet": "腿部/雙腳", "Scalp/Face": "頭皮/臉部", "High Blood Pressure": "高血壓", "Varicose Veins": "靜脈曲張", "Blood Clots/DVT": "血栓", "Osteoporosis": "骨質疏鬆", "Recent Surgery": "近期手術", "Pregnancy": "懷孕", "Skin Rashes": "皮疹", "Numbness/Tingling": "麻木/刺痛"},
+  zhCN: {"back": "返回", "or": "或", "select_location": "选择门店", "select_location_sub": "请选择今天的门店", "select_language": "选择语言", "select_language_sub": "请选择您偏好的语言", "gift_certificate": "礼品卡", "purchase_gift_certificate": "购买礼品卡", "welcome": "欢迎！", "select_service_sub": "请选择今天的服务", "continue": "继续", "submit_form": "提交表单", "clear": "清除", "thank_you": "谢谢！", "info_saved": "您的信息已保存。", "hand_ipad_back": "请将iPad交还给您的技师。", "new_client": "新客人", "form_subtitle": "请完成以下所有栏位并签名", "svc_lash_name": "睫毛延长", "svc_lash_desc": "延伸与卷翘", "svc_facial_name": "面部护理", "svc_facial_desc": "护肤疗程", "svc_headspa_name": "头部护理", "svc_headspa_desc": "头皮护理", "svc_massage_name": "按摩", "svc_massage_desc": "全身放松", "sec_personal_info": "个人信息", "lbl_first_name": "名字 *", "ph_first_name": "名字", "lbl_last_name": "姓氏 *", "ph_last_name": "姓氏", "lbl_phone": "电话 *", "lbl_email": "电邮", "lbl_dob": "生日", "month": "月", "day": "日", "lbl_hear": "如何得知我们？", "sec_signature": "签名", "lbl_print_name": "印刷体姓名", "ph_auto_filled": "自动填入", "lbl_date": "日期", "lbl_signature": "签名", "sec_client_info": "客户信息", "q_sensitive_eyes": "您认为您有敏感眼睛吗？", "q_prev_lash": "您以前有做过睫毛延伸吗？", "q_contacts": "您戴隐形眼镜吗？", "q_lash_allergy": "已知过敏？（胶水、乳胶、胶带）", "ph_please_specify": "请说明...", "sec_skin_analysis": "皮肤分析 — 日常护理", "q_makeup": "1. 您使用化妆品吗？", "lbl_makeup_removal": "卸妆方式：", "q_face_wash": "2. 洗脸产品类型：", "q_water_temp": "3. 用水温度偏好：", "q_exfoliator": "4. 您使用去角质/酵素产品吗？", "q_vitc": "5. 维他命C或美白产品？", "lbl_usage_freq": "使用频率：", "sec_medical": "医疗与特殊需求", "q_medical_check": "6. 请勾选适用项：", "opt_claustrophobia": "幽闭恐惧", "lbl_allergies_7": "7. 过敏 (阿司匹林、碘、坚果等)", "ph_list_allergies": "列出所有过敏...", "lbl_massage_intensity_8": "8. 肩颈按摩力度 (1–10)", "ph_eg_5": "例如：5", "sec_addons_waxing": "附加服务与除毛", "lbl_addons": "附加服务：", "lbl_waxing": "除毛：", "sec_headspa_consult": "头疗咨询", "q_prev_spa": "1. 您之前有做过头皮按摩吗？", "q_medication": "2. 您目前有服用药物吗？", "ph_if_yes_specify": "如是，请说明...", "q_spa_allergy": "3. 您有任何过敏吗？", "q_pregnant_spa": "4. 您目前怀孕吗？", "q_water_pref": "5. 水温偏好：", "q_head_pressure": "6. 头部按摩力度：", "q_neck_pressure": "7. 颈肩按摩力度：", "q_scalp_indicate": "8. 请指出以下哪项适用于您：", "lbl_surgery_9": "9. 头部、颈部或肩部手术（如有）：", "ph_describe_if_applicable": "如适用请描述...", "sec_massage_pref": "1. 按摩偏好", "lbl_desired_pressure": "期望力度：", "lbl_focus_areas": "重点部位：", "sec_health_history": "2. 健康状况", "q_health_conditions": "您有以下任何状况吗？", "Yes": "是", "No": "否", "Yes, love them": "是，喜欢", "Yes, had reactions": "是，有过敏反应", "No, first time": "否，第一次", "Oil": "油", "Wipes": "湿巾", "Soap": "肥皂", "Other": "其他", "Foam": "泡沫", "Cold": "冷", "Warm": "暖", "Daily": "每天", "Weekly": "每周", "Sometimes": "有时", "Currently Pregnant": "目前怀孕", "Metal implants in body": "体内有金属植入物", "A: Do not cover my eyes and lip": "A: 请不要遮住我的眼睛和嘴唇", "B: Masks OK, let me know before applying": "B: 可以敷面膜，敷之前请先告知我", "C: I need to keep the lights on": "C: 我需要开着灯", "Google": "Google", "Yelp": "Yelp", "Friend": "朋友推荐", "Pass By": "路过", "Ultrasonic Cleaning ($25)": "超声波清洁 ($25)", "Eye Treatment Device ($45)": "眼部护理仪 ($45)", "Eye Treatment Upgrade Pola ($25)": "眼部护理升级Pola ($25)", "Brow ($30)": "眉毛 ($30)", "Full Face ($55)": "全脸 ($55)", "Chin Lip ($15)": "下巴嘴唇 ($15)", "Under Arm ($40)": "腋下 ($40)", "Brow Lip ($40)": "眉毛嘴唇 ($40)", "Cool": "凉", "Normal": "正常", "Extra Warm": "热", "Soft": "轻", "Medium": "中", "Hard": "重", "Skin Conditions": "皮肤问题", "Dandruff": "头皮屑", "Eczema": "湿疹", "Psoriasis": "牛皮癣", "Light": "轻", "Firm / Deep Tissue": "深层组织", "Neck": "颈部", "Shoulders": "肩部", "Upper Back": "上背部", "Lower Back": "下背部", "Hips/Glutes": "臀部", "Arms/Hands": "手臂/双手", "Legs/Feet": "腿部/双脚", "Scalp/Face": "头皮/脸部", "High Blood Pressure": "高血压", "Varicose Veins": "静脉曲张", "Blood Clots/DVT": "血栓", "Osteoporosis": "骨质疏松", "Recent Surgery": "近期手术", "Pregnancy": "怀孕", "Skin Rashes": "皮疹", "Numbness/Tingling": "麻木/刺痛"},
+  ja: {"back": "戻る", "or": "または", "select_location": "店舗を選択", "select_location_sub": "本日ご利用の店舗を選択してください", "select_language": "言語を選択", "select_language_sub": "ご希望の言語を選択してください", "gift_certificate": "ギフト券", "purchase_gift_certificate": "ギフト券を購入する", "welcome": "ようこそ！", "select_service_sub": "本日のサービスを選択してください", "continue": "次へ", "submit_form": "フォームを送信", "clear": "消去", "thank_you": "ありがとうございました！", "info_saved": "情報が保存されました。", "hand_ipad_back": "iPadを担当スタッフにお返しください。", "new_client": "新規のお客様", "form_subtitle": "すべての項目にご記入の上、下部にご署名ください", "svc_lash_name": "まつげ", "svc_lash_desc": "エクステ＆リフト", "svc_facial_name": "フェイシャル", "svc_facial_desc": "スキンケア＆トリートメント", "svc_headspa_name": "ヘッドスパ", "svc_headspa_desc": "頭皮ケア", "svc_massage_name": "マッサージ", "svc_massage_desc": "ボディ＆リラクゼーション", "sec_personal_info": "個人情報", "lbl_first_name": "名 *", "ph_first_name": "名", "lbl_last_name": "姓 *", "ph_last_name": "姓", "lbl_phone": "電話番号 *", "lbl_email": "メール", "lbl_dob": "生年月日", "month": "月", "day": "日", "lbl_hear": "当店をどこでお知りになりましたか？", "sec_signature": "署名", "lbl_print_name": "氏名（活字体）", "ph_auto_filled": "自動入力", "lbl_date": "日付", "lbl_signature": "署名", "sec_client_info": "お客様情報", "q_sensitive_eyes": "目が敏感だと思いますか？", "q_prev_lash": "以前にまつげエクステをしたことがありますか？", "q_contacts": "コンタクトレンズを使用していますか？", "q_lash_allergy": "既知のアレルギーはありますか？（接着剤、ラテックス、テープ）", "ph_please_specify": "詳細をご記入ください…", "sec_skin_analysis": "肌肉分析 — デイリーケア", "q_makeup": "1. メイクをしますか？", "lbl_makeup_removal": "メイク落としの方法：", "q_face_wash": "2. 洗顔料のタイプ：", "q_water_temp": "3. 使用するお湯の温度：", "q_exfoliator": "4. 角質ケアや酵素製品を使用していますか？", "q_vitc": "5. ビタミンCや美白製品を使用していますか？", "lbl_usage_freq": "使用頻度：", "sec_medical": "医療・特別配慮事項", "q_medical_check": "6. 該当する項目にチェックしてください：", "opt_claustrophobia": "閉所恐怖症", "lbl_allergies_7": "7. アレルギー（アスピリン、ヨウ素、ナッツ類など）", "ph_list_allergies": "アレルギーがあればご記入ください…", "lbl_massage_intensity_8": "8. 肩・首マッサージの強さ（1〜10）", "ph_eg_5": "例：5", "sec_addons_waxing": "オプション＆ワックス脱毛", "lbl_addons": "オプション：", "lbl_waxing": "ワックス脱毛：", "sec_headspa_consult": "ヘッドスパ カウンセリング", "q_prev_spa": "1. 以前に頭皮マッサージを受けたことがありますか？", "q_medication": "2. 現在服用中のお薬はありますか？", "ph_if_yes_specify": "はいの場合、詳細をご記入ください…", "q_spa_allergy": "3. アレルギーはありますか？", "q_pregnant_spa": "4. 妊娠していますか？", "q_water_pref": "5. お湯の温度の好み：", "q_head_pressure": "6. 頭部マッサージの強さ：", "q_neck_pressure": "7. 首・肩マッサージの強さ：", "q_scalp_indicate": "8. 該当するものがあればお知らせください：", "lbl_surgery_9": "9. 頭部・首・肩の手術歴（あれば）：", "ph_describe_if_applicable": "該当する場合はご記入ください…", "sec_massage_pref": "1. マッサージのご希望", "lbl_desired_pressure": "希望する強さ：", "lbl_focus_areas": "重点的にマッサージしてほしい部位：", "sec_health_history": "2. 健康状態", "q_health_conditions": "以下のいずれかに該当しますか？", "Yes": "はい", "No": "いいえ", "Yes, love them": "はい、気に入っています", "Yes, had reactions": "はい、反応が出たことがあります", "No, first time": "いいえ、初めてです", "Oil": "オイル", "Wipes": "ウェットティッシュ", "Soap": "石鹸", "Other": "その他", "Foam": "洗顔フォーム", "Cold": "冷たい", "Warm": "ぬるめ", "Daily": "毎日", "Weekly": "毎週", "Sometimes": "時々", "Currently Pregnant": "現在妊娠中", "Metal implants in body": "体内に金属インプラントがある", "A: Do not cover my eyes and lip": "A: 目と唇は覆わないでください", "B: Masks OK, let me know before applying": "B: マスク使用OK、塗布前に教えてください", "C: I need to keep the lights on": "C: 明かりをつけたままにしてほしい", "Google": "Google", "Yelp": "Yelp", "Friend": "友人の紹介", "Pass By": "通りがかり", "Ultrasonic Cleaning ($25)": "超音波クレンジング（$25）", "Eye Treatment Device ($45)": "アイトリートメント機器（$45）", "Eye Treatment Upgrade Pola ($25)": "アイトリートメントアップグレード Pola（$25）", "Brow ($30)": "眉毛（$30）", "Full Face ($55)": "顔全体（$55）", "Chin Lip ($15)": "顎・唇（$15）", "Under Arm ($40)": "脇（$40）", "Brow Lip ($40)": "眉毛・唇（$40）", "Cool": "涼しめ", "Normal": "普通", "Extra Warm": "熱め", "Soft": "弱め", "Medium": "普通", "Hard": "強め", "Skin Conditions": "皮膚トラブル", "Dandruff": "フケ", "Eczema": "湿疹", "Psoriasis": "乾癬", "Light": "弱め", "Firm / Deep Tissue": "強め／ディープティシュー", "Neck": "首", "Shoulders": "肩", "Upper Back": "背中上部", "Lower Back": "背中下部", "Hips/Glutes": "腰・お尻", "Arms/Hands": "腕・手", "Legs/Feet": "脚", "Scalp/Face": "頭皮・顔", "High Blood Pressure": "高血圧", "Varicose Veins": "静脈瘤", "Blood Clots/DVT": "血栓症", "Osteoporosis": "骨粗鬆症", "Recent Surgery": "最近の手術", "Pregnancy": "妊娠", "Skin Rashes": "皮膚の発疹", "Numbness/Tingling": "しびれ・チクチク感"},
+  ko: {"back": "뒤로", "or": "또는", "select_location": "매장 선택", "select_location_sub": "오늘 방문하실 매장을 선택해 주세요", "select_language": "언어 선택", "select_language_sub": "선호하는 언어를 선택해 주세요", "gift_certificate": "기프트 카드", "purchase_gift_certificate": "기프트 카드 구매", "welcome": "환영합니다!", "select_service_sub": "오늘 이용하실 서비스를 선택해 주세요", "continue": "계속", "submit_form": "양식 제출", "clear": "지우기", "thank_you": "감사합니다!", "info_saved": "정보가 저장되었습니다.", "hand_ipad_back": "아이패드를 담당 직원에게 돌려주세요.", "new_client": "신규 고객", "form_subtitle": "모든 항목을 작성하신 후 아래에 서명해 주세요", "svc_lash_name": "속눈썹", "svc_lash_desc": "연장 & 리프팅", "svc_facial_name": "페이셜", "svc_facial_desc": "스킨케어 & 트리트먼트", "svc_headspa_name": "헤드 스파", "svc_headspa_desc": "두피 관리", "svc_massage_name": "마사지", "svc_massage_desc": "전신 & 릴렉스", "sec_personal_info": "개인 정보", "lbl_first_name": "이름 *", "ph_first_name": "이름", "lbl_last_name": "성 *", "ph_last_name": "성", "lbl_phone": "전화번호 *", "lbl_email": "이메일", "lbl_dob": "생년월일", "month": "월", "day": "일", "lbl_hear": "저희를 어떻게 알게 되셨나요?", "sec_signature": "서명", "lbl_print_name": "성명 (인쇄체)", "ph_auto_filled": "자동 입력", "lbl_date": "날짜", "lbl_signature": "서명", "sec_client_info": "고객 정보", "q_sensitive_eyes": "눈이 민감하다고 생각하시나요?", "q_prev_lash": "전에 속눈썹 연장을 받아보신 적이 있나요?", "q_contacts": "콘택트렌즈를 착용하시나요?", "q_lash_allergy": "알려진 알레르기가 있나요? (접착제, 라텍스, 테이프)", "ph_please_specify": "자세히 적어 주세요...", "sec_skin_analysis": "피부 분석 — 데일리 케어", "q_makeup": "1. 화장을 하시나요?", "lbl_makeup_removal": "화장 제거 방법:", "q_face_wash": "2. 클렌저 종류:", "q_water_temp": "3. 선호하는 물 온도:", "q_exfoliator": "4. 각질제거제 / 효소 제품을 사용하시나요?", "q_vitc": "5. 비타민C 또는 미백 제품을 사용하시나요?", "lbl_usage_freq": "사용 빈도:", "sec_medical": "의료 및 특별 요청 사항", "q_medical_check": "6. 해당하는 항목에 체크해 주세요:", "opt_claustrophobia": "폐소공포증", "lbl_allergies_7": "7. 알레르기 (아스피린, 요오드, 견과류 등)", "ph_list_allergies": "알레르기를 적어 주세요...", "lbl_massage_intensity_8": "8. 어깨/목 마사지 강도 (1–10)", "ph_eg_5": "예: 5", "sec_addons_waxing": "추가 서비스 & 왁싱", "lbl_addons": "추가 서비스:", "lbl_waxing": "왁싱:", "sec_headspa_consult": "헤드 스파 상담", "q_prev_spa": "1. 전에 두피 마사지를 받아보신 적이 있나요?", "q_medication": "2. 현재 복용 중인 약이 있나요?", "ph_if_yes_specify": "네, 라면 어떤 약인지 적어 주세요...", "q_spa_allergy": "3. 알레르기가 있나요?", "q_pregnant_spa": "4. 임신 중이신가요?", "q_water_pref": "5. 선호하는 물 온도:", "q_head_pressure": "6. 헤드 마사지 강도:", "q_neck_pressure": "7. 목/어깨 마사지 강도:", "q_scalp_indicate": "8. 해당하는 것이 있으면 알려주세요:", "lbl_surgery_9": "9. 머리, 목, 어깨 수술 이력 (있는 경우):", "ph_describe_if_applicable": "해당되는 경우 설명해 주세요...", "sec_massage_pref": "1. 마사지 선호도", "lbl_desired_pressure": "원하는 강도:", "lbl_focus_areas": "집중 부위:", "sec_health_history": "2. 건강 이력", "q_health_conditions": "다음 중 해당하는 것이 있나요?", "Yes": "네", "No": "아니요", "Yes, love them": "네, 좋아해요", "Yes, had reactions": "네, 반응이 있었어요", "No, first time": "아니요, 처음이에요", "Oil": "오일", "Wipes": "물티슈", "Soap": "비누", "Other": "기타", "Foam": "폼클렌저", "Cold": "차가움", "Warm": "따뜻함", "Daily": "매일", "Weekly": "매주", "Sometimes": "가끔", "Currently Pregnant": "현재 임신 중", "Metal implants in body": "체내 금속 삽입물 있음", "A: Do not cover my eyes and lip": "A: 눈과 입은 가리지 말아주세요", "B: Masks OK, let me know before applying": "B: 마스크 사용 괜찮음, 도포 전에 알려주세요", "C: I need to keep the lights on": "C: 조명을 켜 두어야 해요", "Google": "Google", "Yelp": "Yelp", "Friend": "친구 추천", "Pass By": "지나가다 발견", "Ultrasonic Cleaning ($25)": "초음파 클렌징 ($25)", "Eye Treatment Device ($45)": "아이 트리트먼트 기기 ($45)", "Eye Treatment Upgrade Pola ($25)": "아이 트리트먼트 업그레이드 Pola ($25)", "Brow ($30)": "눈썹 ($30)", "Full Face ($55)": "얼굴 전체 ($55)", "Chin Lip ($15)": "턱/입술 ($15)", "Under Arm ($40)": "겨드랑이 ($40)", "Brow Lip ($40)": "눈썹/입술 ($40)", "Cool": "시원함", "Normal": "보통", "Extra Warm": "매우 따뜻함", "Soft": "약하게", "Medium": "보통", "Hard": "강하게", "Skin Conditions": "피부 질환", "Dandruff": "비듬", "Eczema": "습진", "Psoriasis": "건선", "Light": "가볍게", "Firm / Deep Tissue": "강하게 / 딥티슈", "Neck": "목", "Shoulders": "어깨", "Upper Back": "등 상부", "Lower Back": "등 하부", "Hips/Glutes": "엉덩이", "Arms/Hands": "팔/손", "Legs/Feet": "다리/발", "Scalp/Face": "두피/얼굴", "High Blood Pressure": "고혈압", "Varicose Veins": "정맥류", "Blood Clots/DVT": "혈전/DVT", "Osteoporosis": "골다공증", "Recent Surgery": "최근 수술", "Pregnancy": "임신", "Skin Rashes": "피부 발진", "Numbness/Tingling": "저림/따끔거림"},
+};
+function t(key) {
+  var d = T[curLang] || T.en;
+  if (d && d[key] !== undefined) return d[key];
+  return (T.en[key] !== undefined) ? T.en[key] : key;
+}
+function applyI18n() {
+  document.querySelectorAll('[data-i18n]').forEach(function(el){
+    el.textContent = t(el.getAttribute('data-i18n'));
+  });
+  document.querySelectorAll('[data-i18n-ph]').forEach(function(el){
+    el.setAttribute('placeholder', t(el.getAttribute('data-i18n-ph')));
+  });
+}
+window.applyI18n = applyI18n;
 
 function pickSvc(svc, el) {
   curSvc = svc;
@@ -456,16 +498,20 @@ function pickSvc(svc, el) {
 }
 
 // ── RADIO / CHECKBOX HELPERS ──
+// opts = array of CANONICAL (English) values; the displayed label is translated
+// via t() based on curLang, but data-val always stays canonical English so
+// staff-facing summaries stay consistent regardless of which language the
+// client filled the form in.
 function radio(name, opts, inline) {
   return `<div class="opt-group${inline?'':' col'}">`
     + opts.map(o=>`<div class="opt-btn" data-name="${name}" data-val="${o}" onclick="pickOpt(this,'radio')">`
-      +`<span class="dot"></span>${o}</div>`).join('')
+      +`<span class="dot"></span>${t(o)}</div>`).join('')
     + `</div>`;
 }
 function checkbox(name, opts, inline) {
   return `<div class="opt-group${inline?'':' col'}">`
     + opts.map(o=>`<div class="opt-btn" data-name="${name}" data-val="${o}" onclick="pickOpt(this,'check')">`
-      +`<span class="sq"></span>${o}</div>`).join('')
+      +`<span class="sq"></span>${t(o)}</div>`).join('')
     + `</div>`;
 }
 function pickOpt(el, type) {
@@ -480,17 +526,17 @@ function pickOpt(el, type) {
 // ── COMMON INFO SECTION ──
 function commonInfo() {
   return `<div class="sec">
-    <div class="sec-title">Personal Information 个人信息</div>
+    <div class="sec-title">${t('sec_personal_info')}</div>
     <div class="field-row">
-      <div class="field"><label>First Name * 名字</label><input type="text" id="f-first" placeholder="First name 名字" autocomplete="off" oninput="autoFillPrintName()"></div>
-      <div class="field"><label>Last Name * 姓氏</label><input type="text" id="f-last" placeholder="Last name 姓氏" autocomplete="off" oninput="autoFillPrintName()"></div>
+      <div class="field"><label>${t('lbl_first_name')}</label><input type="text" id="f-first" placeholder="${t('ph_first_name')}" autocomplete="off" oninput="autoFillPrintName()"></div>
+      <div class="field"><label>${t('lbl_last_name')}</label><input type="text" id="f-last" placeholder="${t('ph_last_name')}" autocomplete="off" oninput="autoFillPrintName()"></div>
     </div>
-    <div class="field"><label>Phone Number * 电话</label><input type="tel" id="f-phone" placeholder="(415) 000-0000" autocomplete="off" inputmode="numeric" oninput="formatPhoneInput(this)"></div>
-    <div class="field"><label>E-mail 电邮</label><input type="email" id="f-email" placeholder="email@example.com" autocomplete="off"></div>
-    <div class="field"><label>Date of Birth 生日</label>
+    <div class="field"><label>${t('lbl_phone')}</label><input type="tel" id="f-phone" placeholder="(415) 000-0000" autocomplete="off" inputmode="numeric" oninput="formatPhoneInput(this)"></div>
+    <div class="field"><label>${t('lbl_email')}</label><input type="email" id="f-email" placeholder="email@example.com" autocomplete="off"></div>
+    <div class="field"><label>${t('lbl_dob')}</label>
 <div style="display:flex;gap:8px;align-items:center">
   <select id="f-dob-m" style="flex:1;padding:10px;border:1.5px solid var(--border);border-radius:9px;font-size:15px;background:var(--card);color:var(--txt);font-family:inherit">
-    <option value="">Month</option>
+    <option value="">${t('month')}</option>
     <option value="01">01 - January</option><option value="02">02 - February</option>
     <option value="03">03 - March</option><option value="04">04 - April</option>
     <option value="05">05 - May</option><option value="06">06 - June</option>
@@ -499,13 +545,13 @@ function commonInfo() {
     <option value="11">11 - November</option><option value="12">12 - December</option>
   </select>
   <select id="f-dob-d" style="flex:1;padding:10px;border:1.5px solid var(--border);border-radius:9px;font-size:15px;background:var(--card);color:var(--txt);font-family:inherit">
-    <option value="">Day</option>
+    <option value="">${t('day')}</option>
     ${Array.from({length:31},(_,i)=>`<option value="${String(i+1).padStart(2,'0')}">${String(i+1).padStart(2,'0')}</option>`).join('')}
   </select>
 </div></div>
     <div class="field">
-      <label>How did you hear about us? 如何得知我们？</label>
-      ${checkbox('hear',['Google','Yelp','Friend 朋友推荐','Pass By 路过'],true)}
+      <label>${t('lbl_hear')}</label>
+      ${checkbox('hear',['Google','Yelp','Friend','Pass By'],true)}
     </div>
   </div>`;
 }
@@ -513,14 +559,14 @@ function commonInfo() {
 // ── SIGNATURE SECTION ──
 function sigSection() {
   return `<div class="sec">
-    <div class="sec-title">Signature</div>
-    <div class="field"><label>Print Name 印刷体姓名</label><input type="text" id="f-print-name" placeholder="Auto-filled 自动填入" autocomplete="off" readonly style="background:var(--rose-light);color:var(--sub);cursor:default"></div>
-    <div class="field"><label>Date 日期</label><input type="text" id="f-date" value="${new Date().toLocaleDateString('en-US')}" readonly style="color:var(--sub)"></div>
+    <div class="sec-title">${t('sec_signature')}</div>
+    <div class="field"><label>${t('lbl_print_name')}</label><input type="text" id="f-print-name" placeholder="${t('ph_auto_filled')}" autocomplete="off" readonly style="background:var(--rose-light);color:var(--sub);cursor:default"></div>
+    <div class="field"><label>${t('lbl_date')}</label><input type="text" id="f-date" value="${new Date().toLocaleDateString('en-US')}" readonly style="color:var(--sub)"></div>
     <div class="field">
-      <label>Signature 签名</label>
+      <label>${t('lbl_signature')}</label>
       <div class="sig-wrap">
         <canvas id="sig-canvas" height="160"></canvas>
-        <button class="sig-clear" onclick="clearSig()">Clear 清除</button>
+        <button class="sig-clear" onclick="clearSig()">${t('clear')}</button>
       </div>
     </div>
   </div>`;
@@ -530,36 +576,36 @@ function sigSection() {
 function buildLash() {
   return commonInfo() + `
   <div class="sec">
-    <div class="sec-title">Client Information 客户信息</div>
+    <div class="sec-title">${t('sec_client_info')}</div>
     <div class="field">
-      <div class="ql">Do you think you have sensitive eyes? 您认为您有敏感眼睛吗？</div>
-      ${radio('sensitive',['Yes 是','No 否'],true)}
+      <div class="ql">${t('q_sensitive_eyes')}</div>
+      ${radio('sensitive',['Yes','No'],true)}
     </div>
     <div class="field">
-      <div class="ql">Have you had eyelash extensions before? 您以前有做过睫毛延伸吗？</div>
-      ${radio('prev-lash',['Yes, love them 是，喜欢','Yes, had reactions 是，有过敏反应','No, first time 否，第一次'],false)}
+      <div class="ql">${t('q_prev_lash')}</div>
+      ${radio('prev-lash',['Yes, love them','Yes, had reactions','No, first time'],false)}
     </div>
     <div class="field">
-      <div class="ql">Do you wear contact lenses? 您戴隐形眼镜吗？</div>
-      ${radio('contacts',['Yes 是','No 否'],true)}
+      <div class="ql">${t('q_contacts')}</div>
+      ${radio('contacts',['Yes','No'],true)}
     </div>
     <div class="field">
-      <div class="ql">Any known allergies? (glue, latex, tape) 已知过敏？（胶水、乳胶、胶带）</div>
-      ${radio('lash-allergy',['Yes 是','No 否'],true)}
+      <div class="ql">${t('q_lash_allergy')}</div>
+      ${radio('lash-allergy',['Yes','No'],true)}
       <div id="lash-allergy-detail" style="margin-top:8px;display:none">
-        <input type="text" id="f-lash-allergy-detail" placeholder="Please specify... 请说明...">
+        <input type="text" id="f-lash-allergy-detail" placeholder="${t('ph_please_specify')}">
       </div>
     </div>
   </div>
   <div class="sec">
-    <div class="sec-title">Policy & Consent 同意书 政策与同意</div>
+    <div class="sec-title">Policy & Consent 同意書 政策與同意</div>
     <div class="policy-box">
       <b>1. Appointment Policy:</b> All services by appointment only. Please provide 3 hours notice to avoid a $30 cancellation charge.<br><br>
       <b>2. Payment:</b> CASH Preferred. All types of Credit Cards accepted. No checks.<br><br>
       <b>3. Fix/Removal:</b> If you experience discomfort or a lash becomes dislodged, contact us immediately. Do NOT attempt removal yourself — this can damage your natural lashes. <b>We are only responsible for complaints within 48 hours.</b><br><br>
       <b>4. Refunds:</b> If you are unhappy with the service, please let us know within 48 hours. We can consider a half or full refund.
     </div>
-    <div class="ql" style="margin-bottom:10px">Please initial each item below: 请在以下每项旁边签名缩写：</div>
+    <div class="ql" style="margin-bottom:10px">Please initial each item below: 請在以下每項旁邊簽名縮寫：</div>
     <div class="initial-list">
       <div class="initial-item"><div class="initial-check" onclick="toggleInitial(this)">✓</div><span>I understand this procedure involves synthetic eyelashes to be glued to my natural eyelashes.</span></div>
       <div class="initial-item"><div class="initial-check" onclick="toggleInitial(this)">✓</div><span>I understand there are risks including eye redness and irritation. Adhesive fumes may cause tearing if I open my eyes during application.</span></div>
@@ -576,71 +622,71 @@ function buildLash() {
 function buildFacial() {
   return commonInfo() + `
   <div class="sec">
-    <div class="sec-title">Skin Analysis — Daily Care 皮肤分析 — 日常护理</div>
+    <div class="sec-title">${t('sec_skin_analysis')}</div>
     <div class="field">
-      <div class="ql">1. Do you wear makeup? 您使用化妆品吗？</div>
-      ${radio('makeup',['Yes 是','No 否'],true)}
-      <div style="margin-top:8px"><div class="ql" style="font-size:12px;color:var(--sub)">Makeup removal method: 卸妆方式：</div>${checkbox('makeup-removal',['Oil 油','Wipes 湿巾','Soap 肥皂','Other 其他'],true)}</div>
+      <div class="ql">${t('q_makeup')}</div>
+      ${radio('makeup',['Yes','No'],true)}
+      <div style="margin-top:8px"><div class="ql" style="font-size:12px;color:var(--sub)">${t('lbl_makeup_removal')}</div>${checkbox('makeup-removal',['Oil','Wipes','Soap','Other'],true)}</div>
     </div>
     <div class="field">
-      <div class="ql">2. Face wash type: 洗脸产品类型：</div>
-      ${checkbox('face-wash',['Foam 泡沫','Soap 肥皂','Other 其他'],true)}
+      <div class="ql">${t('q_face_wash')}</div>
+      ${checkbox('face-wash',['Foam','Soap','Other'],true)}
     </div>
     <div class="field">
-      <div class="ql">3. Water temperature preference: 用水温度偏好：</div>
-      ${radio('water-temp',['Cold 冷','Warm 暖'],true)}
+      <div class="ql">${t('q_water_temp')}</div>
+      ${radio('water-temp',['Cold','Warm'],true)}
     </div>
     <div class="field">
-      <div class="ql">4. Do you use exfoliators / enzymatic products? 您使用去角质/酵素产品吗？</div>
-      ${radio('exfoliator',['Yes 是','No 否'],true)}
+      <div class="ql">${t('q_exfoliator')}</div>
+      ${radio('exfoliator',['Yes','No'],true)}
     </div>
     <div class="field">
-      <div class="ql">5. Vitamin C or Brightening/Whitening products? 维他命C或美白产品？</div>
-      ${radio('vitc',['Yes 是','No 否'],true)}
-      <div style="margin-top:8px"><div class="ql" style="font-size:12px;color:var(--sub)">Usage frequency: 使用频率：</div>${radio('vitc-freq',['Daily 每天','Weekly 每周','Sometimes 有时'],true)}</div>
+      <div class="ql">${t('q_vitc')}</div>
+      ${radio('vitc',['Yes','No'],true)}
+      <div style="margin-top:8px"><div class="ql" style="font-size:12px;color:var(--sub)">${t('lbl_usage_freq')}</div>${radio('vitc-freq',['Daily','Weekly','Sometimes'],true)}</div>
     </div>
   </div>
   <div class="sec">
-    <div class="sec-title">Medical & Special Requirements 医疗与特殊需求</div>
+    <div class="sec-title">${t('sec_medical')}</div>
     <div class="field">
-      <div class="ql">6. Please check if apply: 请勾选适用项：</div>
-      ${checkbox('medical',['Currently Pregnant 目前怀孕','Metal implants in body 体内有金属植入物'],false)}
+      <div class="ql">${t('q_medical_check')}</div>
+      ${checkbox('medical',['Currently Pregnant','Metal implants in body'],false)}
       <div style="margin-top:8px">
-        <div class="opt-btn" data-name="claustrophobia" data-val="Yes" onclick="pickOpt(this,'check');toggleClaus()"><span class="sq"></span>Claustrophobia</div>
+        <div class="opt-btn" data-name="claustrophobia" data-val="Yes" onclick="pickOpt(this,'check');toggleClaus()"><span class="sq"></span>${t('opt_claustrophobia')}</div>
         <div id="claus-opts" style="display:none;margin-top:8px;margin-left:24px">
-          ${checkbox('claus-pref',['A: Do not cover my eyes and lip 请不要遮住我的眼睛和嘴唇','B: Masks OK, let me know before applying 可以敷面膜，敷之前请先告知我','C: I need to keep the lights on 我需要开着灯'],false)}
+          ${checkbox('claus-pref',['A: Do not cover my eyes and lip','B: Masks OK, let me know before applying','C: I need to keep the lights on'],false)}
         </div>
       </div>
     </div>
     <div class="field">
-      <label>7. Allergies 过敏 (Aspirin, Iodine, Nuts, etc.)</label>
-      <input type="text" id="f-facial-allergy" placeholder="List any allergies... 列出所有过敏...">
+      <label>${t('lbl_allergies_7')}</label>
+      <input type="text" id="f-facial-allergy" placeholder="${t('ph_list_allergies')}">
     </div>
     <div class="field">
-      <label>8. Shoulder/Neck 颈部 Massage intensity 肩颈按摩力度 (1–10)</label>
-      <input type="text" id="f-massage-intensity" placeholder="e.g. 5 例如：5">
+      <label>${t('lbl_massage_intensity_8')}</label>
+      <input type="text" id="f-massage-intensity" placeholder="${t('ph_eg_5')}">
     </div>
   </div>
 
   <div class="sec">
-    <div class="sec-title">Add-ons & Waxing 附加服务与除毛</div>
+    <div class="sec-title">${t('sec_addons_waxing')}</div>
     <div class="field">
-      <div class="ql">Add-ons 附加服务:</div>
-      ${checkbox('addons',['Ultrasonic Cleaning 超声波清洁 ($25)','Eye Treatment Device 眼部护理仪 ($45)','Eye Treatment Upgrade Pola 眼部护理升级Pola ($25)'],true)}
+      <div class="ql">${t('lbl_addons')}</div>
+      ${checkbox('addons',['Ultrasonic Cleaning ($25)','Eye Treatment Device ($45)','Eye Treatment Upgrade Pola ($25)'],true)}
     </div>
     <div class="field">
-      <div class="ql">Waxing 除毛:</div>
-      ${checkbox('waxing',['Brow 眉毛 ($30)','Full Face 全脸 ($55)','Chin Lip 下巴嘴唇 ($15)','Under Arm 腋下 ($40)','Brow Lip 眉毛嘴唇 ($40)'],true)}
+      <div class="ql">${t('lbl_waxing')}</div>
+      ${checkbox('waxing',['Brow ($30)','Full Face ($55)','Chin Lip ($15)','Under Arm ($40)','Brow Lip ($40)'],true)}
     </div>
   </div>
   <div class="sec">
-    <div class="sec-title">Consent 同意书</div>
+    <div class="sec-title">Consent 同意書</div>
     <div class="policy-box">
       I understand treatments are for cosmetic purposes. I have provided accurate health information. I've been informed that using brightening/Vitamin C products may cause sensitivity during treatment. I consent to the treatment and release ChicLash Boutique from any liability for adverse reactions not disclosed prior to treatment.
     </div>
     <label style="display:flex;align-items:flex-start;gap:12px;cursor:pointer;font-size:15px;line-height:1.5;padding:4px 0">
       <input type="checkbox" id="facial-consent-cb" style="width:22px;height:22px;margin-top:2px;accent-color:var(--ok);flex-shrink:0;cursor:pointer">
-      <span>I have read and agree to the above consent. 我已阅读并同意以上条款。 <b style="color:var(--rose)">*</b></span>
+      <span>I have read and agree to the above consent. 我已閱讀並同意以上條款。 <b style="color:var(--rose)">*</b></span>
     </label>
   </div>
   ` + sigSection();
@@ -650,44 +696,44 @@ function buildFacial() {
 function buildHeadSpa() {
   return commonInfo() + `
   <div class="sec">
-    <div class="sec-title">Head Spa Consultation 头疗咨询</div>
+    <div class="sec-title">${t('sec_headspa_consult')}</div>
     <div class="field">
-      <div class="ql">1. Have you received a scalp massage before? 您之前有做过头皮按摩吗？</div>
-      ${radio('prev-spa',['Yes 是','No 否'],true)}
+      <div class="ql">${t('q_prev_spa')}</div>
+      ${radio('prev-spa',['Yes','No'],true)}
     </div>
     <div class="field">
-      <div class="ql">2. Are you on any medication? 您目前有服用药物吗？</div>
-      ${radio('medication',['Yes 是','No 否'],true)}
-      <div style="margin-top:8px"><input type="text" id="f-medication-detail" placeholder="If yes, which ones... 如是，请说明..."></div>
+      <div class="ql">${t('q_medication')}</div>
+      ${radio('medication',['Yes','No'],true)}
+      <div style="margin-top:8px"><input type="text" id="f-medication-detail" placeholder="${t('ph_if_yes_specify')}"></div>
     </div>
     <div class="field">
-      <div class="ql">3. Do you have any allergies? 您有任何过敏吗？</div>
-      ${radio('spa-allergy',['Yes 是','No 否'],true)}
-      <div style="margin-top:8px"><input type="text" id="f-spa-allergy-detail" placeholder="If yes, which ones... 如是，请说明"></div>
+      <div class="ql">${t('q_spa_allergy')}</div>
+      ${radio('spa-allergy',['Yes','No'],true)}
+      <div style="margin-top:8px"><input type="text" id="f-spa-allergy-detail" placeholder="${t('ph_if_yes_specify')}"></div>
     </div>
     <div class="field">
-      <div class="ql">4. Are you pregnant? 您目前怀孕吗？</div>
-      ${radio('pregnant-spa',['Yes 是','No 否'],true)}
+      <div class="ql">${t('q_pregnant_spa')}</div>
+      ${radio('pregnant-spa',['Yes','No'],true)}
     </div>
     <div class="field">
-      <div class="ql">5. Water temperature preference: 水温偏好：</div>
-      ${radio('water-pref',['Cool 凉','Normal 普通','Warm 温','Extra Warm 热'],true)}
+      <div class="ql">${t('q_water_pref')}</div>
+      ${radio('water-pref',['Cool','Normal','Warm','Extra Warm'],true)}
     </div>
     <div class="field">
-      <div class="ql">6. Head Massage Pressure: 头部按摩力度：</div>
-      ${radio('head-pressure',['Soft 轻','Medium 中','Hard 重'],true)}
+      <div class="ql">${t('q_head_pressure')}</div>
+      ${radio('head-pressure',['Soft','Medium','Hard'],true)}
     </div>
     <div class="field">
-      <div class="ql">7. Neck & Shoulder Massage Pressure: 颈肩按摩力度：</div>
-      ${radio('neck-pressure',['Soft 轻','Medium 中','Hard 重'],true)}
+      <div class="ql">${t('q_neck_pressure')}</div>
+      ${radio('neck-pressure',['Soft','Medium','Hard'],true)}
     </div>
     <div class="field">
-      <div class="ql">8. Please indicate if you have any of the following: 请指出以下哪项适用于您：</div>
-      ${checkbox('scalp-cond',['Skin Conditions 皮肤问题','Dandruff 头皮屑','Eczema 湿疹','Psoriasis 牛皮癣'],true)}
+      <div class="ql">${t('q_scalp_indicate')}</div>
+      ${checkbox('scalp-cond',['Skin Conditions','Dandruff','Eczema','Psoriasis'],true)}
     </div>
     <div class="field">
-      <label>9. Head, neck or shoulder surgery (if any): 头部、颈部或肩部手术（如有）：</label>
-      <input type="text" id="f-surgery" placeholder="Describe if applicable... 如适用请描述...">
+      <label>${t('lbl_surgery_9')}</label>
+      <input type="text" id="f-surgery" placeholder="${t('ph_describe_if_applicable')}">
     </div>
   </div>
   <div class="sec">
@@ -707,21 +753,21 @@ function buildHeadSpa() {
 function buildMassage() {
   return commonInfo() + `
   <div class="sec">
-    <div class="sec-title">1. Massage Preferences 按摩偏好</div>
+    <div class="sec-title">${t('sec_massage_pref')}</div>
     <div class="field">
-      <div class="ql">Desired Pressure: 期望力度：</div>
-      ${radio('pressure',['Light 轻','Medium 中','Firm / Deep Tissue 深层组织'],true)}
+      <div class="ql">${t('lbl_desired_pressure')}</div>
+      ${radio('pressure',['Light','Medium','Firm / Deep Tissue'],true)}
     </div>
     <div class="field">
-      <div class="ql">Areas to Focus On: 重点部位：</div>
-      ${checkbox('focus-areas',['Neck 颈部','Shoulders 肩部','Upper Back 上背部','Lower Back 下背部','Hips/Glutes 臀部','Arms/Hands 手臂/双手','Legs/Feet 腿部/双脚','Scalp/Face 头皮/脸部'],true)}
+      <div class="ql">${t('lbl_focus_areas')}</div>
+      ${checkbox('focus-areas',['Neck','Shoulders','Upper Back','Lower Back','Hips/Glutes','Arms/Hands','Legs/Feet','Scalp/Face'],true)}
     </div>
   </div>
   <div class="sec">
-    <div class="sec-title">2. Health History 健康状况</div>
+    <div class="sec-title">${t('sec_health_history')}</div>
     <div class="field">
-      <div class="ql">Do you have any of the following? 您有以下任何状况吗？</div>
-      ${checkbox('health',['High Blood Pressure 高血压','Varicose Veins 静脉曲张','Blood Clots/DVT 血栓','Osteoporosis 骨质疏松','Recent Surgery 近期手术','Pregnancy 怀孕','Skin Rashes 皮疹','Numbness/Tingling 麻木/刺痛'],true)}
+      <div class="ql">${t('q_health_conditions')}</div>
+      ${checkbox('health',['High Blood Pressure','Varicose Veins','Blood Clots/DVT','Osteoporosis','Recent Surgery','Pregnancy','Skin Rashes','Numbness/Tingling'],true)}
     </div>
   </div>
   <div class="sec">
@@ -795,13 +841,14 @@ function getSigDataURL() {
 
 // ── SHOW FORM ──
 function showForm() {
-  var titles = {lash:'Eyelash Agreement & Consent 睫毛协议与同意书',facial:'Skin Care Report & Consent 护肤报告与同意书',headspa:'Head Spa Agreement & Consent 头疗协议与同意书',massage:'Massage Therapy Consent 按摩治疗同意书'};
+  var titles = {lash:'Eyelash Agreement & Consent 睫毛協議與同意書',facial:'Skin Care Report & Consent 護膚報告與同意書',headspa:'Head Spa Agreement & Consent 頭療協議與同意書',massage:'Massage Therapy Consent 按摩治療同意書'};
   document.getElementById('form-title').textContent = titles[curSvc];
-  document.getElementById('form-subtitle').textContent = 'Please complete all fields and sign below';
+  document.getElementById('form-subtitle').textContent = t('form_subtitle');
   var builders = {lash:buildLash, facial:buildFacial, headspa:buildHeadSpa, massage:buildMassage};
   document.getElementById('form-body').innerHTML = builders[curSvc]();
   document.getElementById('step-pick').style.display = 'none';
   document.getElementById('step-form').style.display = 'block';
+  applyI18n();
   window.scrollTo(0,0);
   setTimeout(initSig, 100);
 
@@ -924,26 +971,26 @@ async function submitForm() {
 
   // Translation map for English-only options（統一用簡體中文，跟員工薪資報表/Square備註一致）
   var TRANS = {
-    'High Blood Pressure':'高血压','Varicose Veins':'静脉曲张','Blood Clots/DVT':'血栓',
-    'Osteoporosis':'骨质疏松','Recent Surgery':'近期手术','Pregnancy':'怀孕',
-    'Skin Rashes':'皮肤疹','Numbness/Tingling':'麻木/刺痛',
-    'Neck':'颈部','Shoulders':'肩部','Upper Back':'上背','Lower Back':'下背',
-    'Hips/Glutes':'臀部','Arms/Hands':'手臂/手','Legs/Feet':'腿/脚','Scalp/Face':'头皮/脸',
-    'Light':'轻','Medium':'中','Firm / Deep Tissue':'深层/深组织',
-    'Soft':'轻','Hard':'重',
-    'Cool':'凉','Normal':'正常','Warm':'温','Extra Warm':'非常温',
-    'Skin Conditions':'皮肤状况','Dandruff':'头皮屑','Eczema':'湿疹','Psoriasis':'牛皮癣',
+    'High Blood Pressure':'高血壓','Varicose Veins':'靜脈曲張','Blood Clots/DVT':'血栓',
+    'Osteoporosis':'骨質疏鬆','Recent Surgery':'近期手術','Pregnancy':'懷孕',
+    'Skin Rashes':'皮膚疹','Numbness/Tingling':'麻木/刺痛',
+    'Neck':'頸部','Shoulders':'肩部','Upper Back':'上背','Lower Back':'下背',
+    'Hips/Glutes':'臀部','Arms/Hands':'手臂/手','Legs/Feet':'腿/腳','Scalp/Face':'頭皮/臉',
+    'Light':'輕','Medium':'中','Firm / Deep Tissue':'深層/深組織',
+    'Soft':'輕','Hard':'重',
+    'Cool':'涼','Normal':'正常','Warm':'溫','Extra Warm':'非常溫',
+    'Skin Conditions':'皮膚狀況','Dandruff':'頭皮屑','Eczema':'溼疹','Psoriasis':'牛皮癬',
     'Yes':'是','No':'否',
-    'Oil':'油','Wipes':'湿巾','Soap':'肥皂','Foam':'泡沫',
-    'Cold':'冷','Daily':'每天','Weekly':'每周','Sometimes':'有时',
-    'Currently Pregnant':'怀孕中','Metal implants in body':'体内金属植入物',
+    'Oil':'油','Wipes':'溼巾','Soap':'肥皂','Foam':'泡沫',
+    'Cold':'冷','Daily':'每天','Weekly':'每週','Sometimes':'有時',
+    'Currently Pregnant':'懷孕中','Metal implants in body':'體內金屬植入物',
     'A: Do not cover my eyes and lip':'A: 不要遮眼睛和嘴唇',
-    'B: Masks OK, let me know before applying':'B: 可以敷膜，请提前告知',
-    'C: I need to keep the lights on':'C: 需要开灯'
+    'B: Masks OK, let me know before applying':'B: 可以敷膜，請提前告知',
+    'C: I need to keep the lights on':'C: 需要開燈'
   };
   function tr(v){
     if(!v) return v;
-    // 選項文字如果已經內含中文字（例如表單裡本來就寫「Soft 轻」），代表已經是雙語，不用再處理
+    // 選項文字如果已經內含中文字（例如表單裡本來就寫「Soft 輕」），代表已經是雙語，不用再處理
     if(/[\u4e00-\u9fff]/.test(v)) return v;
     // 純英文的選項，如果查得到翻譯，用「英文 中文」附加顯示，不要整個取代掉英文
     var zh = TRANS[v];
@@ -957,7 +1004,7 @@ async function submitForm() {
     'lash-allergy':'Lash allergy 睫毛過敏','makeup':'Makeup 有化妝','makeup-removal':'Makeup removal 卸妝方式',
     'face-wash':'Face wash 洗臉方式','water-temp':'Water temp 水溫偏好','exfoliator':'Exfoliator 去角質',
     'vitc':'Vitamin C 美白產品','vitc-freq':'Frequency 使用頻率','medical':'Medical condition 醫療狀況',
-    'claustrophobia':'Claustrophobia 幽閉恐懼','claus-pref':'Preference 偏好','addons':'Add-ons 加購項目',
+    'claustrophobia':'Claustrophobia 幽閉恐懼','claus-pref':'Preference 偏好','addons':'Add-ons 加購專案',
     'waxing':'Waxing 蜜蠟','prev-spa':'Prev spa exp 頭皮按摩經驗','medication':'Medication 用藥',
     'spa-allergy':'Allergy 過敏','pregnant-spa':'Pregnant 懷孕','water-pref':'Water pref 水溫偏好',
     'head-pressure':'Head pressure 頭部力道','neck-pressure':'Neck/shoulder pressure 肩頸力道',
@@ -969,37 +1016,37 @@ async function submitForm() {
 
   // Build flags with Chinese
   var flags = [];
-  if(resp['lash-allergy']?.includes('Yes') || resp['spa-allergy']?.includes('Yes')) flags.push({warn:true, text:'⚠ Allergy 过敏 — '+(resp.allergyDetail||'請確認')});
+  if(resp['lash-allergy']?.includes('Yes') || resp['spa-allergy']?.includes('Yes')) flags.push({warn:true, text:'⚠ Allergy 過敏 — '+(resp.allergyDetail||'請確認')});
   if(resp['sensitive']?.includes('Yes')) flags.push({warn:true, text:'⚠ Sensitive eyes 眼睛敏感'});
-  if(resp['contacts']?.includes('Yes')) flags.push({warn:false, text:'👁 Wears contacts 戴隐形眼镜'});
-  if(resp['medical']?.includes('Currently Pregnant') || resp['pregnant-spa']?.includes('Yes')) flags.push({warn:true, text:'⚠ Pregnant 怀孕中'});
-  if(resp['medical']?.includes('Metal implants in body')) flags.push({warn:true, text:'⚠ Metal implants 体内金属植入物'});
-  if(resp['claustrophobia']?.length) flags.push({warn:false, text:'💡 Claustrophobia 幽闭恐惧 — '+trArr(resp['claus-pref'])});
-  if(resp['health']?.length) flags.push({warn:true, text:'⚠ Health conditions 健康状况：'+trArr(resp['health'])});
-  if(resp['medication']?.includes('Yes')) flags.push({warn:true, text:'⚠ On medication 有用药 — '+(resp.medicationDetail||'請確認')});
-  if(resp['surgery']) flags.push({warn:false, text:'🏥 Surgery history 手术史：'+resp.surgery});
-  if(resp['scalp-cond']?.length) flags.push({warn:false, text:'Scalp condition 头皮状况：'+trArr(resp['scalp-cond'])});
+  if(resp['contacts']?.includes('Yes')) flags.push({warn:false, text:'👁 Wears contacts 戴隱形眼鏡'});
+  if(resp['medical']?.includes('Currently Pregnant') || resp['pregnant-spa']?.includes('Yes')) flags.push({warn:true, text:'⚠ Pregnant 懷孕中'});
+  if(resp['medical']?.includes('Metal implants in body')) flags.push({warn:true, text:'⚠ Metal implants 體內金屬植入物'});
+  if(resp['claustrophobia']?.length) flags.push({warn:false, text:'💡 Claustrophobia 幽閉恐懼 — '+trArr(resp['claus-pref'])});
+  if(resp['health']?.length) flags.push({warn:true, text:'⚠ Health conditions 健康狀況：'+trArr(resp['health'])});
+  if(resp['medication']?.includes('Yes')) flags.push({warn:true, text:'⚠ On medication 有用藥 — '+(resp.medicationDetail||'請確認')});
+  if(resp['surgery']) flags.push({warn:false, text:'🏥 Surgery history 手術史：'+resp.surgery});
+  if(resp['scalp-cond']?.length) flags.push({warn:false, text:'Scalp condition 頭皮狀況：'+trArr(resp['scalp-cond'])});
 
   // Preferences with Chinese
   var prefs = [];
   if(resp['pressure']) prefs.push('Pressure 力道：'+trArr(resp['pressure']));
   if(resp['head-pressure']) prefs.push('頭部Pressure 力道：'+trArr(resp['head-pressure']));
   if(resp['neck-pressure']) prefs.push('肩頸Pressure 力道：'+trArr(resp['neck-pressure']));
-  if(resp['water-pref']) prefs.push('Water temp 水温：'+trArr(resp['water-pref']));
-  if(resp['focus-areas']?.length) prefs.push('Focus areas 重点部位：'+trArr(resp['focus-areas']));
-  if(resp['massageIntensity']) prefs.push('Massage intensity 按摩强度：'+resp.massageIntensity+'/10');
-  if(resp['addons']?.length) prefs.push('Add-ons 加购：'+trArr(resp['addons']));
-  if(resp['waxing']?.length) prefs.push('Waxing 蜜蜡：'+trArr(resp['waxing']));
+  if(resp['water-pref']) prefs.push('Water temp 水溫：'+trArr(resp['water-pref']));
+  if(resp['focus-areas']?.length) prefs.push('Focus areas 重點部位：'+trArr(resp['focus-areas']));
+  if(resp['massageIntensity']) prefs.push('Massage intensity 按摩強度：'+resp.massageIntensity+'/10');
+  if(resp['addons']?.length) prefs.push('Add-ons 加購：'+trArr(resp['addons']));
+  if(resp['waxing']?.length) prefs.push('Waxing 蜜蠟：'+trArr(resp['waxing']));
 
   var flagHtml = flags.length ? flags.map(f=>
     '<div style="display:flex;align-items:flex-start;gap:8px;padding:8px 12px;border-radius:8px;background:'+(f.warn?'#FBF0EC':'#F5F5F5')+';margin-bottom:6px;font-size:14px;color:'+(f.warn?'#B83010':'#1A1714')+'">'+f.text+'</div>'
-  ).join('') : '<div style="color:#6B6560;font-size:13px">No special notes 无特殊注意事项</div>';
+  ).join('') : '<div style="color:#6B6560;font-size:13px">No special notes 無特殊注意事項</div>';
 
   var prefHtml = prefs.length ? prefs.map(p=>
     '<div style="font-size:14px;color:#1A1714;padding:4px 0;border-bottom:1px solid #F0EBE5">'+p+'</div>'
   ).join('') : '';
 
-  // 所有問卷回答（不管有沒有觸發上面的警示，全部列出來，避免員工漏看任何一項）
+  // 所有問捲回答（不管有沒有觸發上面的警示，全部列出來，避免員工漏看任何一項）
   var allAnswers = [];
   Object.keys(resp).forEach(function(key){
     if(key==='allergyDetail'||key==='medicationDetail') return; // 已經在 Important Notes 裡顯示過了，不重複列
@@ -1027,15 +1074,15 @@ async function submitForm() {
       flagHtml+
     '</div>'+
     (prefs.length?'<div style="margin-bottom:16px"><div style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.1em;color:#C4726A;margin-bottom:8px">Preferences 偏好</div>'+prefHtml+'</div>':'')+
-    (allAnswers.length?'<div style="margin-bottom:16px"><div style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.1em;color:#C4726A;margin-bottom:8px">All Answers 完整問卷回答</div>'+allAnswersHtml+'</div>':'')+
+    (allAnswers.length?'<div style="margin-bottom:16px"><div style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.1em;color:#C4726A;margin-bottom:8px">All Answers 完整問捲回答</div>'+allAnswersHtml+'</div>':'')+
     '<div style="display:flex;align-items:center;gap:8px;font-size:13px;color:'+(hasSig?'#3A7D5A':'#B83010')+';margin-bottom:16px">'+
-      (hasSig?'✓ Signed 已签名':'⚠ Not signed — please ask client to sign | 尚未签名，请让客户补签')+
+      (hasSig?'✓ Signed 已簽名':'⚠ Not signed — please ask client to sign | 尚未簽名，請讓客戶補籤')+
     '</div>'+
     // Agreement checkbox — required before saving
     '<div id="agreement-check-wrap" style="background:#F0FDF4;border:1.5px solid #A8D9BC;border-radius:10px;padding:14px 16px;margin-bottom:4px">'+
       '<label style="display:flex;align-items:flex-start;gap:12px;cursor:pointer;font-size:14px;line-height:1.5">'+
         '<input type="checkbox" id="staff-agreement-cb" onchange="checkAgreement()" style="width:20px;height:20px;margin-top:2px;accent-color:#3A7D5A;flex-shrink:0;cursor:pointer">'+
-        '<span>Staff confirm: Client has read, agreed to all terms, and signed. 工作人员确认：客户已阅读并同意所有条款，并完成签名。<b>(Required before saving 必须勾选才能保存)</b></span>'+
+        '<span>Staff confirm: Client has read, agreed to all terms, and signed. 工作人員確認：客戶已閱讀並同意所有條款，並完成簽名。<b>(Required before saving 必須勾選才能儲存)</b></span>'+
       '</label>'+
     '</div>';
 
@@ -1090,7 +1137,7 @@ async function confirmAndSave() {
       if (attempt === MAX_TRIES) {
         alert('網路連線異常，儲存失敗，請確認 WiFi 後再試一次\nConnection issue — please check WiFi and try again.');
         btn.disabled = false;
-        btn.textContent = '✓ Confirm & Save 确认并保存';
+        btn.textContent = '✓ Confirm & Save 確認並儲存';
         return;
       }
       btn.textContent = 'Retrying... 重試中… (' + (attempt+1) + '/' + MAX_TRIES + ')';
@@ -1166,7 +1213,7 @@ function pickExpiry(months, el) {
     expEl.style.display = 'none';
     var now = new Date();
     var y = now.getFullYear(), mo = now.getMonth(), day = now.getDate();
-    // 加月份，如果月底溢出就取當月最後一天
+    // 加月份，如果月底溢位就取當月最後一天
     var targetMo = mo + months;
     var targetY = y + Math.floor(targetMo / 12);
     targetMo = targetMo % 12;
@@ -1257,7 +1304,7 @@ async function submitGC() {
   var today   = new Date().toLocaleDateString('en-US');
   var expDisp = expVal ? new Date(expVal+'T12:00:00').toLocaleDateString('en-US') : '—';
   var btn = document.getElementById('gc-submit-btn');
-  btn.disabled = true; btn.textContent = 'Saving 保存中…';
+  btn.disabled = true; btn.textContent = 'Saving 儲存中…';
 
   var data = {
     type:'gift_certificate', code:code, store:_gcStore,
@@ -1288,8 +1335,8 @@ async function submitGC() {
     window.scrollTo(0,0);
   } catch(e) {
     console.error(e);
-    alert('Connection failed. Please check WiFi.\n网络失败，请检查Wifi。');
-    btn.disabled = false; btn.textContent = '🎁 Issue Gift Certificate 开出礼品卡';
+    alert('Connection failed. Please check WiFi.\n網路失敗，請檢查Wifi。');
+    btn.disabled = false; btn.textContent = '🎁 Issue Gift Certificate 開出禮品卡';
   }
 }
 
@@ -1325,6 +1372,7 @@ var _selectedStore = null;
 
 function resetForm() {
   curSvc = null;
+  curLang = 'en';
   _pendingData = null;
   _selectedStore = null;
   document.querySelectorAll('.svc-btn').forEach(b=>b.classList.remove('sel'));
@@ -1361,12 +1409,28 @@ function pickStore(store, el) {
   el.style.background = store==='mv' ? 'var(--mv-bg)' : 'var(--sr-bg)';
   setTimeout(function() {
     document.getElementById('step-store').style.display = 'none';
-    document.getElementById('step-pick').style.display = 'block';
-    // Show store badge
+    document.getElementById('step-lang').style.display = 'block';
+    // Show store badge (set now, shown once we reach step-pick)
     var badge = document.getElementById('pick-store-badge');
     if(badge) badge.textContent = store==='mv' ? '📍 Mill Valley' : '📍 San Rafael';
+    applyI18n();
     window.scrollTo(0,0);
   }, 300);
+}
+
+function pickLanguage(code) {
+  curLang = code;
+  document.getElementById('step-lang').style.display = 'none';
+  document.getElementById('step-pick').style.display = 'block';
+  applyI18n();
+  window.scrollTo(0,0);
+}
+
+function goBackFromLangToStore() {
+  document.getElementById('step-lang').style.display = 'none';
+  document.getElementById('step-store').style.display = 'block';
+  _selectedStore = null;
+  window.scrollTo(0,0);
 }
 
 function goBackToStore() {
@@ -1380,7 +1444,9 @@ function goBackToStore() {
 }
 
 window.goBackToStore = goBackToStore;
+window.goBackFromLangToStore = goBackFromLangToStore;
 window.pickStore = pickStore;
+window.pickLanguage = pickLanguage;
 
 function checkAgreement() {
   var cb = document.getElementById('staff-agreement-cb');
