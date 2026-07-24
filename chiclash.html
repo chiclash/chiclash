@@ -880,6 +880,9 @@ input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-
     <div class="gc-stat"><div class="gc-stat-l" style="color:var(--mv)">未兌現金額（負債）</div><div class="gc-stat-v" style="color:var(--mv)" id="gcs-liability">$0</div></div>
     <div class="gc-stat"><div class="gc-stat-l" style="color:var(--ok)">已完全兌現</div><div class="gc-stat-v" style="color:var(--ok)" id="gcs-used">0</div></div>
   </div>
+  <div style="display:flex;justify-content:flex-end;margin-bottom:10px">
+    <button onclick="exportGCFullReport()" style="padding:7px 16px;background:var(--white);color:var(--sub);border:1px solid var(--border);border-radius:7px;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit">⬇ 匯出完整報表 Export Full Report（手動輸入 + iPad 全部合併）</button>
+  </div>
   <div class="gd-tbl" id="gc-list-wrap">
     <div class="gc-empty">尚無 Gift Card 記錄</div>
   </div>
@@ -890,6 +893,14 @@ input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-
       🎁 iPad 售出的禮品卡（Firebase）— 有效卡可在此標記已使用
     </div>
     <div id="gc-firebase-wrap"><div style="font-size:12px;color:var(--sub)">載入中…</div></div>
+  </div>
+
+  <!-- 已使用歷史記錄 -->
+  <div style="margin-top:20px">
+    <div style="font-size:13px;font-weight:600;color:var(--sub);margin-bottom:10px;padding-bottom:8px;border-bottom:1.5px solid var(--border);cursor:pointer;display:flex;align-items:center;gap:6px" onclick="toggleGCUsedHistory()">
+      <span id="gc-used-arrow">▶</span> 📜 已使用歷史記錄 Used History
+    </div>
+    <div id="gc-used-wrap" style="display:none"><div style="font-size:12px;color:var(--sub)">載入中…</div></div>
   </div>
 </div>
 
@@ -1547,6 +1558,11 @@ input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-
   window._gcFb = {
     loadActive: async function() {
       const q = query(collection(db, 'gift_certificates'), where('used','==',false));
+      const snap = await getDocs(q);
+      return snap.docs.map(d => ({id:d.id, ...d.data()}));
+    },
+    loadUsed: async function() {
+      const q = query(collection(db, 'gift_certificates'), where('used','==',true));
       const snap = await getDocs(q);
       return snap.docs.map(d => ({id:d.id, ...d.data()}));
     },
@@ -3249,6 +3265,7 @@ async function loadFBGiftCards(){
   if(!window._gcFb){fbWrap.innerHTML='<div style="font-size:12px;color:var(--warn)">Firebase 尚未連線，請重新整理頁面</div>';return;}
   fbWrap.innerHTML='<div style="font-size:12px;color:var(--sub)">載入中… Loading…</div>';
   window._gcFb.loadActive().then(function(cards){
+    window._gcActiveCache=cards; // 快取，方便標記已使用時取得完整卡片資訊（金額、收禮人等）
     if(cards.length===0){fbWrap.innerHTML='<div style="font-size:12px;color:var(--faint);padding:8px 0">No active certificates · 無有效禮品卡</div>';return;}
     fbWrap.innerHTML=cards.sort(function(a,b){return(b.issuedAt||'').localeCompare(a.issuedAt||'');}).map(function(g){
       var exp=g.expireDate?new Date(g.expireDate+'T12:00:00').toLocaleDateString('en-US'):'—';
@@ -3264,10 +3281,95 @@ async function loadFBGiftCards(){
 }
 window.loadFBGiftCards=loadFBGiftCards;
 
+// 把「手動輸入」跟「iPad 賣出（Firebase）」的禮品卡合併起來，更新最上面那四個統計數字
+// 這樣總覽數字才是完整的，不會漏掉 iPad 賣出的那些
+async function updateGCCombinedStats(manualCards,manualUnused,manualUsed,manualLiability){
+  var waited=0;
+  while(!window._gcFb && waited<50){ await new Promise(function(r){setTimeout(r,100);}); waited++; }
+  if(!window._gcFb) return;
+  try{
+    var active=await window._gcFb.loadActive();
+    var usedFb=await window._gcFb.loadUsed();
+    var fbLiability=active.reduce(function(s,c){return s+(c.amount||0);},0);
+    var s=(id,v)=>{var e=document.getElementById(id);if(e)e.textContent=v;};
+    s('gcs-total', manualCards.length + active.length + usedFb.length);
+    s('gcs-unused', manualUnused.length + active.length);
+    s('gcs-used', manualUsed.length + usedFb.length);
+    s('gcs-liability', '$'+(manualLiability+fbLiability).toFixed(2));
+    window._gcCombinedCache={manual:manualCards, fbActive:active, fbUsed:usedFb}; // 供匯出報表使用
+  }catch(e){ console.warn('合併禮品卡統計失敗', e); }
+}
+window.updateGCCombinedStats=updateGCCombinedStats;
+
+// 匯出完整禮品卡報表（手動輸入 + iPad 賣出，全部合併成一份 CSV）
+async function exportGCFullReport(){
+  var cache=window._gcCombinedCache;
+  if(!cache){ alert('資料還在載入中，請稍等一下再試一次 Data still loading, please try again in a moment.'); return; }
+  var rows=[['卡號 Code','面額 Amount','狀態 Status','售出日期 Sold Date','使用日期 Used Date','收禮人/備註 For/Note','來源 Source']];
+  cache.manual.forEach(function(c){
+    var isUsed=(c.balance!==undefined?c.balance:c.amt)<=0.01;
+    rows.push([c.code, c.amt.toFixed(2), isUsed?'已使用 Used':'未使用 Active', c.date||'', c.useDate||'', c.note||'', '手動輸入 Manual']);
+  });
+  cache.fbActive.forEach(function(g){
+    rows.push([g.code, (g.amount||0).toFixed(2), '未使用 Active', g.issuedAt?new Date(g.issuedAt).toLocaleDateString('en-US'):'', '', g.giftFor||'', 'iPad']);
+  });
+  cache.fbUsed.forEach(function(g){
+    rows.push([g.code, (g.amount||0).toFixed(2), '已使用 Used', g.issuedAt?new Date(g.issuedAt).toLocaleDateString('en-US'):'', g.usedAt?new Date(g.usedAt).toLocaleDateString('en-US'):'', g.giftFor||'', 'iPad']);
+  });
+  var csv=rows.map(function(r){return r.map(function(v){return '"'+String(v).replace(/"/g,'""')+'"';}).join(',');}).join('\n');
+  var blob=new Blob(['\ufeff'+csv],{type:'text/csv;charset=utf-8'});
+  var url=URL.createObjectURL(blob);
+  var a=document.createElement('a');
+  a.href=url; a.download='gift-cards-full-report-'+new Date().toISOString().slice(0,10)+'.csv';
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+window.exportGCFullReport=exportGCFullReport;
+
+var _gcUsedLoaded=false;
+function toggleGCUsedHistory(){
+  var wrap=document.getElementById('gc-used-wrap');
+  var arrow=document.getElementById('gc-used-arrow');
+  if(!wrap)return;
+  var isOpen=wrap.style.display!=='none';
+  wrap.style.display=isOpen?'none':'block';
+  if(arrow)arrow.textContent=isOpen?'▶':'▼';
+  if(!isOpen&&!_gcUsedLoaded){loadGCUsedHistory();}
+}
+window.toggleGCUsedHistory=toggleGCUsedHistory;
+
+async function loadGCUsedHistory(){
+  var wrap=document.getElementById('gc-used-wrap');
+  if(!wrap)return;
+  var waited=0;
+  while(!window._gcFb && waited<50){
+    await new Promise(function(r){setTimeout(r,100);});
+    waited++;
+  }
+  if(!window._gcFb){wrap.innerHTML='<div style="font-size:12px;color:var(--warn)">Firebase 尚未連線，請重新整理頁面</div>';return;}
+  wrap.innerHTML='<div style="font-size:12px;color:var(--sub)">載入中… Loading…</div>';
+  try{
+    var cards=await window._gcFb.loadUsed();
+    _gcUsedLoaded=true;
+    if(cards.length===0){wrap.innerHTML='<div style="font-size:12px;color:var(--faint);padding:8px 0">尚無已使用的禮品卡記錄 No used certificates yet</div>';return;}
+    wrap.innerHTML=cards.sort(function(a,b){return(b.usedAt||'').localeCompare(a.usedAt||'');}).map(function(g){
+      var usedDate=g.usedAt?new Date(g.usedAt).toLocaleString('zh-TW',{timeZone:'America/Los_Angeles'}):'—';
+      return '<div style="display:flex;align-items:center;gap:10px;padding:8px 12px;background:var(--bg,#FAFAF8);border:1px solid var(--border);border-radius:8px;margin-bottom:6px;flex-wrap:wrap;opacity:.85">'
+        +'<span style="font-family:monospace;font-weight:700;color:var(--sub);font-size:13px">'+g.code+'</span>'
+        +'<span style="font-size:13px;font-weight:600">$'+g.amount.toFixed(2)+'</span>'
+        +'<span style="font-size:11px;color:var(--sub)">For: '+(g.giftFor||'—')+'</span>'
+        +'<span style="margin-left:auto;font-size:11px;color:var(--ok);font-weight:600">✓ 已使用 '+usedDate+'</span>'
+        +'</div>';
+    }).join('');
+  }catch(e){wrap.innerHTML='<div style="font-size:12px;color:var(--warn)">無法載入：'+e.message+'</div>';}
+}
+window.loadGCUsedHistory=loadGCUsedHistory;
+
 async function markFBGCUsed(fbId,code){
   if(!confirm('確定標記「'+code+'」為已使用？'))return;
   try{
     await window._gcFb.markUsed(fbId);
+    _gcUsedLoaded=false; // 重置，下次打開「已使用歷史」時會抓到最新這筆
     loadFBGiftCards();
   }catch(e){alert('更新失敗: '+e.message);}
 }
@@ -3292,8 +3394,10 @@ function renderGCPage(){
   const used=cards.filter(c=>c.balance<=0.01);
   const liability=unused.reduce((s,c)=>s+(c.balance||c.amt),0);
   const s=(id,v)=>{const e=document.getElementById(id);if(e)e.textContent=v};
+  // 先顯示手動輸入這邊的數字，等下面 Firebase（iPad賣出）資料載入後，會再更新成合併後的完整數字
   s('gcs-total',cards.length);s('gcs-unused',unused.length);s('gcs-used',used.length);
   s('gcs-liability',`$${liability.toFixed(2)}`);
+  updateGCCombinedStats(cards,unused,used,liability);
   const wrap=document.getElementById('gc-list-wrap');if(!wrap)return;
   if(cards.length===0){wrap.innerHTML='<div class="gc-empty">尚無 Gift Card 記錄，請在上方新增</div>';return;}
   const sorted=[...cards].sort((a,b)=>{
