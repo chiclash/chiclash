@@ -1039,6 +1039,10 @@ input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-
         <div><div style="font-size:11px;color:var(--sub);margin-bottom:4px">原價 ($) *</div><input type="text" inputmode="decimal" id="mi-price" class="ti" placeholder="0" style="width:100%"></div>
         <div><div style="font-size:11px;color:var(--sub);margin-bottom:4px">技師兌換所得 ($) *</div><input type="text" inputmode="decimal" id="mi-redeem" class="ti" placeholder="0" style="width:100%"></div>
       </div>
+      <div style="margin-bottom:12px">
+        <div style="font-size:11px;color:var(--sub);margin-bottom:6px">指定技師（不選＝所有技師都能做這個項目）</div>
+        <div id="mi-newtech-chips" style="display:flex;flex-wrap:wrap;gap:4px"></div>
+      </div>
       <button onclick="addMemberItem()" style="width:100%;background:#C4726A;color:#fff;border:none;border-radius:8px;padding:11px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit">＋ 新增項目</button>
       <div id="mi-list" style="margin-top:12px"></div>
     </div>
@@ -1207,8 +1211,8 @@ input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-
         <span style="font-size:9px;color:var(--mv);font-weight:600;white-space:nowrap">手動更正餘額</span>
         <input type="text" inputmode="decimal" id="cd-manual-mv" step="0.01" placeholder="輸入實際金額…"
           style="flex:1;border:1.5px solid var(--mv-bd);border-radius:6px;padding:5px 8px;font-size:13px;font-weight:700;font-family:monospace;color:var(--mv);background:var(--white);outline:none"
-          onchange="cdSaveManual('mv',this.value)">
-        <button onclick="cdClearManual('mv')" style="padding:5px 10px;background:var(--white);border:1px solid var(--mv-bd);border-radius:6px;font-size:11px;color:var(--mv);cursor:pointer;font-family:inherit">清除</button>
+          onchange="cdSaveManual('mv',this.value,document.getElementById('cd-month-sel').value)">
+        <button onclick="cdClearManual('mv',document.getElementById('cd-month-sel').value)" style="padding:5px 10px;background:var(--white);border:1px solid var(--mv-bd);border-radius:6px;font-size:11px;color:var(--mv);cursor:pointer;font-family:inherit">清除</button>
       </div>
       <div id="cd-manual-mv-note" style="font-size:10px;color:#B45309;margin-top:4px;display:none">⚠ 目前顯示手動輸入的餘額</div>
     </div>
@@ -1234,8 +1238,8 @@ input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-
         <span style="font-size:9px;color:var(--sr);font-weight:600;white-space:nowrap">手動更正餘額</span>
         <input type="text" inputmode="decimal" id="cd-manual-sr" step="0.01" placeholder="輸入實際金額…"
           style="flex:1;border:1.5px solid var(--sr-bd);border-radius:6px;padding:5px 8px;font-size:13px;font-weight:700;font-family:monospace;color:var(--sr);background:var(--white);outline:none"
-          onchange="cdSaveManual('sr',this.value)">
-        <button onclick="cdClearManual('sr')" style="padding:5px 10px;background:var(--white);border:1px solid var(--sr-bd);border-radius:6px;font-size:11px;color:var(--sr);cursor:pointer;font-family:inherit">清除</button>
+          onchange="cdSaveManual('sr',this.value,document.getElementById('cd-month-sel').value)">
+        <button onclick="cdClearManual('sr',document.getElementById('cd-month-sel').value)" style="padding:5px 10px;background:var(--white);border:1px solid var(--sr-bd);border-radius:6px;font-size:11px;color:var(--sr);cursor:pointer;font-family:inherit">清除</button>
       </div>
       <div id="cd-manual-sr-note" style="font-size:10px;color:#B45309;margin-top:4px;display:none">⚠ 目前顯示手動輸入的餘額</div>
     </div>
@@ -3689,15 +3693,40 @@ function renderProductsPage(){
 function memberItems(){ if(!_D.memberItems)_D.memberItems=[]; return _D.memberItems; }
 function membersData(){ if(!_D.members)_D.members=[]; return _D.members; }
 
+var _miNewTechSel=new Set();
+function toggleNewItemTech(name){
+  if(_miNewTechSel.has(name))_miNewTechSel.delete(name);else _miNewTechSel.add(name);
+  renderNewItemTechChips();
+}
+function renderNewItemTechChips(){
+  var el=document.getElementById('mi-newtech-chips');
+  if(!el)return;
+  var staff=_D.staff||[];
+  if(!staff.length){el.innerHTML='<span style="font-size:11px;color:var(--faint)">尚無員工資料</span>';return;}
+  el.innerHTML=staff.map(function(name){
+    var on=_miNewTechSel.has(name);
+    return '<span onclick="toggleNewItemTech(\''+name.replace(/'/g,"\\'")+'\')" style="display:inline-flex;align-items:center;padding:4px 11px;font-size:12px;font-weight:500;border:1.5px solid '+(on?'var(--rose)':'var(--border)')+';border-radius:20px;cursor:pointer;background:'+(on?'var(--gold-bg)':'var(--white)')+';color:'+(on?'var(--rose)':'var(--faint)')+';margin:2px">'+name+'</span>';
+  }).join('');
+}
+function toggleItemTech(itemId,name){
+  var it=memberItems().find(function(m){return m.id===itemId;});
+  if(!it)return;
+  if(!Array.isArray(it.techs))it.techs=[];
+  var idx=it.techs.indexOf(name);
+  if(idx>=0)it.techs.splice(idx,1);else it.techs.push(name);
+  save();
+  renderMembersPage();
+}
 function addMemberItem(){
   var cat=document.getElementById('mi-cat').value||'其他';
   var name=(document.getElementById('mi-name').value||'').trim();
   var price=parseFloat(document.getElementById('mi-price').value)||0;
   var redeemAmt=parseFloat(document.getElementById('mi-redeem').value)||0;
   if(!name||price<=0){alert('請填寫項目名稱和原價');return;}
-  memberItems().push({id:Date.now(),category:cat,name:name,price:price,redeemAmt:redeemAmt});
+  memberItems().push({id:Date.now(),category:cat,name:name,price:price,redeemAmt:redeemAmt,techs:Array.from(_miNewTechSel)});
   save();
   ['mi-name','mi-price','mi-redeem'].forEach(function(id){var el=document.getElementById(id);if(el)el.value='';});
+  _miNewTechSel=new Set();
   renderMembersPage();
 }
 function delMemberItem(id){
@@ -3768,6 +3797,18 @@ function toggleRedeemForm(id){
   }
 }
 
+function filterRedeemTechs(memberId){
+  var itemSel=document.getElementById('rf-item-'+memberId);
+  var techSel=document.getElementById('rf-tech-'+memberId);
+  if(!itemSel||!techSel)return;
+  var itemId=parseFloat(itemSel.value);
+  var item=memberItems().find(function(m){return m.id===itemId;});
+  var allStaff=_D.staff||[];
+  var eligible=(item&&Array.isArray(item.techs)&&item.techs.length)?item.techs:allStaff;
+  var prevVal=techSel.value;
+  techSel.innerHTML='<option value="">— 選擇 —</option>'+eligible.map(function(s){return'<option value="'+s+'"'+(s===prevVal?' selected':'')+'>'+s+'</option>';}).join('');
+  if(eligible.indexOf(prevVal)<0)techSel.value='';
+}
 function confirmRedeem(id){
   var mem=membersData().find(function(m){return m.id===id;});
   if(!mem)return;
@@ -3876,6 +3917,10 @@ function quickTagMemberRedeem(d,i,memberId){
   if(!c){return;}
   var tech=Array.isArray(c.staff)&&c.staff.length>0?c.staff[0]:(c.tech||'');
   if(!tech){alert('這筆紀錄還沒有指定技師，請先選好技師再登記');return;}
+  var itTechs=Array.isArray(item.techs)?item.techs:[];
+  if(itTechs.length&&itTechs.indexOf(tech)<0){
+    if(!confirm('「'+item.name+'」原本指定的技師是：'+itTechs.join('、')+'\n這一筆的技師是「'+tech+'」，不在名單內。\n\n確定還是要這樣登記嗎？'))return;
+  }
   c.isMemberRedeem=true; c.memberId=mem.id; c.memberItemName=item.name;
   var y=cur.getFullYear(),mo2=cur.getMonth();
   var dateStr=y+'-'+String(mo2+1).padStart(2,'0')+'-'+String(d).padStart(2,'0');
@@ -3900,6 +3945,7 @@ function renderMembersPage(){
   var items=memberItems();
   var members=membersData();
   renderMemberSaleRewardsPage();
+  renderNewItemTechChips();
 
   // 價目表列表
   var miList=document.getElementById('mi-list');
@@ -3918,9 +3964,16 @@ function renderMembersPage(){
         +'<th style="padding:6px 8px;text-align:left;font-size:10px;color:var(--sub)">項目名稱</th>'
         +'<th style="padding:6px 8px;text-align:right;font-size:10px;color:var(--sub)">原價</th>'
         +'<th style="padding:6px 8px;text-align:right;font-size:10px;color:var(--sub)">技師兌換所得</th>'
+        +'<th style="padding:6px 8px;text-align:left;font-size:10px;color:var(--sub)">指定技師</th>'
         +'<th style="padding:6px 8px;width:28px"></th></tr></thead><tbody>'
         +catOrder.map(function(cat){
           return byCatDisp[cat].map(function(it){
+            var itTechs=Array.isArray(it.techs)?it.techs:[];
+            var techSummary=itTechs.length?itTechs.join('、'):'不限（所有人）';
+            var techChips=staff.map(function(name){
+              var on=itTechs.indexOf(name)>=0;
+              return '<span onclick="toggleItemTech('+it.id+',\''+name.replace(/'/g,"\\'")+'\')" style="display:inline-flex;align-items:center;padding:3px 9px;font-size:11px;font-weight:500;border:1.5px solid '+(on?'var(--rose)':'var(--border)')+';border-radius:16px;cursor:pointer;background:'+(on?'var(--gold-bg)':'var(--white)')+';color:'+(on?'var(--rose)':'var(--faint)')+';margin:2px">'+name+'</span>';
+            }).join('');
             return '<tr style="border-bottom:1px solid var(--border)">'
               +'<td style="padding:5px 8px"><select class="ti" style="width:100%;border:none;background:none;font-size:11px;color:var(--gold);font-weight:600" onchange="updateMemberItem('+it.id+',\'category\',this.value)">'
                 +MEMBER_CATS.map(function(c){return '<option value="'+c+'"'+(c===(it.category||'其他')?' selected':'')+'>'+c+'</option>';}).join('')
@@ -3928,6 +3981,10 @@ function renderMembersPage(){
               +'<td style="padding:5px 8px"><input class="ti" style="width:100%;text-align:left;border:none;background:none" value="'+it.name.replace(/"/g,'&quot;')+'" onchange="updateMemberItem('+it.id+',\'name\',this.value)"></td>'
               +'<td style="padding:5px 8px"><input class="ti" style="width:70px;border:none;background:none" inputmode="decimal" value="'+it.price+'" onchange="updateMemberItem('+it.id+',\'price\',this.value)"></td>'
               +'<td style="padding:5px 8px"><input class="ti" style="width:70px;border:none;background:none;color:var(--ok);font-weight:600" inputmode="decimal" value="'+it.redeemAmt+'" onchange="updateMemberItem('+it.id+',\'redeemAmt\',this.value)"></td>'
+              +'<td style="padding:5px 8px;max-width:180px">'
+                +'<div onclick="var e=document.getElementById(\'mi-techsel-'+it.id+'\');e.style.display=e.style.display===\'none\'?\'block\':\'none\';" style="cursor:pointer;font-size:11px;color:'+(itTechs.length?'var(--text)':'var(--faint)')+'">'+techSummary+' <span style="color:var(--faint)">▾</span></div>'
+                +'<div id="mi-techsel-'+it.id+'" style="display:none;margin-top:6px;padding:6px;background:var(--bg);border-radius:6px">'+(staff.length?techChips:'<span style="font-size:11px;color:var(--faint)">尚無員工資料</span>')+'</div>'
+              +'</td>'
               +'<td style="padding:5px 8px"><button class="del-btn" onclick="delMemberItem('+it.id+')">×</button></td>'
               +'</tr>';
           }).join('');
@@ -3960,7 +4017,7 @@ function renderMembersPage(){
   function redeemFormHTML(m){
     return '<div id="redeem-form-'+m.id+'" style="display:none;background:var(--bg);border-radius:8px;padding:12px;margin-top:8px">'
       +'<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:8px;margin-bottom:8px">'
-        +'<div><div style="font-size:10px;color:var(--sub);margin-bottom:3px">兌換項目</div><select id="rf-item-'+m.id+'" class="ti" style="width:100%;text-align:left">'+itemOpts+'</select></div>'
+        +'<div><div style="font-size:10px;color:var(--sub);margin-bottom:3px">兌換項目</div><select id="rf-item-'+m.id+'" class="ti" style="width:100%;text-align:left" onchange="filterRedeemTechs('+m.id+')">'+itemOpts+'</select></div>'
         +'<div><div style="font-size:10px;color:var(--sub);margin-bottom:3px">技師</div><select id="rf-tech-'+m.id+'" class="ti" style="width:100%;text-align:left">'+techOpts+'</select></div>'
         +'<div><div style="font-size:10px;color:var(--sub);margin-bottom:3px">日期</div><input type="date" id="rf-date-'+m.id+'" class="ti" style="width:100%"></div>'
         +'<div><div style="font-size:10px;color:var(--sub);margin-bottom:3px">時間</div><input type="time" id="rf-time-'+m.id+'" class="ti" style="width:100%"></div>'
@@ -7762,23 +7819,41 @@ function calcCDStoreBalance(store){
   var last=getLastCount(store);
   return last?last.amt:0;
 }
-function cdGetManual(store){
-  if(!_D.cdManual)return null;
-  var v=_D.cdManual[store];
+function cdGetManual(store,mo){
+  mo=mo||mk();
+  if(!_D.cdManual||!_D.cdManual[mo])return null;
+  var v=_D.cdManual[mo][store];
   return (v!==undefined&&v!==null)?v:null;
 }
-function cdSaveManual(store,val){
+function cdSaveManual(store,val,mo){
+  mo=mo||mk();
   if(!_D.cdManual)_D.cdManual={};
+  if(!_D.cdManual[mo])_D.cdManual[mo]={};
   var n=parseFloat(val);
-  if(val===''||isNaN(n)){delete _D.cdManual[store];}
-  else{_D.cdManual[store]=n;}
+  if(val===''||isNaN(n)){delete _D.cdManual[mo][store];}
+  else{_D.cdManual[mo][store]=n;}
   saveOnly();renderCDPage();
 }
-function cdClearManual(store){
-  if(_D.cdManual)delete _D.cdManual[store];
+function cdClearManual(store,mo){
+  mo=mo||mk();
+  if(_D.cdManual&&_D.cdManual[mo])delete _D.cdManual[mo][store];
   var el=document.getElementById('cd-manual-'+store);
   if(el)el.value='';
   saveOnly();renderCDPage();
+}
+// 舊版本cdManual是{mv:數字,sr:數字}沒有分月份，第一次載入時把舊數字搬進「目前檢視的月份」，避免資料憑空消失
+function migrateCdManualIfNeeded(){
+  if(!_D.cdManual)return;
+  var legacy={},hasLegacy=false;
+  ['mv','sr'].forEach(function(s){
+    if(typeof _D.cdManual[s]==='number'){legacy[s]=_D.cdManual[s];hasLegacy=true;delete _D.cdManual[s];}
+  });
+  if(hasLegacy){
+    var mo=mk();
+    if(!_D.cdManual[mo])_D.cdManual[mo]={};
+    Object.keys(legacy).forEach(function(s){if(_D.cdManual[mo][s]===undefined)_D.cdManual[mo][s]=legacy[s];});
+    saveOnly();
+  }
 }
 function calcCDStoreBossOut(store,month){
   return cdData().filter(function(e){
@@ -7958,7 +8033,7 @@ function renderCDReconPanel(store, selMonth){
   var storeColor=store==='mv'?'var(--mv)':'var(--sr)';
   var moLabel=selMonth.slice(0,4)+'年'+parseInt(selMonth.slice(5,7))+'月';
   // If manual balance is set, skip recon panel
-  var manualBal=cdGetManual(store);
+  var manualBal=cdGetManual(store,selMonth);
   if(manualBal!==null){
     panel.innerHTML='';
     return;
@@ -8027,7 +8102,7 @@ function renderCDStoreTbl(store,entries,selMonth){
   var moLabel=selMonth.slice(0,4)+'年'+parseInt(selMonth.slice(5,7))+'月';
   var hdr='<div class="cd-row2 cd-hdr"><span>日期</span><span>類型</span><span style="text-align:right">放入</span><span style="text-align:right">取出</span><span style="text-align:right">餘額</span><span>備註/面額</span><span></span></div>';
   // 上月帶入列（如果有手動更正餘額就不顯示）
-  var manualBal=cdGetManual(store);
+  var manualBal=cdGetManual(store,selMonth);
   var carryRow=manualBal!==null?'':'<div style="display:grid;grid-template-columns:50px 120px 90px 90px 90px 1fr 32px;align-items:center;gap:8px;padding:8px 14px;border-bottom:1px solid var(--border);background:#F0F4FF;font-size:13px">'+
     '<span style="font-size:11px;color:var(--sub)">帶入</span>'+
     '<span style="font-size:11px;font-weight:700;color:var(--mv)">上月結餘</span>'+
@@ -8148,6 +8223,7 @@ function renderCDStoreTbl(store,entries,selMonth){
   tbl.innerHTML=hdr+carryRow+rows+finalRow;
 }
 function renderCDPage(){
+  migrateCdManualIfNeeded();
   var entries=cdData();
   var sel=document.getElementById('cd-month-sel');
   if(sel){
@@ -8165,7 +8241,7 @@ function renderCDPage(){
   var selMonth=sel?sel.value:mk();
   var moLabel=selMonth.slice(0,4)+'年'+parseInt(selMonth.slice(5,7))+'月';
   ['mv','sr'].forEach(function(store){
-    var manualBal=cdGetManual(store);
+    var manualBal=cdGetManual(store,selMonth);
     var noteEl=document.getElementById('cd-manual-'+store+'-note');
     var inpEl=document.getElementById('cd-manual-'+store);
     if(noteEl)noteEl.style.display=manualBal!==null?'block':'none';
@@ -8180,7 +8256,7 @@ function renderCDPage(){
   // Update boss summary bar (per store)
   ['mv','sr'].forEach(function(store){
     var autoBal=calcCDStoreBalance(store);
-    var manualBal=cdGetManual(store);
+    var manualBal=cdGetManual(store,selMonth);
     var bal=manualBal!==null?manualBal:autoBal;
     var out=calcCDStoreBossOut(store,selMonth);
     var cash=calcStoreCashRevForMonth(store,selMonth);
@@ -8195,7 +8271,7 @@ function renderCDPage(){
     if(cashEl)cashEl.textContent=$f(cash);
     if(outEl)outEl.textContent=$f(out);
     if(reconEl){
-      var manBal=cdGetManual(store);
+      var manBal=cdGetManual(store,selMonth);
       if(manBal!==null){
         reconEl.textContent='✓ 手動餘額已設定';
         reconEl.style.color='#1A7A45';
