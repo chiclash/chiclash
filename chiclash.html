@@ -518,6 +518,7 @@ input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-
   <div class="s-sec">設定</div>
   <button class="ni" id="ni-staff" onclick="showPage('staff')"><span class="ni-ic">👥</span>員工管理</button>
   <button class="ni" id="ni-products" onclick="showPage('products')"><span class="ni-ic">🛍</span>產品銷售</button>
+  <button class="ni" id="ni-members" onclick="showPage('members')"><span class="ni-ic">💳</span>會員卡</button>
   <button class="ni" id="ni-gc" onclick="showPage('gc')"><span class="ni-ic">🎁</span>Gift Card 記錄</button>
   <div class="s-sec">月結</div>
   <button class="ni" id="ni-report" onclick="showPage('report')"><span class="ni-ic">📋</span>月結報表</button>
@@ -952,7 +953,10 @@ input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-
 <div class="page" id="page-tips">
   <div class="pg-hd" style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px">
     <div><div class="pg-title">小費分配</div><div class="pg-sub" id="tips-sub"></div></div>
-    <button onclick="renderTipsPage()" style="flex-shrink:0;padding:7px 14px;background:var(--mv-bg);color:var(--mv);border:1.5px solid var(--mv-bd);border-radius:7px;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit">&#8635; 手動更新</button>
+    <div style="display:flex;gap:8px;flex-shrink:0">
+      <button onclick="renderTipsPage()" style="padding:7px 14px;background:var(--mv-bg);color:var(--mv);border:1.5px solid var(--mv-bd);border-radius:7px;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit">&#8635; 手動更新</button>
+      <button onclick="resyncMonthTipConfirmed()" title="根據目前的每日客人紀錄，重新計算並覆蓋本月所有已確認的小費分配紀錄；如果某天的紀錄後來被刪除/修改過，這裡會自動清掉舊的孤兒資料" style="padding:7px 14px;background:var(--ok-bg);color:var(--ok);border:1.5px solid var(--ok-bd);border-radius:7px;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit">&#128260; 自動同步本月（修正孤兒資料）</button>
+    </div>
   </div>
   <div class="tip-month-sum">
     <div class="tip-ms-title">本月各技師應得小費合計</div>
@@ -1010,6 +1014,140 @@ input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-
     <div style="background:var(--white);border-radius:12px;overflow:hidden;box-shadow:var(--shadow)">
       <div id="prod-list"><div style="text-align:center;padding:32px;font-size:13px;color:var(--faint)">本月尚無產品銷售記錄</div></div>
     </div>
+  </div>
+</div>
+
+<div class="page" id="page-members">
+  <div class="pg-hdr"><div><div class="pg-title">💳 會員卡</div><div class="pg-sub">會員名單、免費項目價目表，兌換自動算入技師月結報表</div></div></div>
+  <div style="max-width:1000px;margin:0 auto;padding:0 16px 40px">
+
+    <!-- 價目表 -->
+    <div style="background:var(--white);border-radius:12px;padding:18px 20px;margin-bottom:16px;box-shadow:var(--shadow)">
+      <div style="font-size:13px;font-weight:600;color:var(--rose);margin-bottom:4px">📋 免費兌換項目價目表</div>
+      <div style="font-size:11px;color:var(--sub);margin-bottom:14px">設定會員可以免費兌換哪些項目、原價多少、技師兌換時固定拿多少錢（不算進當天營業額，只算技師抽成）</div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin-bottom:12px">
+        <div><div style="font-size:11px;color:var(--sub);margin-bottom:4px">分類 *</div>
+          <select id="mi-cat" class="ti" style="width:100%;text-align:left">
+            <option value="Head Spa">Head Spa</option>
+            <option value="Massage">Massage</option>
+            <option value="Lashes">Lashes</option>
+            <option value="Facial">Facial</option>
+            <option value="其他">其他</option>
+          </select>
+        </div>
+        <div><div style="font-size:11px;color:var(--sub);margin-bottom:4px">項目名稱 *</div><input type="text" id="mi-name" class="ti" placeholder="e.g. 補睫毛" style="width:100%;text-align:left"></div>
+        <div><div style="font-size:11px;color:var(--sub);margin-bottom:4px">原價 ($) *</div><input type="text" inputmode="decimal" id="mi-price" class="ti" placeholder="0" style="width:100%"></div>
+        <div><div style="font-size:11px;color:var(--sub);margin-bottom:4px">技師兌換所得 ($) *</div><input type="text" inputmode="decimal" id="mi-redeem" class="ti" placeholder="0" style="width:100%"></div>
+      </div>
+      <button onclick="addMemberItem()" style="width:100%;background:#C4726A;color:#fff;border:none;border-radius:8px;padding:11px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit">＋ 新增項目</button>
+      <div id="mi-list" style="margin-top:12px"></div>
+    </div>
+
+    <!-- 會員卡銷售獎勵 -->
+    <div style="margin-bottom:16px">
+      <div style="font-size:13px;font-weight:700;margin-bottom:4px">🎁 會員卡銷售獎勵</div>
+      <div style="font-size:11px;color:var(--sub);margin-bottom:10px">賣出會員卡的獎勵金額，登記後月底會平分給該店有勾選的員工（跟評論獎勵同一種分法）</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px">
+        <!-- MV -->
+        <div style="background:var(--mv-bg);border:1px solid var(--mv-bd);border-radius:10px;padding:16px">
+          <div style="font-size:11px;font-weight:700;color:var(--mv);text-transform:uppercase;letter-spacing:.1em;margin-bottom:12px">📍 Mill Valley</div>
+          <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:flex-end;margin-bottom:12px">
+            <div style="display:flex;flex-direction:column;gap:3px">
+              <label style="font-size:10px;color:var(--sub)">卡別</label>
+              <select id="msr-mv-tier" style="border:1px solid var(--mv-bd);border-radius:6px;padding:7px 8px;font-size:12px;font-family:inherit;color:var(--text);background:var(--white);outline:none">
+                <option value="299">Membership 299</option>
+                <option value="99">Membership 99</option>
+              </select>
+            </div>
+            <div style="display:flex;flex-direction:column;gap:3px">
+              <label style="font-size:10px;color:var(--sub)">日期</label>
+              <input type="date" id="msr-mv-date" style="border:1px solid var(--mv-bd);border-radius:6px;padding:7px 8px;font-size:12px;font-family:inherit;color:var(--text);background:var(--white);outline:none">
+            </div>
+            <div style="display:flex;flex-direction:column;gap:3px">
+              <label style="font-size:10px;color:var(--sub)">獎勵金額 $</label>
+              <input type="text" inputmode="decimal" id="msr-mv-amt" min="0" step="0.01" placeholder="0.00" style="width:80px;border:1px solid var(--mv-bd);border-radius:6px;padding:7px 8px;font-size:12px;font-family:inherit;color:var(--text);background:var(--white);outline:none;text-align:right">
+            </div>
+            <div style="display:flex;flex-direction:column;gap:3px;flex:1;min-width:80px">
+              <label style="font-size:10px;color:var(--sub)">備註（選填）</label>
+              <input type="text" id="msr-mv-note" placeholder="e.g. 會員姓名" style="width:100%;border:1px solid var(--mv-bd);border-radius:6px;padding:7px 8px;font-size:12px;font-family:inherit;color:var(--text);background:var(--white);outline:none">
+            </div>
+            <button onclick="addMemberSaleReward('mv')" style="padding:8px 14px;background:var(--mv);color:#fff;border:none;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;white-space:nowrap;align-self:flex-end">+ 新增</button>
+          </div>
+          <div id="msr-mv-list" style="margin-bottom:10px"></div>
+          <div id="msr-mv-summary"></div>
+        </div>
+        <!-- SR -->
+        <div style="background:var(--sr-bg);border:1px solid var(--sr-bd);border-radius:10px;padding:16px">
+          <div style="font-size:11px;font-weight:700;color:var(--sr);text-transform:uppercase;letter-spacing:.1em;margin-bottom:12px">📍 San Rafael</div>
+          <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:flex-end;margin-bottom:12px">
+            <div style="display:flex;flex-direction:column;gap:3px">
+              <label style="font-size:10px;color:var(--sub)">卡別</label>
+              <select id="msr-sr-tier" style="border:1px solid var(--sr-bd);border-radius:6px;padding:7px 8px;font-size:12px;font-family:inherit;color:var(--text);background:var(--white);outline:none">
+                <option value="299">Membership 299</option>
+                <option value="99">Membership 99</option>
+              </select>
+            </div>
+            <div style="display:flex;flex-direction:column;gap:3px">
+              <label style="font-size:10px;color:var(--sub)">日期</label>
+              <input type="date" id="msr-sr-date" style="border:1px solid var(--sr-bd);border-radius:6px;padding:7px 8px;font-size:12px;font-family:inherit;color:var(--text);background:var(--white);outline:none">
+            </div>
+            <div style="display:flex;flex-direction:column;gap:3px">
+              <label style="font-size:10px;color:var(--sub)">獎勵金額 $</label>
+              <input type="text" inputmode="decimal" id="msr-sr-amt" min="0" step="0.01" placeholder="0.00" style="width:80px;border:1px solid var(--sr-bd);border-radius:6px;padding:7px 8px;font-size:12px;font-family:inherit;color:var(--text);background:var(--white);outline:none;text-align:right">
+            </div>
+            <div style="display:flex;flex-direction:column;gap:3px;flex:1;min-width:80px">
+              <label style="font-size:10px;color:var(--sub)">備註（選填）</label>
+              <input type="text" id="msr-sr-note" placeholder="e.g. 會員姓名" style="width:100%;border:1px solid var(--sr-bd);border-radius:6px;padding:7px 8px;font-size:12px;font-family:inherit;color:var(--text);background:var(--white);outline:none">
+            </div>
+            <button onclick="addMemberSaleReward('sr')" style="padding:8px 14px;background:var(--sr);color:#fff;border:none;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;white-space:nowrap;align-self:flex-end">+ 新增</button>
+          </div>
+          <div id="msr-sr-list" style="margin-bottom:10px"></div>
+          <div id="msr-sr-summary"></div>
+        </div>
+      </div>
+      <div style="background:var(--white);border:1px solid var(--border);border-radius:10px;padding:16px 20px">
+        <div style="font-size:12px;font-weight:700;margin-bottom:12px">月底獎勵分配</div>
+        <div id="msr-month-result"></div>
+      </div>
+    </div>
+
+    <!-- 新增會員 -->
+    <div style="background:var(--white);border-radius:12px;padding:18px 20px;margin-bottom:16px;box-shadow:var(--shadow)">
+      <div style="font-size:13px;font-weight:600;color:var(--rose);margin-bottom:14px">＋ 新增會員</div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin-bottom:14px">
+        <div><div style="font-size:11px;color:var(--sub);margin-bottom:4px">姓名 *</div><input type="text" id="mb-name" class="ti" placeholder="會員姓名" style="width:100%;text-align:left"></div>
+        <div><div style="font-size:11px;color:var(--sub);margin-bottom:4px">卡別 *</div>
+          <select id="mb-tier" class="ti" style="width:100%;text-align:left">
+            <option value="299">Membership 299</option>
+            <option value="99">Membership 99</option>
+          </select>
+        </div>
+        <div><div style="font-size:11px;color:var(--sub);margin-bottom:4px">分店</div>
+          <select id="mb-store" class="ti" style="width:100%;text-align:left">
+            <option value="mv">Mill Valley</option>
+            <option value="sr">San Rafael</option>
+          </select>
+        </div>
+        <div><div style="font-size:11px;color:var(--sub);margin-bottom:4px">購買日期 *</div><input type="date" id="mb-date" class="ti" style="width:100%"></div>
+      </div>
+      <button onclick="addMember()" style="width:100%;background:#C4726A;color:#fff;border:none;border-radius:8px;padding:14px;font-size:16px;font-weight:700;cursor:pointer;font-family:inherit">＋ 新增會員</button>
+    </div>
+
+    <!-- 統計 -->
+    <div id="mb-stats" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px;margin-bottom:16px"></div>
+
+    <!-- 未兌換 -->
+    <div style="margin-bottom:8px;font-size:13px;font-weight:700;color:var(--warn)">🎟 尚未兌換</div>
+    <div style="background:var(--white);border-radius:12px;overflow:hidden;box-shadow:var(--shadow);margin-bottom:20px">
+      <div id="mb-list-pending"><div style="text-align:center;padding:24px;font-size:13px;color:var(--faint)">目前沒有未兌換的會員</div></div>
+    </div>
+
+    <!-- 已兌換 -->
+    <div style="margin-bottom:8px;font-size:13px;font-weight:700;color:var(--ok)">✓ 已兌換</div>
+    <div style="background:var(--white);border-radius:12px;overflow:hidden;box-shadow:var(--shadow)">
+      <div id="mb-list-done"><div style="text-align:center;padding:24px;font-size:13px;color:var(--faint)">目前沒有已兌換的紀錄</div></div>
+    </div>
+
   </div>
 </div>
 
@@ -1607,7 +1745,7 @@ input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-
       }
 
       // 補上另一邊獨有的設定 key
-      const safeKeys = ['staffPay','payroll','sqNameMap','tipConfirmed','tipSplitState','reviewSel','reviews','att','penalties','bnkBal','cdManual','tipSchedule'];
+      const safeKeys = ['staffPay','payroll','sqNameMap','tipConfirmed','tipSplitState','reviewSel','reviews','att','penalties','bnkBal','cdManual','tipSchedule','memberItems','members','memberSaleRewards','memberSaleRewardSel'];
       const merged = Object.assign({}, base);
       safeKeys.forEach(function(key){
         if(other[key] !== undefined && base[key] === undefined){
@@ -1824,6 +1962,7 @@ function showPage(p){
   }
   if(p==='gc'){renderGCPage(); loadFBGiftCards();}
   if(p==='products')renderProductsPage();
+  if(p==='members')renderMembersPage();
   if(p==='staff')renderStaffPage();
   if(p==='tips')renderTipsPage();
   if(p==='att')renderAttPage();
@@ -1901,6 +2040,7 @@ function renderDay(d,dow){
           <tbody id="ctb-${d}"></tbody>
         </table>
         <button class='add-client-btn' onclick="addClient(${d})">＋ 新增客人</button>
+        <div id="mrd-${d}"></div>
       </div>
       <div class='sq-rec'>
         <div class='sq-rec-title'>Square 報告核對（直接從 Square 複製）</div>
@@ -1929,6 +2069,7 @@ function renderDay(d,dow){
     </div>`;
   renderClientTable(d);
   updateDaySummary(d);
+  renderMemberDetectBanner(d);
 }
 
 function renderClientTable(d){
@@ -2175,6 +2316,7 @@ function updC(d,i,f,v){
   var stringFields=['tech','clientName'];
   c[f]=typeof v==='boolean'?v:v===''?'':stringFields.indexOf(f)>=0?v:parseFloat(v)||0;save();
   if(f==='tech'||f==='cashTipOk')renderClientTable(d);
+  if(f==='clientName'||f==='svc'||f==='tech')renderMemberDetectBanner(d);
   updateDaySummary(d);updateAll();
 }
 function setPay(d,i,val,btn){
@@ -3540,6 +3682,355 @@ function renderProductsPage(){
     }).join('')
     +'</tbody></table>';
 }
+
+// ── MEMBERSHIP ──
+// _D.memberItems: [{id,name,price,redeemAmt}]  — 免費兌換項目價目表（全域，不分月份）
+// _D.members: [{id,name,tier,store,purchaseDate,notes,redeemed,redeem:{date,mo,day,store,itemId,itemName,tech,redeemAmt,tip,tipPay}}]
+function memberItems(){ if(!_D.memberItems)_D.memberItems=[]; return _D.memberItems; }
+function membersData(){ if(!_D.members)_D.members=[]; return _D.members; }
+
+function addMemberItem(){
+  var cat=document.getElementById('mi-cat').value||'其他';
+  var name=(document.getElementById('mi-name').value||'').trim();
+  var price=parseFloat(document.getElementById('mi-price').value)||0;
+  var redeemAmt=parseFloat(document.getElementById('mi-redeem').value)||0;
+  if(!name||price<=0){alert('請填寫項目名稱和原價');return;}
+  memberItems().push({id:Date.now(),category:cat,name:name,price:price,redeemAmt:redeemAmt});
+  save();
+  ['mi-name','mi-price','mi-redeem'].forEach(function(id){var el=document.getElementById(id);if(el)el.value='';});
+  renderMembersPage();
+}
+function delMemberItem(id){
+  if(!confirm('確定刪除這個項目？（已經兌換過的紀錄不會被刪除）'))return;
+  _D.memberItems=memberItems().filter(function(m){return m.id!==id;});
+  save();renderMembersPage();
+}
+function updateMemberItem(id,field,val){
+  var it=memberItems().find(function(m){return m.id===id;});
+  if(!it)return;
+  it[field]=(field==='name'||field==='category')?val:(parseFloat(val)||0);
+  save();
+}
+
+var MEMBER_CATS=['Head Spa','Massage','Lashes','Facial','其他'];
+// 依分類分組產生 <optgroup> 選單 HTML
+function memberItemOptGroups(){
+  var items=memberItems();
+  var byCat={};
+  items.forEach(function(it){
+    var c=it.category||'其他';
+    if(!byCat[c])byCat[c]=[];
+    byCat[c].push(it);
+  });
+  var cats=MEMBER_CATS.filter(function(c){return byCat[c]&&byCat[c].length;})
+    .concat(Object.keys(byCat).filter(function(c){return MEMBER_CATS.indexOf(c)<0;}));
+  var html='<option value="">選擇兌換項目…</option>';
+  cats.forEach(function(c){
+    html+='<optgroup label="'+c+'">'+byCat[c].map(function(it){
+      return '<option value="'+it.id+'">'+it.name+'（原價$'+it.price+' / 技師$'+it.redeemAmt+'）</option>';
+    }).join('')+'</optgroup>';
+  });
+  return html;
+}
+
+function initMemberFormSelects(){
+  var di=document.getElementById('mb-date');
+  if(di&&!di.value)di.value=new Date().toISOString().split('T')[0];
+}
+
+function addMember(){
+  var name=(document.getElementById('mb-name').value||'').trim();
+  var tier=document.getElementById('mb-tier').value;
+  var store=document.getElementById('mb-store').value;
+  var date=document.getElementById('mb-date').value;
+  if(!name||!date){alert('請填寫姓名和購買日期');return;}
+  membersData().push({id:Date.now(),name:name,tier:tier,store:store,purchaseDate:date,redeemed:false,redeem:null});
+  save();
+  ['mb-name'].forEach(function(id){var el=document.getElementById(id);if(el)el.value='';});
+  renderMembersPage();
+}
+function delMember(id){
+  if(!confirm('確定刪除這位會員？如果已經兌換過，對應的每日紀錄不會自動移除，請手動確認'))return;
+  _D.members=membersData().filter(function(m){return m.id!==id;});
+  save();renderMembersPage();
+}
+
+// 開啟/收合兌換表單
+function toggleRedeemForm(id){
+  var el=document.getElementById('redeem-form-'+id);
+  if(!el)return;
+  var willOpen=el.style.display==='none';
+  document.querySelectorAll('[id^="redeem-form-"]').forEach(function(e){e.style.display='none';});
+  el.style.display=willOpen?'block':'none';
+  if(willOpen){
+    var dEl=document.getElementById('rf-date-'+id);
+    if(dEl&&!dEl.value)dEl.value=new Date().toISOString().split('T')[0];
+  }
+}
+
+function confirmRedeem(id){
+  var mem=membersData().find(function(m){return m.id===id;});
+  if(!mem)return;
+  var itemId=parseFloat(document.getElementById('rf-item-'+id).value);
+  var item=memberItems().find(function(m){return m.id===itemId;});
+  var tech=document.getElementById('rf-tech-'+id).value;
+  var date=document.getElementById('rf-date-'+id).value;
+  var time=document.getElementById('rf-time-'+id).value||'';
+  var tip=parseFloat(document.getElementById('rf-tip-'+id).value)||0;
+  var tipPay=document.getElementById('rf-tippay-'+id).value||'cash';
+  var skipTipEl=document.getElementById('rf-skiptip-'+id);
+  var skipTip=skipTipEl?skipTipEl.checked:false;
+  if(!item||!tech||!date){alert('請選擇兌換項目、技師和日期');return;}
+
+  var mo=date.slice(0,7);
+  var day=parseInt(date.slice(8,10),10);
+  var store=mem.store||'mv';
+
+  if(!skipTip){
+    // 寫入每日客人紀錄（svc=0 不算營業額，但會走正常的小費分配/GoDaddy流程）
+    if(!_D[store])_D[store]={};
+    if(!_D[store][mo])_D[store][mo]={};
+    if(!_D[store][mo][day])_D[store][mo][day]={clients:[],sqOther:'',sqCash:'',sqTip:'',sqGC:'',sqTotal:'',note:''};
+    if(!Array.isArray(_D[store][mo][day].clients))_D[store][mo][day].clients=[];
+    _D[store][mo][day].clients.push({
+      clientName:mem.name+'（會員兌換）', tech:tech, staff:[tech], time:time,
+      svc:0, pay:'cash', tip:tip, tipPay:tipPay,
+      isMemberRedeem:true, memberId:mem.id, memberItemName:item.name
+    });
+  }
+
+  mem.redeemed=true;
+  mem.redeem={date:date,time:time,mo:mo,day:day,store:store,itemId:item.id,itemName:item.name,category:item.category||'其他',tech:tech,redeemAmt:item.redeemAmt||0,tip:tip,tipPay:tipPay,dayEntryAdded:!skipTip};
+  save();
+  renderMembersPage();
+  if(document.getElementById('page-tips')&&document.getElementById('page-tips').classList.contains('on'))renderTipsPage();
+  alert(skipTip?'✓ 已登記兌換（小費未重複寫入，只計入技師抽成）':'✓ 已登記兌換，小費已自動計入小費分配，技師抽成已計入月結報表');
+}
+
+function undoRedeem(id){
+  var mem=membersData().find(function(m){return m.id===id;});
+  if(!mem||!mem.redeem)return;
+  if(!confirm('確定要取消這筆兌換紀錄？'))return;
+  var r=mem.redeem;
+  var dayObj=_D[r.store]&&_D[r.store][r.mo]&&_D[r.store][r.mo][r.day];
+  if(dayObj&&Array.isArray(dayObj.clients)){
+    if(r.dayEntryAdded){
+      // 這筆是系統自動新增的紀錄（登記兌換時新寫入），整筆移除
+      dayObj.clients=dayObj.clients.filter(function(c){return !(c.isMemberRedeem&&c.memberId===mem.id);});
+    } else {
+      // 這筆是標記在原本就存在的客人紀錄上，只拿掉標記，保留這筆客人紀錄本身
+      dayObj.clients.forEach(function(c){
+        if(c.isMemberRedeem&&c.memberId===mem.id){
+          delete c.isMemberRedeem; delete c.memberId; delete c.memberItemName;
+        }
+      });
+    }
+  }
+  mem.redeemed=false;
+  mem.redeem=null;
+  save();
+  renderMembersPage();
+  if(document.getElementById('page-tips')&&document.getElementById('page-tips').classList.contains('on'))renderTipsPage();
+  if(activeStore===r.store&&mk()===r.mo&&document.getElementById('dc-'+r.day)){
+    renderDay(r.day,new Date(cur.getFullYear(),cur.getMonth(),r.day).getDay());
+  }
+}
+
+// ── 自動偵測：每日紀錄裡的客人名字如果對到「尚未兌換」的會員，且服務費是$0，跳出快速登記提示 ──
+function renderMemberDetectBanner(d){
+  var el=document.getElementById('mrd-'+d);
+  if(!el)return;
+  var r=sDay(activeStore,d);
+  var clients=r.clients||[];
+  var items=memberItems();
+  if(!items.length){el.innerHTML='';return;}
+  var itemOptsGlobal=memberItemOptGroups();
+  var rows='';
+  clients.forEach(function(c,i){
+    if(c.isMemberRedeem)return; // 已標記過，不重複提示
+    var svc=gv(c.svc);
+    if(svc>0)return; // 只有服務費是0才判斷
+    var name=(c.clientName||'').trim();
+    if(!name)return;
+    var mem=membersData().find(function(m){return !m.redeemed && m.name.trim().toLowerCase()===name.toLowerCase();});
+    if(!mem)return; // 名字沒對到「尚未兌換」的會員，不提示
+    rows+='<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;background:var(--gc-bg);border:1px solid var(--gc-bd);border-radius:8px;padding:8px 10px;margin-bottom:6px;font-size:12px">'
+      +'<span>🎫 第'+(i+1)+'筆「'+name+'」符合會員（Membership '+mem.tier+'）免費兌換資格</span>'
+      +'<select id="mrd-item-'+d+'-'+i+'" class="ti" style="width:auto;font-size:11px">'+itemOptsGlobal+'</select>'
+      +'<button onclick="quickTagMemberRedeem('+d+','+i+','+mem.id+')" style="padding:5px 10px;background:var(--gc);color:#fff;border:none;border-radius:6px;font-size:11px;font-weight:600;cursor:pointer;font-family:inherit">✓ 登記兌換</button>'
+    +'</div>';
+  });
+  el.innerHTML=rows;
+}
+
+// 一鍵把「已存在的客人紀錄」直接標記為會員兌換，不會重複新增一筆
+function quickTagMemberRedeem(d,i,memberId){
+  var itemSel=document.getElementById('mrd-item-'+d+'-'+i);
+  var itemId=itemSel?parseFloat(itemSel.value):NaN;
+  var item=memberItems().find(function(m){return m.id===itemId;});
+  if(!item){alert('請先選擇兌換項目');return;}
+  var mem=membersData().find(function(m){return m.id===memberId;});
+  if(!mem){return;}
+  var r=sDay(activeStore,d);
+  var c=r.clients[i];
+  if(!c){return;}
+  var tech=Array.isArray(c.staff)&&c.staff.length>0?c.staff[0]:(c.tech||'');
+  if(!tech){alert('這筆紀錄還沒有指定技師，請先選好技師再登記');return;}
+  c.isMemberRedeem=true; c.memberId=mem.id; c.memberItemName=item.name;
+  var y=cur.getFullYear(),mo2=cur.getMonth();
+  var dateStr=y+'-'+String(mo2+1).padStart(2,'0')+'-'+String(d).padStart(2,'0');
+  mem.redeemed=true;
+  mem.redeem={date:dateStr,time:c.time||'',mo:mk(),day:d,store:activeStore,itemId:item.id,itemName:item.name,category:item.category||'其他',tech:tech,redeemAmt:item.redeemAmt||0,tip:gv(c.tip),tipPay:c.tipPay||'cash',dayEntryAdded:false};
+  save();
+  renderClientTable(d);
+  renderMemberDetectBanner(d);
+  updateDaySummary(d);updateAll();
+}
+
+// 該技師在指定月份，會員兌換抽成合計
+function calcMemberCommForStaff(name,mo){
+  return Math.round(membersData().filter(function(m){
+    return m.redeemed&&m.redeem&&m.redeem.tech===name&&m.redeem.mo===mo;
+  }).reduce(function(s,m){return s+(m.redeem.redeemAmt||0);},0)*100)/100;
+}
+
+function renderMembersPage(){
+  initMemberFormSelects();
+  var staff=_D.staff||[];
+  var items=memberItems();
+  var members=membersData();
+  renderMemberSaleRewardsPage();
+
+  // 價目表列表
+  var miList=document.getElementById('mi-list');
+  if(miList){
+    if(!items.length){
+      miList.innerHTML='<div style="text-align:center;padding:16px;font-size:12px;color:var(--faint)">尚未設定任何項目</div>';
+    } else {
+      var byCatDisp={};
+      items.forEach(function(it){var c=it.category||'其他';if(!byCatDisp[c])byCatDisp[c]=[];byCatDisp[c].push(it);});
+      var catOrder=MEMBER_CATS.filter(function(c){return byCatDisp[c]&&byCatDisp[c].length;})
+        .concat(Object.keys(byCatDisp).filter(function(c){return MEMBER_CATS.indexOf(c)<0;}));
+      var catOptsHTML=MEMBER_CATS.map(function(c){return '<option value="'+c+'">'+c+'</option>';}).join('');
+      miList.innerHTML='<table style="width:100%;border-collapse:collapse;font-size:12px">'
+        +'<thead><tr style="background:var(--bg);border-bottom:1px solid var(--border)">'
+        +'<th style="padding:6px 8px;text-align:left;font-size:10px;color:var(--sub)">分類</th>'
+        +'<th style="padding:6px 8px;text-align:left;font-size:10px;color:var(--sub)">項目名稱</th>'
+        +'<th style="padding:6px 8px;text-align:right;font-size:10px;color:var(--sub)">原價</th>'
+        +'<th style="padding:6px 8px;text-align:right;font-size:10px;color:var(--sub)">技師兌換所得</th>'
+        +'<th style="padding:6px 8px;width:28px"></th></tr></thead><tbody>'
+        +catOrder.map(function(cat){
+          return byCatDisp[cat].map(function(it){
+            return '<tr style="border-bottom:1px solid var(--border)">'
+              +'<td style="padding:5px 8px"><select class="ti" style="width:100%;border:none;background:none;font-size:11px;color:var(--gold);font-weight:600" onchange="updateMemberItem('+it.id+',\'category\',this.value)">'
+                +MEMBER_CATS.map(function(c){return '<option value="'+c+'"'+(c===(it.category||'其他')?' selected':'')+'>'+c+'</option>';}).join('')
+              +'</select></td>'
+              +'<td style="padding:5px 8px"><input class="ti" style="width:100%;text-align:left;border:none;background:none" value="'+it.name.replace(/"/g,'&quot;')+'" onchange="updateMemberItem('+it.id+',\'name\',this.value)"></td>'
+              +'<td style="padding:5px 8px"><input class="ti" style="width:70px;border:none;background:none" inputmode="decimal" value="'+it.price+'" onchange="updateMemberItem('+it.id+',\'price\',this.value)"></td>'
+              +'<td style="padding:5px 8px"><input class="ti" style="width:70px;border:none;background:none;color:var(--ok);font-weight:600" inputmode="decimal" value="'+it.redeemAmt+'" onchange="updateMemberItem('+it.id+',\'redeemAmt\',this.value)"></td>'
+              +'<td style="padding:5px 8px"><button class="del-btn" onclick="delMemberItem('+it.id+')">×</button></td>'
+              +'</tr>';
+          }).join('');
+        }).join('')
+        +'</tbody></table>';
+    }
+  }
+
+  // 統計卡片
+  var statsEl=document.getElementById('mb-stats');
+  if(statsEl){
+    var total=members.length;
+    var pending=members.filter(function(m){return !m.redeemed;}).length;
+    var done=members.filter(function(m){return m.redeemed;}).length;
+    var thisMoRedeemVal=members.filter(function(m){return m.redeemed&&m.redeem&&m.redeem.mo===mk();}).reduce(function(s,m){return s+(m.redeem.redeemAmt||0);},0);
+    statsEl.innerHTML=[
+      ['會員總數',total,'var(--rose)'],
+      ['尚未兌換',pending,'var(--warn)'],
+      ['已兌換',done,'var(--ok)'],
+      ['本月兌換技師抽成合計',$f(thisMoRedeemVal),'var(--mv)']
+    ].map(function(c){
+      return '<div style="background:var(--white);border-radius:10px;padding:14px 16px;box-shadow:var(--shadow);text-align:center"><div style="font-size:11px;color:var(--sub);margin-bottom:4px">'+c[0]+'</div><div style="font-size:20px;font-weight:700;color:'+c[2]+'">'+c[1]+'</div></div>';
+    }).join('');
+  }
+
+  var techOpts='<option value="">— 選擇 —</option>'+staff.map(function(s){return'<option value="'+s+'">'+s+'</option>';}).join('');
+  var itemOpts=memberItemOptGroups();
+  var storeLabel={mv:'Mill Valley',sr:'San Rafael'};
+
+  function redeemFormHTML(m){
+    return '<div id="redeem-form-'+m.id+'" style="display:none;background:var(--bg);border-radius:8px;padding:12px;margin-top:8px">'
+      +'<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:8px;margin-bottom:8px">'
+        +'<div><div style="font-size:10px;color:var(--sub);margin-bottom:3px">兌換項目</div><select id="rf-item-'+m.id+'" class="ti" style="width:100%;text-align:left">'+itemOpts+'</select></div>'
+        +'<div><div style="font-size:10px;color:var(--sub);margin-bottom:3px">技師</div><select id="rf-tech-'+m.id+'" class="ti" style="width:100%;text-align:left">'+techOpts+'</select></div>'
+        +'<div><div style="font-size:10px;color:var(--sub);margin-bottom:3px">日期</div><input type="date" id="rf-date-'+m.id+'" class="ti" style="width:100%"></div>'
+        +'<div><div style="font-size:10px;color:var(--sub);margin-bottom:3px">時間</div><input type="time" id="rf-time-'+m.id+'" class="ti" style="width:100%"></div>'
+        +'<div><div style="font-size:10px;color:var(--sub);margin-bottom:3px">小費</div><input type="text" inputmode="decimal" id="rf-tip-'+m.id+'" class="ti" placeholder="0.00" style="width:100%"></div>'
+        +'<div><div style="font-size:10px;color:var(--sub);margin-bottom:3px">小費付款方式</div><select id="rf-tippay-'+m.id+'" class="ti" style="width:100%;text-align:left"><option value="cash">現金</option><option value="card">刷卡</option><option value="venmo">Venmo</option></select></div>'
+      +'</div>'
+      +'<label style="display:flex;align-items:center;gap:6px;font-size:11px;color:var(--sub);margin-bottom:10px;cursor:pointer">'
+        +'<input type="checkbox" id="rf-skiptip-'+m.id+'" style="width:14px;height:14px;cursor:pointer">'
+        +'補登過去的紀錄：這筆小費之前已經記在「每日客人紀錄」裡了，不要重複寫入小費紀錄（只登記技師抽成）'
+      +'</label>'
+      +'<button onclick="confirmRedeem('+m.id+')" style="width:100%;background:var(--ok);color:#fff;border:none;border-radius:7px;padding:9px;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit">✓ 確認兌換</button>'
+    +'</div>';
+  }
+
+  var pendingEl=document.getElementById('mb-list-pending');
+  var pendingMembers=members.filter(function(m){return !m.redeemed;}).sort(function(a,b){return a.purchaseDate<b.purchaseDate?1:-1;});
+  if(pendingEl){
+    if(!pendingMembers.length){
+      pendingEl.innerHTML='<div style="text-align:center;padding:24px;font-size:13px;color:var(--faint)">目前沒有未兌換的會員</div>';
+    } else {
+      pendingEl.innerHTML=pendingMembers.map(function(m){
+        return '<div style="padding:12px 16px;border-bottom:1px solid var(--border)">'
+          +'<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">'
+            +'<span style="font-weight:700;font-size:14px">'+m.name+'</span>'
+            +'<span style="font-size:11px;padding:2px 8px;border-radius:10px;background:var(--gold-bg);color:var(--gold);font-weight:600">Membership '+m.tier+'</span>'
+            +'<span style="font-size:11px;color:var(--sub)">'+storeLabel[m.store]+' · 購買於 '+m.purchaseDate+'</span>'
+            +'<button onclick="toggleRedeemForm('+m.id+')" style="margin-left:auto;padding:6px 14px;background:var(--mv-bg);color:var(--mv);border:1.5px solid var(--mv-bd);border-radius:7px;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit">登記兌換</button>'
+            +'<button class="del-btn" onclick="delMember('+m.id+')">×</button>'
+          +'</div>'
+          +redeemFormHTML(m)
+        +'</div>';
+      }).join('');
+    }
+  }
+
+  var doneEl=document.getElementById('mb-list-done');
+  var doneMembers=members.filter(function(m){return m.redeemed;}).sort(function(a,b){return (a.redeem.date<b.redeem.date)?1:-1;});
+  if(doneEl){
+    if(!doneMembers.length){
+      doneEl.innerHTML='<div style="text-align:center;padding:24px;font-size:13px;color:var(--faint)">目前沒有已兌換的紀錄</div>';
+    } else {
+      doneEl.innerHTML='<table style="width:100%;border-collapse:collapse;font-size:13px">'
+        +'<thead><tr style="background:var(--bg);border-bottom:1.5px solid var(--border)">'
+        +'<th style="padding:8px 14px;text-align:left;font-size:10px;color:var(--sub);font-weight:600">會員</th>'
+        +'<th style="padding:8px 14px;text-align:left;font-size:10px;color:var(--sub);font-weight:600">日期/時間</th>'
+        +'<th style="padding:8px 14px;text-align:left;font-size:10px;color:var(--sub);font-weight:600">分類</th>'
+        +'<th style="padding:8px 14px;text-align:left;font-size:10px;color:var(--sub);font-weight:600">項目</th>'
+        +'<th style="padding:8px 14px;text-align:left;font-size:10px;color:var(--sub);font-weight:600">技師</th>'
+        +'<th style="padding:8px 14px;text-align:right;font-size:10px;color:var(--ok);font-weight:600">技師抽成</th>'
+        +'<th style="padding:8px 14px;text-align:right;font-size:10px;color:var(--tip);font-weight:600">小費</th>'
+        +'<th style="padding:8px 14px;width:60px"></th>'
+        +'</tr></thead><tbody>'
+        +doneMembers.map(function(m){
+          var r=m.redeem;
+          return '<tr style="border-bottom:1px solid var(--border)">'
+            +'<td style="padding:8px 14px;font-weight:600">'+m.name+'</td>'
+            +'<td style="padding:8px 14px;color:var(--sub)">'+r.date+(r.time?' '+r.time:'')+'</td>'
+            +'<td style="padding:8px 14px"><span style="font-size:10px;padding:2px 7px;border-radius:8px;background:var(--gold-bg);color:var(--gold);font-weight:600">'+(r.category||'其他')+'</span></td>'
+            +'<td style="padding:8px 14px">'+r.itemName+'</td>'
+            +'<td style="padding:8px 14px">'+r.tech+'</td>'
+            +'<td style="padding:8px 14px;text-align:right;font-weight:700;color:var(--ok)">'+$f(r.redeemAmt||0)+'</td>'
+            +'<td style="padding:8px 14px;text-align:right;color:var(--tip)">'+(r.tip>0?$f(r.tip):'—')+'</td>'
+            +'<td style="padding:8px 14px"><button onclick="undoRedeem('+m.id+')" style="font-size:11px;color:var(--warn);background:none;border:none;cursor:pointer;font-family:inherit">取消兌換</button></td>'
+            +'</tr>';
+        }).join('')
+        +'</tbody></table>';
+    }
+  }
+}
+
 function handleGDCsvFile(file) {
   if (!file) return;
   var reader = new FileReader();
@@ -4049,24 +4540,33 @@ function confirmTipTxnSplit(splitKey,d){
   });
   allClients.sort(function(a,b){return (a.c.time||'')<(b.c.time||'')?-1:1;});
 
-  var cardTotals={},cashTotals={};
+  // 依實際發生的店別(mv/sr)分開累加，修正舊版「一律存進mv」的bug
+  var totalsByStore={mv:{card:{},cash:{}},sr:{card:{},cash:{}}};
   allClients.forEach(function(cl,i){
     var txnKey=cl.store+'_'+cl.idx;
     var selSet=tipSplitSel[splitKey][txnKey]||new Set();
     if(!selSet.size) return;
     var each=Math.round(cl.tip/selSet.size*100)/100;
+    var bucket=totalsByStore[cl.store]||(totalsByStore[cl.store]={card:{},cash:{}});
     selSet.forEach(function(name){
-      if(cl.tipPay==='cash'){cashTotals[name]=(cashTotals[name]||0)+each;}
-      else{cardTotals[name]=(cardTotals[name]||0)+each;}
+      if(cl.tipPay==='cash'){bucket.cash[name]=(bucket.cash[name]||0)+each;}
+      else{bucket.card[name]=(bucket.card[name]||0)+each;}
     });
   });
 
-  // Save to both stores (simplified: save under 'mv' for combined)
+  // 依店別分開儲存；若某店當天已無資料，順便清掉該店舊的孤兒快照
   var mo=mk();
   if(!_D.tipConfirmed)_D.tipConfirmed={};
   if(!_D.tipConfirmed[mo])_D.tipConfirmed[mo]={};
-  if(!_D.tipConfirmed[mo]['mv'])_D.tipConfirmed[mo]['mv']={};
-  _D.tipConfirmed[mo]['mv'][d]={card:cardTotals,cash:cashTotals};
+  ['mv','sr'].forEach(function(store){
+    if(!_D.tipConfirmed[mo][store])_D.tipConfirmed[mo][store]={};
+    var b=totalsByStore[store];
+    if(b&&(Object.keys(b.card).length||Object.keys(b.cash).length)){
+      _D.tipConfirmed[mo][store][d]={card:b.card,cash:b.cash};
+    } else {
+      delete _D.tipConfirmed[mo][store][d];
+    }
+  });
   // Also persist the full per-client selection so re-opening this day shows the same split, not the default
   var splitState=getTipSplitStateDay(mo,d);
   allClients.forEach(function(cl,i){
@@ -4079,6 +4579,60 @@ function confirmTipTxnSplit(splitKey,d){
   if(body){var sy=window.scrollY;body.innerHTML=buildTipDayBody(d);requestAnimationFrame(function(){window.scrollTo(0,sy);});}
   alert('✓ 已儲存！');
 }
+
+// ── 自動同步本月小費分配快照 ──
+// 用目前每天實際的客人紀錄 + 已儲存的分配選擇(tipSplitState)重新計算每天的 card/cash 總額，
+// 覆蓋 tipConfirmed。若某天的交易已被刪除/修改導致選擇對不上，該天會自動被清除或更新，
+// 不會再留下對不上目前紀錄的「孤兒」快照。
+function resyncMonthTipConfirmed(){
+  var mo=mk();
+  var y=cur.getFullYear(),m=cur.getMonth();
+  var daysInMonth=new Date(y,m+1,0).getDate();
+  var updated=0,cleared=0;
+  if(!_D.tipConfirmed)_D.tipConfirmed={};
+  if(!_D.tipConfirmed[mo])_D.tipConfirmed[mo]={};
+  if(!_D.tipConfirmed[mo].mv)_D.tipConfirmed[mo].mv={};
+  if(!_D.tipConfirmed[mo].sr)_D.tipConfirmed[mo].sr={};
+  for(var d=1;d<=daysInMonth;d++){
+    var allClients=[];
+    ['mv','sr'].forEach(function(store){
+      var dayData=_D[store]&&_D[store][mo]&&_D[store][mo][d];
+      if(!dayData)return;
+      (dayData.clients||[]).forEach(function(c,ci){
+        if(!gv(c.tip))return;
+        allClients.push({store:store,idx:ci,tip:gv(c.tip),tipPay:c.tipPay||'card'});
+      });
+    });
+    var splitState=getTipSplitStateDay(mo,d);
+    var totalsByStore={mv:{card:{},cash:{}},sr:{card:{},cash:{}}};
+    allClients.forEach(function(cl){
+      var txnKey=cl.store+'_'+cl.idx;
+      var selArr=splitState[txnKey];
+      if(!selArr||!selArr.length)return;
+      var each=Math.round(cl.tip/selArr.length*100)/100;
+      var bucket=totalsByStore[cl.store];
+      selArr.forEach(function(name){
+        if(cl.tipPay==='cash'){bucket.cash[name]=(bucket.cash[name]||0)+each;}
+        else{bucket.card[name]=(bucket.card[name]||0)+each;}
+      });
+    });
+    ['mv','sr'].forEach(function(store){
+      var b=totalsByStore[store];
+      var hadBefore=_D.tipConfirmed[mo][store][d];
+      if(b&&(Object.keys(b.card).length||Object.keys(b.cash).length)){
+        _D.tipConfirmed[mo][store][d]={card:b.card,cash:b.cash};
+        if(hadBefore)updated++;
+      } else if(hadBefore){
+        delete _D.tipConfirmed[mo][store][d];
+        cleared++;
+      }
+    });
+  }
+  saveOnly();
+  renderTipsPage();
+  alert('✓ 本月已自動同步完成\n\n更新：'+updated+' 筆\n清除孤兒資料：'+cleared+' 筆');
+}
+window.resyncMonthTipConfirmed=resyncMonthTipConfirmed;
 
 function getCombinedMap(d){
   var mapMV=calcStaffTipMapForDay('mv',d);
@@ -4534,6 +5088,202 @@ function renderReviewsPage(){
     '</table></div>';
 }
 
+// ── 會員卡銷售獎勵（跟評論獎勵同一種機制：獎勵金額分店統計，月底平分給有勾選的員工）──
+function memberSaleRewardsData(){if(!_D.memberSaleRewards)_D.memberSaleRewards={};return _D.memberSaleRewards;}
+
+function addMemberSaleReward(store){
+  var tier=document.getElementById('msr-'+store+'-tier')?.value||'299';
+  var date=document.getElementById('msr-'+store+'-date')?.value;
+  var amt=parseFloat(document.getElementById('msr-'+store+'-amt')?.value||0)||0;
+  var note=document.getElementById('msr-'+store+'-note')?.value||'';
+  var mo=mk();
+  if(!date){
+    var td=new Date(),sy=cur.getFullYear(),sm=cur.getMonth();
+    date=sy+'-'+String(sm+1).padStart(2,'0')+'-'+(td.getFullYear()===sy&&td.getMonth()===sm?String(td.getDate()).padStart(2,'0'):'01');
+  }
+  var rd=memberSaleRewardsData();
+  if(!rd[mo])rd[mo]={};
+  if(!rd[mo][store])rd[mo][store]=[];
+  rd[mo][store].push({id:Date.now(),date:date,tier:tier,amt:amt,note:note});
+  saveOnly();
+  var noteEl=document.getElementById('msr-'+store+'-note');if(noteEl)noteEl.value='';
+  var amtEl=document.getElementById('msr-'+store+'-amt');if(amtEl)amtEl.value='';
+  renderMemberSaleRewardsPage();
+}
+
+function deleteMemberSaleReward(store,id){
+  var mo=mk();
+  var rd=memberSaleRewardsData();
+  if(!rd[mo]||!rd[mo][store])return;
+  rd[mo][store]=rd[mo][store].filter(function(r){return r.id!==id;});
+  saveOnly();
+  renderMemberSaleRewardsPage();
+}
+
+function updateMemberSaleRewardAmt(store,id,val){
+  var mo=mk();
+  var rd=memberSaleRewardsData();
+  if(!rd[mo]||!rd[mo][store])return;
+  var r=rd[mo][store].find(function(r){return r.id===id;});
+  if(r)r.amt=parseFloat(val)||0;
+  saveOnly();
+  renderMemberSaleRewardsPage();
+}
+
+function toggleMemberSaleRewardStaff(store,name){
+  var mo=mk();
+  if(!_D.memberSaleRewardSel)_D.memberSaleRewardSel={};
+  if(!_D.memberSaleRewardSel[mo])_D.memberSaleRewardSel[mo]={mv:{},sr:{}};
+  if(!_D.memberSaleRewardSel[mo][store])_D.memberSaleRewardSel[mo][store]={};
+  _D.memberSaleRewardSel[mo][store][name]=(_D.memberSaleRewardSel[mo][store][name]===false)?true:false;
+  saveOnly();
+  renderMemberSaleRewardsPage();
+}
+
+// 該技師在指定月份，會員卡銷售獎勵（平分後）
+function calcMemberSaleRewardForStaff(name,mo){
+  var rd=memberSaleRewardsData();
+  var rsel=(_D.memberSaleRewardSel&&_D.memberSaleRewardSel[mo])||{mv:{},sr:{}};
+  var staffList=(_D.staff||[]);
+  var total=0;
+  ['mv','sr'].forEach(function(store){
+    var entries=((rd[mo]&&rd[mo][store])||[]);
+    var storeTotal=entries.reduce(function(s,r){return s+(r.amt||0);},0);
+    if(storeTotal<=0)return;
+    var sel=rsel[store]||{};
+    var selStaff=staffList.filter(function(n){return sel[n]!==false;});
+    if(selStaff.indexOf(name)<0)return;
+    var per=selStaff.length>0?Math.round(storeTotal/selStaff.length*100)/100:0;
+    total+=per;
+  });
+  return Math.round(total*100)/100;
+}
+
+function renderMemberSaleRewardsPage(){
+  var mo=mk();
+  var rd=memberSaleRewardsData();
+  if(!_D.memberSaleRewardSel)_D.memberSaleRewardSel={};
+  if(!_D.memberSaleRewardSel[mo])_D.memberSaleRewardSel[mo]={mv:{},sr:{}};
+  var rsel=_D.memberSaleRewardSel[mo];
+  var staffList=(_D.staff||[]);
+  var tierLabel={'299':'Membership 299','99':'Membership 99'};
+
+  ['mv','sr'].forEach(function(store){
+    var storeColor=store==='mv'?'var(--mv)':'var(--sr)';
+    var storeBd=store==='mv'?'var(--mv-bd)':'var(--sr-bd)';
+    var entries=((rd[mo]&&rd[mo][store])||[]).slice().sort(function(a,b){return a.date.localeCompare(b.date);});
+    var listEl=document.getElementById('msr-'+store+'-list');
+    var sumEl=document.getElementById('msr-'+store+'-summary');
+    if(!listEl||!sumEl)return;
+
+    if(entries.length===0){
+      listEl.innerHTML='<div style="font-size:12px;color:var(--faint);text-align:center;padding:10px 0">本月尚無會員卡銷售獎勵記錄</div>';
+    } else {
+      listEl.innerHTML='<div style="background:var(--white);border:1px solid var(--border);border-radius:7px;overflow:hidden">'+
+        entries.map(function(r,i){
+          return '<div style="display:flex;align-items:center;gap:8px;padding:7px 10px;border-bottom:'+(i<entries.length-1?'1px solid var(--border)':'none')+';font-size:12px">'+
+            '<span style="font-size:10px;background:var(--bg);border:1px solid var(--border);border-radius:4px;padding:2px 6px;font-weight:600;white-space:nowrap">'+(tierLabel[r.tier]||r.tier)+'</span>'+
+            '<span style="color:var(--sub);white-space:nowrap;min-width:32px">'+r.date.slice(5).replace('-','/')+'</span>'+
+            '<span style="flex:1;color:var(--sub);font-size:11px">'+(r.note||'')+'</span>'+
+            '<div style="display:flex;align-items:center;gap:4px">'+
+              '<span style="font-size:11px;color:var(--sub)">$</span>'+
+              '<input type="text" inputmode="decimal" value="'+(r.amt||0)+'" min="0" step="0.01" onchange="updateMemberSaleRewardAmt(\''+store+'\','+r.id+',this.value)" style="width:70px;border:1px solid var(--border);border-radius:5px;padding:3px 6px;font-size:12px;font-family:inherit;text-align:right;outline:none">'+
+            '</div>'+
+            '<button onclick="deleteMemberSaleReward(\''+store+'\','+r.id+')" style="background:none;border:none;color:var(--faint);font-size:14px;cursor:pointer;padding:2px 5px;border-radius:4px;line-height:1;flex-shrink:0">×</button>'+
+          '</div>';
+        }).join('')+
+      '</div>';
+    }
+
+    var totalAmt=entries.reduce(function(s,r){return s+(r.amt||0);},0);
+    if(!rsel[store])rsel[store]={};
+    staffList.forEach(function(n){if(rsel[store][n]===undefined)rsel[store][n]=true;});
+    var selStaff=staffList.filter(function(n){return rsel[store][n]!==false;});
+    var perPerson=selStaff.length>0?Math.round(totalAmt/selStaff.length*100)/100:0;
+
+    var chips=staffList.map(function(name){
+      var on=rsel[store][name]!==false;
+      return '<span onclick="toggleMemberSaleRewardStaff(\''+store+'\',\''+name+'\')" '+
+        'style="display:inline-flex;align-items:center;padding:4px 11px;font-size:12px;font-weight:500;'+
+        'border:1.5px solid '+(on?storeColor:'var(--border)')+';border-radius:20px;cursor:pointer;'+
+        'background:'+(on?'rgba(0,0,0,.04)':'var(--bg)')+';color:'+(on?storeColor:'var(--faint)')+';margin:2px;transition:all .12s">'+
+        name+'</span>';
+    }).join('');
+
+    sumEl.innerHTML=entries.length===0?'':
+      '<div style="background:var(--white);border:1px solid '+storeBd+';border-radius:8px;padding:12px 14px">'+
+        '<div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:10px">'+
+          '<div style="text-align:center">'+
+            '<div style="font-size:9px;text-transform:uppercase;letter-spacing:.07em;color:var(--sub);margin-bottom:2px">本月總獎勵</div>'+
+            '<div style="font-size:20px;font-weight:700;color:'+storeColor+'">'+$f(totalAmt)+'</div>'+
+            '<div style="font-size:10px;color:var(--sub)">'+entries.length+' 張</div>'+
+          '</div>'+
+          '<div style="font-size:16px;color:var(--faint)">÷</div>'+
+          '<div style="text-align:center">'+
+            '<div style="font-size:9px;text-transform:uppercase;letter-spacing:.07em;color:var(--sub);margin-bottom:2px">參與人數</div>'+
+            '<div style="font-size:20px;font-weight:700">'+selStaff.length+' 人</div>'+
+          '</div>'+
+          '<div style="font-size:16px;color:var(--faint)">=</div>'+
+          '<div style="background:var(--ok-bg);border:1px solid var(--ok-bd);border-radius:8px;padding:8px 14px;text-align:center">'+
+            '<div style="font-size:9px;text-transform:uppercase;letter-spacing:.07em;color:var(--ok);margin-bottom:2px">每人可得</div>'+
+            '<div style="font-size:22px;font-weight:700;color:var(--ok)">'+$f(perPerson)+'</div>'+
+          '</div>'+
+        '</div>'+
+        '<div style="font-size:10px;color:var(--sub);margin-bottom:6px;font-weight:600">參與員工：</div>'+
+        '<div style="display:flex;flex-wrap:wrap;gap:2px">'+chips+'</div>'+
+      '</div>';
+  });
+
+  // Combined month table
+  var resEl=document.getElementById('msr-month-result');
+  if(!resEl)return;
+  var mvEntries=((rd[mo]&&rd[mo].mv)||[]);
+  var srEntries=((rd[mo]&&rd[mo].sr)||[]);
+  if(mvEntries.length===0&&srEntries.length===0){
+    resEl.innerHTML='<div style="font-size:12px;color:var(--faint);text-align:center;padding:20px">本月尚無會員卡銷售獎勵記錄</div>';
+    return;
+  }
+  if(staffList.length===0){
+    resEl.innerHTML='<div style="font-size:12px;color:var(--sub);padding:12px">尚無員工資料，請先在「員工管理」新增員工</div>';
+    return;
+  }
+  var mvTotal=mvEntries.reduce(function(s,r){return s+(r.amt||0);},0);
+  var srTotal=srEntries.reduce(function(s,r){return s+(r.amt||0);},0);
+  if(!rsel.mv)rsel.mv={};if(!rsel.sr)rsel.sr={};
+  var mvSel=staffList.filter(function(n){return rsel.mv[n]!==false;});
+  var srSel=staffList.filter(function(n){return rsel.sr[n]!==false;});
+  var mvPer=mvSel.length>0?Math.round(mvTotal/mvSel.length*100)/100:0;
+  var srPer=srSel.length>0?Math.round(srTotal/srSel.length*100)/100:0;
+  var rows=staffList.map(function(name){
+    var mv=rsel.mv[name]!==false&&mvTotal>0?mvPer:0;
+    var sr=rsel.sr[name]!==false&&srTotal>0?srPer:0;
+    var tot=mv+sr;
+    return '<tr style="border-bottom:1px solid var(--border)">'+
+      '<td style="padding:8px 14px;font-weight:600">'+name+'</td>'+
+      '<td style="padding:8px 14px;text-align:right;color:var(--mv)">'+(mv>0?$f(mv):'<span style="color:var(--faint)">—</span>')+'</td>'+
+      '<td style="padding:8px 14px;text-align:right;color:var(--sr)">'+(sr>0?$f(sr):'<span style="color:var(--faint)">—</span>')+'</td>'+
+      '<td style="padding:8px 14px;text-align:right;background:var(--bg)"><span style="font-size:15px;font-weight:700;color:'+(tot>0?'var(--ok)':'var(--faint)')+'">'+$f(tot)+'</span></td>'+
+    '</tr>';
+  }).join('');
+  resEl.innerHTML=
+    '<div style="background:var(--white);border:1px solid var(--border);border-radius:10px;overflow:hidden">'+
+    '<table style="width:100%;border-collapse:collapse;font-size:13px">'+
+      '<thead><tr style="background:var(--bg)">'+
+        '<th style="padding:8px 14px;text-align:left;font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:var(--sub);border-bottom:1.5px solid var(--border)">員工</th>'+
+        '<th style="padding:8px 14px;text-align:right;font-size:10px;color:var(--mv);border-bottom:1.5px solid var(--border)">Mill Valley<br><span style="font-weight:400;opacity:.7">'+$f(mvTotal)+' ÷ '+mvSel.length+'人</span></th>'+
+        '<th style="padding:8px 14px;text-align:right;font-size:10px;color:var(--sr);border-bottom:1.5px solid var(--border)">San Rafael<br><span style="font-weight:400;opacity:.7">'+$f(srTotal)+' ÷ '+srSel.length+'人</span></th>'+
+        '<th style="padding:8px 14px;text-align:right;font-size:10px;color:var(--ok);border-bottom:1.5px solid var(--border)">合計</th>'+
+      '</tr></thead>'+
+      '<tbody>'+rows+'</tbody>'+
+      '<tfoot><tr style="background:var(--bg);border-top:1.5px solid var(--border)">'+
+        '<td style="padding:8px 14px;font-size:11px;font-weight:700;color:var(--sub)">總獎勵</td>'+
+        '<td style="padding:8px 14px;text-align:right;font-weight:700;color:var(--mv)">'+$f(mvTotal)+'</td>'+
+        '<td style="padding:8px 14px;text-align:right;font-weight:700;color:var(--sr)">'+$f(srTotal)+'</td>'+
+        '<td style="padding:8px 14px;text-align:right;font-size:15px;font-weight:700;color:var(--ok)">'+$f(mvTotal+srTotal)+'</td>'+
+      '</tr></tfoot>'+
+    '</table></div>';
+}
+
 // ── MONTHLY REPORT ──
 function calcStaffMonthSales(name){
   // Sum Net Sales from impRows/payroll data for this employee this month
@@ -4796,7 +5546,12 @@ function buildStaffReportData(){
     var bossSuppForGrand=(cfg.bonusType==='minTipPooled')?0:bossSupp;
     // 產品抽成 15%
     var prodComm=Math.round((((_D.products&&_D.products[mk()])||[]).filter(function(p){return p.staff===name;}).reduce(function(s,p){return s+(p.comm||p.amt*0.15);},0))*100)/100;
-    var grand=basePay+effectiveTip+penTotal+mvRev+srRev+bossSuppForGrand+adj+prodComm;
+    // 會員卡免費兌換技師抽成（固定金額，不算營業額）
+    var memberComm=calcMemberCommForStaff(name,mk());
+    var memberRedeems=membersData().filter(function(m){return m.redeemed&&m.redeem&&m.redeem.tech===name&&m.redeem.mo===mk();});
+    // 會員卡銷售獎勵（平分制，跟評論獎勵同機制）
+    var memberSaleRev=calcMemberSaleRewardForStaff(name,mk());
+    var grand=basePay+effectiveTip+penTotal+mvRev+srRev+bossSuppForGrand+adj+prodComm+memberComm+memberSaleRev;
     return{
       name:name, cfg:cfg,
       totalSales:totalSales, basePay:basePay, baseLabel:baseLabel,
@@ -4807,7 +5562,7 @@ function buildStaffReportData(){
       pens:myPens, penTotal:penTotal,
       mvRev:mvRev, srRev:srRev,
       bossSupp:bossSupp, bossSuppLabel:bossSuppLabel,
-      adj:adj, prodComm:prodComm, grand:grand,
+      adj:adj, prodComm:prodComm, memberComm:memberComm, memberRedeems:memberRedeems, memberSaleRev:memberSaleRev, grand:grand,
       totalNetMins:totalNetMins, workDays:workDays, hoursStr:hoursStr
     };
   });
@@ -4928,6 +5683,11 @@ function renderReportPage(){
       details+='<tr id="'+detailId+'-rv" style="display:none;background:var(--bg)"><td></td>'+
         '<td style="padding:4px 14px 4px 28px;font-size:11px;color:var(--gold)">評論獎勵 '+revStr+'</td><td colspan="'+(COLS-2)+'"></td></tr>';
     }
+    // 會員卡銷售獎勵
+    if(d.memberSaleRev>0){
+      details+='<tr id="'+detailId+'-msr" style="display:none;background:var(--bg)"><td></td>'+
+        '<td style="padding:4px 14px 4px 28px;font-size:11px;color:var(--gold)">🎁 會員卡銷售獎勵 '+$f(d.memberSaleRev)+'</td><td colspan="'+(COLS-2)+'"></td></tr>';
+    }
     // Penalties/bonuses
     d.pens.forEach(function(p,pi){
       var isB=p.type==='bonus';
@@ -4941,6 +5701,17 @@ function renderReportPage(){
       '<tr id="'+detailId+'-bs" style="display:none;background:var(--warn-bg)"><td></td>'+
       '<td style="padding:4px 14px 4px 28px;font-size:11px;color:var(--warn)">老闆補款：'+d.bossSuppLabel+'</td>'+
       '<td colspan="'+(COLS-2)+'"></td></tr>';
+
+    // 會員卡免費兌換抽成明細
+    if(d.memberComm>0){
+      details+='<tr id="'+detailId+'-mc" style="display:none;background:var(--gc-bg)"><td></td>'+
+        '<td colspan="'+(COLS-1)+'" style="padding:6px 14px 8px 28px">'+
+        '<div style="font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.08em;color:var(--gc);margin-bottom:4px">💳 會員卡免費兌換抽成 合計 '+$f(d.memberComm)+'</div>'+
+        (d.memberRedeems||[]).map(function(m){
+          return '<div style="font-size:11px;color:var(--sub);padding:2px 0">'+m.redeem.date+(m.redeem.time?' '+m.redeem.time:'')+' · ['+(m.redeem.category||'其他')+'] '+m.redeem.itemName+' · '+m.name+' · <span style="color:var(--gc);font-weight:600">+'+$f(m.redeem.redeemAmt||0)+'</span>'+(m.redeem.tip>0?' · 小費 '+$f(m.redeem.tip):'')+'</div>';
+        }).join('')+
+        '</td></tr>';
+    }
 
     // Per-transaction tip + supplement detail
     (function(){
@@ -5040,7 +5811,7 @@ function renderReportPage(){
           return '<td style="padding:6px 12px;text-align:right">'+lines+'</td>';
         }())+
         '<td style="padding:10px 12px;text-align:right;font-size:12px;color:var(--gold)">'+(d.mvRev+d.srRev>0?$f(d.mvRev+d.srRev):'—')+'</td>'+
-        '<td style="padding:10px 12px;text-align:right;font-size:12px;color:#7B5EA7;font-weight:'+(d.prodComm>0?'700':'400')+'">'+(d.prodComm>0?$f(d.prodComm):'—')+'</td>'+
+        '<td style="padding:10px 12px;text-align:right;font-size:12px;color:#7B5EA7;font-weight:'+((d.prodComm+d.memberComm)>0?'700':'400')+'" title="產品抽成 '+$f(d.prodComm)+' + 會員兌換抽成 '+$f(d.memberComm)+'">'+((d.prodComm+d.memberComm)>0?$f(d.prodComm+d.memberComm):'—')+'</td>'+
         '<td style="padding:10px 12px;text-align:right;font-size:12px;color:var(--warn);font-weight:'+(d.bossSupp>0?'700':'400')+'">'+(d.bossSupp>0?$f(d.bossSupp):'—')+'</td>'+
         '<td style="padding:10px 14px;text-align:right;font-size:16px;font-weight:700;color:'+grandColor+'">'+$f(d.grand)+'</td>'+
       '</tr>'+
@@ -5066,7 +5837,7 @@ function renderReportPage(){
           '<th style="padding:8px 12px;text-align:right;font-size:10px;color:var(--mv);font-weight:600">抽成/底薪</th>'+
           '<th style="padding:8px 12px;text-align:right;font-size:10px;color:var(--sub);font-weight:600">小費</th>'+
           '<th style="padding:8px 12px;text-align:right;font-size:10px;color:var(--gold);font-weight:600">評論獎勵</th>'+
-          '<th style="padding:8px 12px;text-align:right;font-size:10px;color:#7B5EA7;font-weight:600">產品抽成</th>'+
+          '<th style="padding:8px 12px;text-align:right;font-size:10px;color:#7B5EA7;font-weight:600">產品/會員抽成</th>'+
           '<th style="padding:8px 12px;text-align:right;font-size:10px;color:var(--warn);font-weight:600">老闆補款</th>'+
           '<th style="padding:8px 12px;text-align:right;font-size:10px;color:var(--ok);font-weight:600">實領合計</th>'+
         '</tr></thead>'+
@@ -5400,8 +6171,10 @@ function downloadAllPDFs(){
         +tipRow
         +(d.mvRev>0?'<tr><td>MV 評論獎勵</td><td style="color:#7A5A10">$'+d.mvRev.toFixed(2)+'</td></tr>':'')
         +(d.srRev>0?'<tr><td>SR 評論獎勵</td><td style="color:#7A5A10">$'+d.srRev.toFixed(2)+'</td></tr>':'')
+        +(d.memberSaleRev>0?'<tr><td>🎁 會員卡銷售獎勵</td><td style="color:#7A5A10">$'+d.memberSaleRev.toFixed(2)+'</td></tr>':'')
         +penRows
         +(d.prodComm>0?'<tr><td>產品抽成 (15%)</td><td style="color:#7B5EA7;font-weight:600">$'+d.prodComm.toFixed(2)+'</td></tr>':'')
+        +(d.memberComm>0?'<tr><td>會員卡免費兌換抽成</td><td style="color:#1A7A45;font-weight:600">$'+d.memberComm.toFixed(2)+'</td></tr>':'')
         +(d.bossSupp>0?'<tr><td>老闆補款</td><td style="color:#B45309;font-weight:600">$'+d.bossSupp.toFixed(2)+'</td></tr>':'')
         +'<tr class="total"><td>合計應得</td><td style="color:'+grandColor+'">'+$f2(d.grand)+'</td></tr>'
       +'</table>'
@@ -6266,38 +7039,91 @@ function addAttRow(name){
   recs.push({date:fmtDate(new Date()),rawMins:rawMins,breakDeducted:true,note:'',startTime:s,endTime:e});
   saveOnly();renderOneStaffCard(name);renderAttSummary();
 }
-function delAttRow(name,idx){
-  var recs=attRec(name);recs.splice(idx,1);saveOnly();renderOneStaffCard(name);renderAttSummary();
+function delAttRow(name,idx,btn){
+  var recs=attRec(name);
+  var rec=recs[idx];
+  if(!rec)return;
+  var dateStr=rec.date||(btn&&btn.getAttribute('data-date'))||'';
+  if(!confirm('確定要刪除這一天嗎？\n\n'+name+' — '+dateStr))return;
+  recs.splice(idx,1);saveOnly();renderOneStaffCard(name);renderAttSummary();
 }
+// ── 每週固定班表 ──
+// _D.staffPay[name].weeklySchedule = [ {off:bool,start:'HH:MM',end:'HH:MM'}, ... ] 7筆，index 0=週日...6=週六
+var WEEK_DOW_LABELS=['日','一','二','三','四','五','六'];
+function getWeeklySchedule(name){
+  var cfg=staffPayCfg(name);
+  if(cfg.weeklySchedule&&Array.isArray(cfg.weeklySchedule)&&cfg.weeklySchedule.length===7)return cfg.weeklySchedule;
+  // 尚未設定過：預設全部上班，套用原本的「預設上下班時間」
+  var s=cfg.defaultStart||'',e=cfg.defaultEnd||'';
+  return [0,1,2,3,4,5,6].map(function(){return {off:false,start:s,end:e};});
+}
+function ensureWeeklySchedule(name){
+  var cfg=staffPayCfg(name);
+  if(!cfg.weeklySchedule||!Array.isArray(cfg.weeklySchedule)||cfg.weeklySchedule.length!==7){
+    cfg.weeklySchedule=getWeeklySchedule(name);
+  }
+  return cfg.weeklySchedule;
+}
+function toggleScheduleOff(name,dow){
+  var sched=ensureWeeklySchedule(name);
+  sched[dow].off=!sched[dow].off;
+  saveOnly();
+  renderOneStaffCard(name);
+}
+function saveScheduleTime(name,dow,field,val){
+  var sched=ensureWeeklySchedule(name);
+  sched[dow][field]=val;
+  saveOnly();
+}
+
 function genMonthRows(name,mode){
-  // mode: 'all'=every day, 'mon-sat'=skip Sun, 'mon-fri'=skip Sat+Sun
+  // 如果已經設定「每週固定班表」，優先用它（每天各自的上下班時間、休息日自動跳過）
+  // 沒設定過的話，才 fallback 用舊的 mode 參數（all / mon-sat / mon-fri）+ 統一的預設上下班時間
   var recs=attRec(name);
   var y=cur.getFullYear(),m=cur.getMonth();
   var days=new Date(y,m+1,0).getDate();
   var existingDates={};
   recs.forEach(function(r){existingDates[r.date]=true;});
   var cfg2=staffPayCfg(name);
-  var added=0;
+  var hasSchedule=cfg2.weeklySchedule&&Array.isArray(cfg2.weeklySchedule)&&cfg2.weeklySchedule.length===7;
+  var sched=hasSchedule?cfg2.weeklySchedule:null;
+  var added=0,skippedOff=0;
   for(var d=1;d<=days;d++){
     var dt=new Date(y,m,d);
     var dow=dt.getDay(); // 0=Sun,6=Sat
-    if(mode==='mon-fri'&&(dow===0||dow===6))continue;
-    if(mode==='mon-sat'&&dow===0)continue;
     var dateStr=y+'-'+String(m+1).padStart(2,'0')+'-'+String(d).padStart(2,'0');
-    if(!existingDates[dateStr]){
-      var s2=cfg2.defaultStart||'', e2=cfg2.defaultEnd||'';
-      var rm=0;
-      if(s2&&e2&&s2<e2){var sm3=parseInt(s2.slice(0,2))*60+parseInt(s2.slice(3,5)),em3=parseInt(e2.slice(0,2))*60+parseInt(e2.slice(3,5));if(em3>sm3)rm=em3-sm3;}
-      recs.push({date:dateStr,rawMins:rm,breakDeducted:true,note:'',startTime:s2,endTime:e2});
-      added++;
+    if(existingDates[dateStr])continue; // 已經有紀錄的日子不覆蓋，保留手動調整過的內容
+
+    var s2,e2;
+    if(sched){
+      if(sched[dow].off){skippedOff++;continue;} // 這天是固定休息日，跳過不產生紀錄
+      s2=sched[dow].start||''; e2=sched[dow].end||'';
+    } else {
+      if(mode==='mon-fri'&&(dow===0||dow===6))continue;
+      if(mode==='mon-sat'&&dow===0)continue;
+      s2=cfg2.defaultStart||''; e2=cfg2.defaultEnd||'';
     }
+    var rm=0;
+    if(s2&&e2&&s2<e2){var sm3=parseInt(s2.slice(0,2))*60+parseInt(s2.slice(3,5)),em3=parseInt(e2.slice(0,2))*60+parseInt(e2.slice(3,5));if(em3>sm3)rm=em3-sm3;}
+    recs.push({date:dateStr,rawMins:rm,breakDeducted:true,note:'',startTime:s2,endTime:e2});
+    added++;
   }
   // Sort by date
   recs.sort(function(a,b){return a.date<b.date?-1:1;});
   saveOnly();renderOneStaffCard(name);renderAttSummary();
-  return added;
+  return {added:added,skippedOff:skippedOff};
 }
+function runGenMonthRows(name){
+  var r=genMonthRows(name,'all');
+  var msg='✓ 已產生 '+r.added+' 天的班表';
+  if(r.skippedOff>0)msg+='\n（'+r.skippedOff+' 天是固定休息日，已自動跳過）';
+  if(r.added===0&&r.skippedOff===0)msg='本月已經沒有可以新增的天數了（可能都已經有紀錄，或還沒設定每週固定班表）';
+  alert(msg);
+}
+window.runGenMonthRows=runGenMonthRows;
+
 function updAttField(name,idx,field,val){
+
   var recs=attRec(name);
   if(!recs[idx])return;
   if(field==='rawMins') recs[idx][field]=Math.round(parseFloat(val||0)*60);
@@ -6462,6 +7288,41 @@ function renderOneStaffCard(name){
     if(newArr)newArr.classList.add('open');
   }
 }
+function timeOptions30(selected){
+  var opts='<option value="">—</option>';
+  for(var h=0;h<24;h++){
+    for(var m2=0;m2<60;m2+=30){
+      var hh=String(h).padStart(2,'0'), mm=String(m2).padStart(2,'0');
+      var val=hh+':'+mm;
+      var h12=h%12===0?12:h%12;
+      var label=(h<12?'上午':'下午')+' '+String(h12).padStart(2,'0')+':'+mm;
+      opts+='<option value="'+val+'"'+(selected===val?' selected':'')+'>'+label+'</option>';
+    }
+  }
+  return opts;
+}
+function buildWeeklyScheduleEditor(name,esc,safeId){
+  var sched=getWeeklySchedule(name);
+  var q="'";
+  var dayCards=sched.map(function(s,dow){
+    var isWk=dow===0||dow===6;
+    var off=!!s.off;
+    return '<div style="flex:1;min-width:90px;background:'+(off?'var(--warn-bg)':'var(--white)')+';border:1.5px solid '+(off?'var(--warn-bd)':'var(--border)')+';border-radius:8px;padding:8px 8px 10px;text-align:center">'+
+      '<div style="font-size:12px;font-weight:700;color:'+(isWk?'var(--warn)':'var(--text)')+';margin-bottom:6px">週'+WEEK_DOW_LABELS[dow]+'</div>'+
+      '<button onclick="toggleScheduleOff('+q+esc+q+','+dow+')" style="width:100%;padding:5px 0;font-size:11px;font-weight:600;border-radius:6px;cursor:pointer;font-family:inherit;border:1px solid '+(off?'var(--warn-bd)':'var(--ok-bd)')+';background:'+(off?'var(--warn-bg)':'var(--ok-bg)')+';color:'+(off?'var(--warn)':'var(--ok)')+';margin-bottom:'+(off?'0':'6px')+'">'+(off?'休息':'上班')+'</button>'+
+      (off?'':
+        '<select onchange="saveScheduleTime('+q+esc+q+','+dow+','+q+'start'+q+',this.value)" style="width:100%;border:1px solid var(--border);border-radius:5px;padding:3px 4px;font-size:11px;font-family:inherit;margin-bottom:4px;box-sizing:border-box">'+timeOptions30(s.start||'')+'</select>'+
+        '<select onchange="saveScheduleTime('+q+esc+q+','+dow+','+q+'end'+q+',this.value)" style="width:100%;border:1px solid var(--border);border-radius:5px;padding:3px 4px;font-size:11px;font-family:inherit;box-sizing:border-box">'+timeOptions30(s.end||'')+'</select>'
+      )+
+    '</div>';
+  }).join('');
+  return '<div style="padding:12px 16px;border-bottom:1px solid var(--border);background:var(--bg)">'+
+    '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">'+
+      '<span style="font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:var(--sub);font-weight:600">📅 每週固定班表（時間以 30 分鐘為單位，點「休息/上班」切換）</span>'+
+    '</div>'+
+    '<div style="display:flex;gap:6px;flex-wrap:wrap">'+dayCards+'</div>'+
+  '</div>';
+}
 function buildStaffCard(name){
   var d=attData();
   var color=getStaffColor(name);
@@ -6506,12 +7367,12 @@ function buildStaffCard(name){
           // Start time
           '<div>'+
             '<div style="font-size:9px;color:var(--sub);text-transform:uppercase;letter-spacing:.06em;margin-bottom:3px">上班</div>'+
-            '<input type="time" value="'+(r.startTime||'')+'" style="'+inpStyle+';width:100px" onchange="updAttField('+q+esc+q+','+idx+','+q+'startTime'+q+',this.value)">'+
+            '<select style="'+inpStyle+';width:100px" onchange="updAttField('+q+esc+q+','+idx+','+q+'startTime'+q+',this.value)">'+timeOptions30(r.startTime||'')+'</select>'+
           '</div>'+
           // End time
           '<div>'+
             '<div style="font-size:9px;color:var(--sub);text-transform:uppercase;letter-spacing:.06em;margin-bottom:3px">下班</div>'+
-            '<input type="time" value="'+(r.endTime||'')+'" style="'+inpStyle+';width:100px" onchange="updAttField('+q+esc+q+','+idx+','+q+'endTime'+q+',this.value)">'+
+            '<select style="'+inpStyle+';width:100px" onchange="updAttField('+q+esc+q+','+idx+','+q+'endTime'+q+',this.value)">'+timeOptions30(r.endTime||'')+'</select>'+
           '</div>'+
           // Hours (auto-calculated, still editable)
           '<div>'+
@@ -6538,7 +7399,7 @@ function buildStaffCard(name){
           '</div>'+
           // Delete
           '<div style="padding-top:16px">'+
-            '<button class="att-del" onclick="delAttRow('+q+esc+q+','+idx+')">&#215;</button>'+
+            '<button class="att-del" onclick="delAttRow('+q+esc+q+','+idx+',this)" data-date="'+r.date+'">&#215;</button>'+
           '</div>'+
         '</div>';
       }).join('');
@@ -6572,6 +7433,8 @@ function buildStaffCard(name){
       '<div class="att-color-row">'+
         '<span class="att-color-lbl">顏色</span>'+swatches+
       '</div>'+
+      // 每週固定班表
+      buildWeeklyScheduleEditor(name,esc,safeId)+
       // Attendance records
       '<div style="border-top:1px solid var(--border)">'+
         // Column header
@@ -6590,7 +7453,7 @@ function buildStaffCard(name){
       '<div class="att-add-row" style="gap:6px;flex-wrap:wrap">'+
         '<button class="att-add-btn" onclick="addAttRow(\''+esc+'\')">&#65291; 新增一天</button>'+
         '<div style="width:1px;background:var(--border);margin:0 2px"></div>'+
-        '<button class="att-add-btn" style="background:var(--ok-bg);color:var(--ok);border-color:var(--ok-bd)" onclick="genMonthRows(\''+esc+'\',\'all\')">&#9889; 一鍵生成整月</button>'+
+        '<button class="att-add-btn" style="background:var(--ok-bg);color:var(--ok);border-color:var(--ok-bd)" onclick="runGenMonthRows(\''+esc+'\')">&#9889; 一鍵生成整月</button>'+
         '<button class="att-add-btn" style="background:var(--bg);color:var(--sub);border-color:var(--border)" onclick="setAllNoBreak(\''+esc+'\')">&#10003; 全部不扣</button>'+
       '</div>'+
       // Inline penalty section
