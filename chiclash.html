@@ -1040,6 +1040,10 @@ input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-
         <div><div style="font-size:11px;color:var(--sub);margin-bottom:4px">技師兌換所得 ($) *</div><input type="text" inputmode="decimal" id="mi-redeem" class="ti" placeholder="0" style="width:100%"></div>
       </div>
       <div style="margin-bottom:12px">
+        <div style="font-size:11px;color:var(--sub);margin-bottom:6px">適用卡別（不選＝所有卡別都能兌換這個項目）</div>
+        <div style="display:flex;gap:4px;flex-wrap:wrap" id="mi-newtier-chips"></div>
+      </div>
+      <div style="margin-bottom:12px">
         <div style="font-size:11px;color:var(--sub);margin-bottom:6px">指定技師（不選＝所有技師都能做這個項目）</div>
         <div id="mi-newtech-chips" style="display:flex;flex-wrap:wrap;gap:4px"></div>
       </div>
@@ -1141,9 +1145,17 @@ input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-
     <div id="mb-stats" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px;margin-bottom:16px"></div>
 
     <!-- 未兌換 -->
-    <div style="margin-bottom:8px;font-size:13px;font-weight:700;color:var(--warn)">🎟 尚未兌換</div>
-    <div style="background:var(--white);border-radius:12px;overflow:hidden;box-shadow:var(--shadow);margin-bottom:20px">
-      <div id="mb-list-pending"><div style="text-align:center;padding:24px;font-size:13px;color:var(--faint)">目前沒有未兌換的會員</div></div>
+    <div style="margin-bottom:8px;font-size:13px;font-weight:700;color:var(--warn)">🎟 尚未兌換（依購買月份分欄）</div>
+    <div style="background:var(--white);border-radius:12px;box-shadow:var(--shadow);margin-bottom:20px;padding:14px;overflow-x:auto">
+      <div id="mb-list-pending" style="display:flex;gap:14px;align-items:flex-start;min-height:40px"><div style="text-align:center;padding:24px;font-size:13px;color:var(--faint);width:100%">目前沒有未兌換的會員</div></div>
+    </div>
+
+    <!-- 已過期未兌換（一年制，超過購買日+1年還沒兌換） -->
+    <div id="mb-expired-section" style="display:none">
+      <div style="margin-bottom:8px;font-size:13px;font-weight:700;color:#B83010">⚠ 已過期未兌換（依購買月份分欄）</div>
+      <div style="background:var(--white);border-radius:12px;box-shadow:var(--shadow);margin-bottom:20px;padding:14px;overflow-x:auto">
+        <div id="mb-list-expired" style="display:flex;gap:14px;align-items:flex-start"></div>
+      </div>
     </div>
 
     <!-- 已兌換 -->
@@ -3694,6 +3706,8 @@ function memberItems(){ if(!_D.memberItems)_D.memberItems=[]; return _D.memberIt
 function membersData(){ if(!_D.members)_D.members=[]; return _D.members; }
 
 var _miNewTechSel=new Set();
+var _miNewTierSel=new Set();
+var MEMBER_TIERS=['299','99'];
 function toggleNewItemTech(name){
   if(_miNewTechSel.has(name))_miNewTechSel.delete(name);else _miNewTechSel.add(name);
   renderNewItemTechChips();
@@ -3708,6 +3722,18 @@ function renderNewItemTechChips(){
     return '<span onclick="toggleNewItemTech(\''+name.replace(/'/g,"\\'")+'\')" style="display:inline-flex;align-items:center;padding:4px 11px;font-size:12px;font-weight:500;border:1.5px solid '+(on?'var(--rose)':'var(--border)')+';border-radius:20px;cursor:pointer;background:'+(on?'var(--gold-bg)':'var(--white)')+';color:'+(on?'var(--rose)':'var(--faint)')+';margin:2px">'+name+'</span>';
   }).join('');
 }
+function toggleNewItemTier(tier){
+  if(_miNewTierSel.has(tier))_miNewTierSel.delete(tier);else _miNewTierSel.add(tier);
+  renderNewItemTierChips();
+}
+function renderNewItemTierChips(){
+  var el=document.getElementById('mi-newtier-chips');
+  if(!el)return;
+  el.innerHTML=MEMBER_TIERS.map(function(tier){
+    var on=_miNewTierSel.has(tier);
+    return '<span onclick="toggleNewItemTier(\''+tier+'\')" style="display:inline-flex;align-items:center;padding:4px 11px;font-size:12px;font-weight:500;border:1.5px solid '+(on?'var(--mv)':'var(--border)')+';border-radius:20px;cursor:pointer;background:'+(on?'var(--mv-bg)':'var(--white)')+';color:'+(on?'var(--mv)':'var(--faint)')+';margin:2px">Membership '+tier+'</span>';
+  }).join('');
+}
 function toggleItemTech(itemId,name){
   var it=memberItems().find(function(m){return m.id===itemId;});
   if(!it)return;
@@ -3717,16 +3743,26 @@ function toggleItemTech(itemId,name){
   save();
   renderMembersPage();
 }
+function toggleItemTier(itemId,tier){
+  var it=memberItems().find(function(m){return m.id===itemId;});
+  if(!it)return;
+  if(!Array.isArray(it.tiers))it.tiers=[];
+  var idx=it.tiers.indexOf(tier);
+  if(idx>=0)it.tiers.splice(idx,1);else it.tiers.push(tier);
+  save();
+  renderMembersPage();
+}
 function addMemberItem(){
   var cat=document.getElementById('mi-cat').value||'其他';
   var name=(document.getElementById('mi-name').value||'').trim();
   var price=parseFloat(document.getElementById('mi-price').value)||0;
   var redeemAmt=parseFloat(document.getElementById('mi-redeem').value)||0;
   if(!name||price<=0){alert('請填寫項目名稱和原價');return;}
-  memberItems().push({id:Date.now(),category:cat,name:name,price:price,redeemAmt:redeemAmt,techs:Array.from(_miNewTechSel)});
+  memberItems().push({id:Date.now(),category:cat,name:name,price:price,redeemAmt:redeemAmt,techs:Array.from(_miNewTechSel),tiers:Array.from(_miNewTierSel)});
   save();
   ['mi-name','mi-price','mi-redeem'].forEach(function(id){var el=document.getElementById(id);if(el)el.value='';});
   _miNewTechSel=new Set();
+  _miNewTierSel=new Set();
   renderMembersPage();
 }
 function delMemberItem(id){
@@ -3743,8 +3779,14 @@ function updateMemberItem(id,field,val){
 
 var MEMBER_CATS=['Head Spa','Massage','Lashes','Facial','其他'];
 // 依分類分組產生 <optgroup> 選單 HTML
-function memberItemOptGroups(){
+function memberItemOptGroups(tier){
   var items=memberItems();
+  if(tier){
+    items=items.filter(function(it){
+      var itTiers=Array.isArray(it.tiers)?it.tiers:[];
+      return !itTiers.length||itTiers.indexOf(String(tier))>=0;
+    });
+  }
   var byCat={};
   items.forEach(function(it){
     var c=it.category||'其他';
@@ -3753,6 +3795,7 @@ function memberItemOptGroups(){
   });
   var cats=MEMBER_CATS.filter(function(c){return byCat[c]&&byCat[c].length;})
     .concat(Object.keys(byCat).filter(function(c){return MEMBER_CATS.indexOf(c)<0;}));
+  if(!cats.length)return '<option value="">（沒有這個卡別能兌換的項目，請先去價目表指定）</option>';
   var html='<option value="">選擇兌換項目…</option>';
   cats.forEach(function(c){
     html+='<optgroup label="'+c+'">'+byCat[c].map(function(it){
@@ -3890,7 +3933,6 @@ function renderMemberDetectBanner(d){
   var clients=r.clients||[];
   var items=memberItems();
   if(!items.length){el.innerHTML='';return;}
-  var itemOptsGlobal=memberItemOptGroups();
   var rows='';
   clients.forEach(function(c,i){
     if(c.isMemberRedeem)return; // 已標記過，不重複提示
@@ -3900,6 +3942,7 @@ function renderMemberDetectBanner(d){
     if(!name)return;
     var mem=membersData().find(function(m){return !m.redeemed && m.name.trim().toLowerCase()===name.toLowerCase();});
     if(!mem)return; // 名字沒對到「尚未兌換」的會員，不提示
+    var itemOptsGlobal=memberItemOptGroups(mem.tier);
     rows+='<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;background:var(--gc-bg);border:1px solid var(--gc-bd);border-radius:8px;padding:8px 10px;margin-bottom:6px;font-size:12px">'
       +'<span>🎫 第'+(i+1)+'筆「'+name+'」符合會員（Membership '+mem.tier+'）免費兌換資格</span>'
       +'<select id="mrd-item-'+d+'-'+i+'" class="ti" style="width:auto;font-size:11px">'+itemOptsGlobal+'</select>'
@@ -3944,6 +3987,20 @@ function calcMemberCommForStaff(name,mo){
   }).reduce(function(s,m){return s+(m.redeem.redeemAmt||0);},0)*100)/100;
 }
 
+// 會員卡是一年制：到期日 = 購買日 + 1年
+function memberExpireDateStr(m){
+  if(!m.purchaseDate)return '';
+  var d=new Date(m.purchaseDate+'T12:00:00');
+  d.setFullYear(d.getFullYear()+1);
+  return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+}
+function isMemberExpired(m){
+  if(m.redeemed)return false;
+  var exp=memberExpireDateStr(m);
+  if(!exp)return false;
+  var todayStr=new Date().toISOString().slice(0,10);
+  return todayStr>exp;
+}
 function renderMembersPage(){
   initMemberFormSelects();
   var staff=_D.staff||[];
@@ -3951,6 +4008,7 @@ function renderMembersPage(){
   var members=membersData();
   renderMemberSaleRewardsPage();
   renderNewItemTechChips();
+  renderNewItemTierChips();
 
   // 價目表列表
   var miList=document.getElementById('mi-list');
@@ -3969,6 +4027,7 @@ function renderMembersPage(){
         +'<th style="padding:6px 8px;text-align:left;font-size:10px;color:var(--sub)">項目名稱</th>'
         +'<th style="padding:6px 8px;text-align:right;font-size:10px;color:var(--sub)">原價</th>'
         +'<th style="padding:6px 8px;text-align:right;font-size:10px;color:var(--sub)">技師兌換所得</th>'
+        +'<th style="padding:6px 8px;text-align:left;font-size:10px;color:var(--sub)">適用卡別</th>'
         +'<th style="padding:6px 8px;text-align:left;font-size:10px;color:var(--sub)">指定技師</th>'
         +'<th style="padding:6px 8px;width:28px"></th></tr></thead><tbody>'
         +catOrder.map(function(cat){
@@ -3979,6 +4038,12 @@ function renderMembersPage(){
               var on=itTechs.indexOf(name)>=0;
               return '<span onclick="toggleItemTech('+it.id+',\''+name.replace(/'/g,"\\'")+'\')" style="display:inline-flex;align-items:center;padding:3px 9px;font-size:11px;font-weight:500;border:1.5px solid '+(on?'var(--rose)':'var(--border)')+';border-radius:16px;cursor:pointer;background:'+(on?'var(--gold-bg)':'var(--white)')+';color:'+(on?'var(--rose)':'var(--faint)')+';margin:2px">'+name+'</span>';
             }).join('');
+            var itTiers=Array.isArray(it.tiers)?it.tiers:[];
+            var tierSummary=itTiers.length?itTiers.map(function(t){return 'M'+t;}).join('、'):'不限（所有卡別）';
+            var tierChips=MEMBER_TIERS.map(function(tier){
+              var on=itTiers.indexOf(tier)>=0;
+              return '<span onclick="toggleItemTier('+it.id+',\''+tier+'\')" style="display:inline-flex;align-items:center;padding:3px 9px;font-size:11px;font-weight:500;border:1.5px solid '+(on?'var(--mv)':'var(--border)')+';border-radius:16px;cursor:pointer;background:'+(on?'var(--mv-bg)':'var(--white)')+';color:'+(on?'var(--mv)':'var(--faint)')+';margin:2px">Membership '+tier+'</span>';
+            }).join('');
             return '<tr style="border-bottom:1px solid var(--border)">'
               +'<td style="padding:5px 8px"><select class="ti" style="width:100%;border:none;background:none;font-size:11px;color:var(--gold);font-weight:600" onchange="updateMemberItem('+it.id+',\'category\',this.value)">'
                 +MEMBER_CATS.map(function(c){return '<option value="'+c+'"'+(c===(it.category||'其他')?' selected':'')+'>'+c+'</option>';}).join('')
@@ -3986,6 +4051,10 @@ function renderMembersPage(){
               +'<td style="padding:5px 8px"><input class="ti" style="width:100%;text-align:left;border:none;background:none" value="'+it.name.replace(/"/g,'&quot;')+'" onchange="updateMemberItem('+it.id+',\'name\',this.value)"></td>'
               +'<td style="padding:5px 8px"><input class="ti" style="width:70px;border:none;background:none" inputmode="decimal" value="'+it.price+'" onchange="updateMemberItem('+it.id+',\'price\',this.value)"></td>'
               +'<td style="padding:5px 8px"><input class="ti" style="width:70px;border:none;background:none;color:var(--ok);font-weight:600" inputmode="decimal" value="'+it.redeemAmt+'" onchange="updateMemberItem('+it.id+',\'redeemAmt\',this.value)"></td>'
+              +'<td style="padding:5px 8px;max-width:150px">'
+                +'<div onclick="var e=document.getElementById(\'mi-tiersel-'+it.id+'\');e.style.display=e.style.display===\'none\'?\'block\':\'none\';" style="cursor:pointer;font-size:11px;color:'+(itTiers.length?'var(--text)':'var(--faint)')+'">'+tierSummary+' <span style="color:var(--faint)">▾</span></div>'
+                +'<div id="mi-tiersel-'+it.id+'" style="display:none;margin-top:6px;padding:6px;background:var(--bg);border-radius:6px">'+tierChips+'</div>'
+              +'</td>'
               +'<td style="padding:5px 8px;max-width:180px">'
                 +'<div onclick="var e=document.getElementById(\'mi-techsel-'+it.id+'\');e.style.display=e.style.display===\'none\'?\'block\':\'none\';" style="cursor:pointer;font-size:11px;color:'+(itTechs.length?'var(--text)':'var(--faint)')+'">'+techSummary+' <span style="color:var(--faint)">▾</span></div>'
                 +'<div id="mi-techsel-'+it.id+'" style="display:none;margin-top:6px;padding:6px;background:var(--bg);border-radius:6px">'+(staff.length?techChips:'<span style="font-size:11px;color:var(--faint)">尚無員工資料</span>')+'</div>'
@@ -4002,12 +4071,15 @@ function renderMembersPage(){
   var statsEl=document.getElementById('mb-stats');
   if(statsEl){
     var total=members.length;
-    var pending=members.filter(function(m){return !m.redeemed;}).length;
+    var pendingAll=members.filter(function(m){return !m.redeemed;});
+    var expiredCount=pendingAll.filter(isMemberExpired).length;
+    var pending=pendingAll.length-expiredCount;
     var done=members.filter(function(m){return m.redeemed;}).length;
     var thisMoRedeemVal=members.filter(function(m){return m.redeemed&&m.redeem&&m.redeem.mo===mk();}).reduce(function(s,m){return s+(m.redeem.redeemAmt||0);},0);
     statsEl.innerHTML=[
       ['會員總數',total,'var(--rose)'],
-      ['尚未兌換',pending,'var(--warn)'],
+      ['尚未兌換（有效）',pending,'var(--warn)'],
+      ['已過期未兌換',expiredCount,'#B83010'],
       ['已兌換',done,'var(--ok)'],
       ['本月兌換技師抽成合計',$f(thisMoRedeemVal),'var(--mv)']
     ].map(function(c){
@@ -4016,13 +4088,13 @@ function renderMembersPage(){
   }
 
   var techOpts='<option value="">— 選擇 —</option>'+staff.map(function(s){return'<option value="'+s+'">'+s+'</option>';}).join('');
-  var itemOpts=memberItemOptGroups();
   var storeLabel={mv:'Mill Valley',sr:'San Rafael'};
 
   function redeemFormHTML(m){
+    var itemOpts=memberItemOptGroups(m.tier);
     return '<div id="redeem-form-'+m.id+'" style="display:none;background:var(--bg);border-radius:8px;padding:12px;margin-top:8px">'
       +'<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:8px;margin-bottom:8px">'
-        +'<div><div style="font-size:10px;color:var(--sub);margin-bottom:3px">兌換項目</div><select id="rf-item-'+m.id+'" class="ti" style="width:100%;text-align:left" onchange="filterRedeemTechs('+m.id+')">'+itemOpts+'</select></div>'
+        +'<div><div style="font-size:10px;color:var(--sub);margin-bottom:3px">兌換項目（Membership '+m.tier+' 可兌換）</div><select id="rf-item-'+m.id+'" class="ti" style="width:100%;text-align:left" onchange="filterRedeemTechs('+m.id+')">'+itemOpts+'</select></div>'
         +'<div><div style="font-size:10px;color:var(--sub);margin-bottom:3px">技師</div><select id="rf-tech-'+m.id+'" class="ti" style="width:100%;text-align:left">'+techOpts+'</select></div>'
         +'<div><div style="font-size:10px;color:var(--sub);margin-bottom:3px">日期</div><input type="date" id="rf-date-'+m.id+'" class="ti" style="width:100%"></div>'
         +'<div><div style="font-size:10px;color:var(--sub);margin-bottom:3px">時間</div><input type="time" id="rf-time-'+m.id+'" class="ti" style="width:100%"></div>'
@@ -4045,24 +4117,78 @@ function renderMembersPage(){
     +'</div>';
   }
 
+  var TIER_COLORS={
+    '299':{bg:'#FDF3E0',border:'#D9A441',text:'#8A6115',dot:'#D9A441'},
+    '99':{bg:'#E8F0FE',border:'#7EA6E0',text:'#2A5CAD',dot:'#4C86D6'}
+  };
+  function tierColor(tier){return TIER_COLORS[String(tier)]||{bg:'#F0F0F0',border:'var(--border)',text:'var(--sub)',dot:'#999'};}
+
   var pendingEl=document.getElementById('mb-list-pending');
-  var pendingMembers=members.filter(function(m){return !m.redeemed;}).sort(function(a,b){return a.purchaseDate<b.purchaseDate?1:-1;});
+  var allPending=members.filter(function(m){return !m.redeemed;}).sort(function(a,b){return a.purchaseDate<b.purchaseDate?1:-1;});
+  var pendingMembers=allPending.filter(function(m){return !isMemberExpired(m);});
+  var expiredMembers=allPending.filter(isMemberExpired);
+
+  function pendingCardHTML(m,expired){
+    var exp=memberExpireDateStr(m);
+    var tc=tierColor(m.tier);
+    return '<div style="background:'+tc.bg+';border:1.5px solid '+tc.border+';border-radius:9px;padding:10px 12px;margin-bottom:8px'+(expired?';opacity:.75':'')+'">'
+      +'<div style="display:flex;align-items:center;gap:6px;margin-bottom:4px">'
+        +'<span style="width:8px;height:8px;border-radius:50%;background:'+tc.dot+';flex-shrink:0"></span>'
+        +'<span style="font-weight:700;font-size:13px">'+m.name+'</span>'
+      +'</div>'
+      +'<div style="font-size:10px;color:'+tc.text+';font-weight:600;margin-bottom:2px">Membership '+m.tier+(expired?' · ⚠已過期':'')+'</div>'
+      +'<div style="font-size:10px;color:var(--sub);margin-bottom:8px">'+storeLabel[m.store]+' · 購買 '+m.purchaseDate+(exp?'<br>到期 '+exp:'')+'</div>'
+      +'<div style="display:flex;gap:6px">'
+        +'<button onclick="toggleRedeemForm('+m.id+')" style="flex:1;padding:6px 8px;background:var(--white);color:'+tc.text+';border:1.5px solid '+tc.border+';border-radius:6px;font-size:11px;font-weight:600;cursor:pointer;font-family:inherit">登記兌換</button>'
+        +'<button class="del-btn" onclick="delMember('+m.id+')">×</button>'
+      +'</div>'
+      +redeemFormHTML(m)
+    +'</div>';
+  }
+
+  // 依購買月份分欄（月份新到舊排列）
+  function groupByPurchaseMonth(list){
+    var groups={};
+    list.forEach(function(m){
+      var mo=(m.purchaseDate||'').slice(0,7)||'未知月份';
+      if(!groups[mo])groups[mo]=[];
+      groups[mo].push(m);
+    });
+    return Object.keys(groups).sort(function(a,b){return a<b?1:-1;}).map(function(mo){return {mo:mo,list:groups[mo]};});
+  }
+  function moLabel(mo){
+    if(mo==='未知月份')return mo;
+    var parts=mo.split('-');
+    return parts[0]+'年'+parseInt(parts[1],10)+'月';
+  }
+  function renderKanbanColumns(list,expired){
+    if(!list.length)return '';
+    var cols=groupByPurchaseMonth(list);
+    return cols.map(function(g){
+      return '<div style="flex:0 0 260px;min-width:260px;background:var(--bg);border-radius:9px;padding:10px">'
+        +'<div style="font-size:12px;font-weight:700;color:var(--text);margin-bottom:8px;padding-bottom:6px;border-bottom:1.5px solid var(--border);display:flex;justify-content:space-between">'
+          +'<span>'+moLabel(g.mo)+'</span><span style="color:var(--sub);font-weight:500">'+g.list.length+' 人</span>'
+        +'</div>'
+        +g.list.map(function(m){return pendingCardHTML(m,expired);}).join('')
+      +'</div>';
+    }).join('');
+  }
+
   if(pendingEl){
     if(!pendingMembers.length){
-      pendingEl.innerHTML='<div style="text-align:center;padding:24px;font-size:13px;color:var(--faint)">目前沒有未兌換的會員</div>';
+      pendingEl.innerHTML='<div style="text-align:center;padding:24px;font-size:13px;color:var(--faint);width:100%">目前沒有未兌換的會員</div>';
     } else {
-      pendingEl.innerHTML=pendingMembers.map(function(m){
-        return '<div style="padding:12px 16px;border-bottom:1px solid var(--border)">'
-          +'<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">'
-            +'<span style="font-weight:700;font-size:14px">'+m.name+'</span>'
-            +'<span style="font-size:11px;padding:2px 8px;border-radius:10px;background:var(--gold-bg);color:var(--gold);font-weight:600">Membership '+m.tier+'</span>'
-            +'<span style="font-size:11px;color:var(--sub)">'+storeLabel[m.store]+' · 購買於 '+m.purchaseDate+'</span>'
-            +'<button onclick="toggleRedeemForm('+m.id+')" style="margin-left:auto;padding:6px 14px;background:var(--mv-bg);color:var(--mv);border:1.5px solid var(--mv-bd);border-radius:7px;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit">登記兌換</button>'
-            +'<button class="del-btn" onclick="delMember('+m.id+')">×</button>'
-          +'</div>'
-          +redeemFormHTML(m)
-        +'</div>';
-      }).join('');
+      pendingEl.innerHTML=renderKanbanColumns(pendingMembers,false);
+    }
+  }
+  var expiredEl=document.getElementById('mb-list-expired');
+  var expiredSectionEl=document.getElementById('mb-expired-section');
+  if(expiredEl&&expiredSectionEl){
+    if(!expiredMembers.length){
+      expiredSectionEl.style.display='none';
+    } else {
+      expiredSectionEl.style.display='block';
+      expiredEl.innerHTML=renderKanbanColumns(expiredMembers,true);
     }
   }
 
@@ -4086,8 +4212,9 @@ function renderMembersPage(){
         +'</tr></thead><tbody>'
         +doneMembers.map(function(m){
           var r=m.redeem;
+          var tc=tierColor(m.tier);
           return '<tr style="border-bottom:1px solid var(--border)">'
-            +'<td style="padding:8px 14px;font-weight:600">'+m.name+'</td>'
+            +'<td style="padding:8px 14px;font-weight:600"><span style="display:inline-block;width:7px;height:7px;border-radius:50%;background:'+tc.dot+';margin-right:6px"></span>'+m.name+'</td>'
             +'<td style="padding:8px 14px;color:var(--sub)">'+r.date+(r.time?' '+r.time:'')+'</td>'
             +'<td style="padding:8px 14px"><span style="font-size:10px;padding:2px 7px;border-radius:8px;background:var(--gold-bg);color:var(--gold);font-weight:600">'+(r.category||'其他')+'</span></td>'
             +'<td style="padding:8px 14px">'+r.itemName+'</td>'
