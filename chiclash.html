@@ -3819,6 +3819,8 @@ function confirmRedeem(id){
   var time=document.getElementById('rf-time-'+id).value||'';
   var tip=parseFloat(document.getElementById('rf-tip-'+id).value)||0;
   var tipPay=document.getElementById('rf-tippay-'+id).value||'cash';
+  var topup=parseFloat(document.getElementById('rf-topup-'+id)?.value)||0;
+  var topupPay=document.getElementById('rf-topuppay-'+id)?.value||'card';
   var skipTipEl=document.getElementById('rf-skiptip-'+id);
   var skipTip=skipTipEl?skipTipEl.checked:false;
   if(!item||!tech||!date){alert('請選擇兌換項目、技師和日期');return;}
@@ -3828,24 +3830,27 @@ function confirmRedeem(id){
   var store=mem.store||'mv';
 
   if(!skipTip){
-    // 寫入每日客人紀錄（svc=0 不算營業額，但會走正常的小費分配/GoDaddy流程）
+    // 寫入每日客人紀錄：免費的部分 svc=0 不算營業額；如果有加價購，svc改記加價金額、付款方式用加價付款方式，
+    // 這樣加價的部分會正常走現有的營業額/技師抽成計算（等於一般客人一樣算），不用另外寫邏輯
     if(!_D[store])_D[store]={};
     if(!_D[store][mo])_D[store][mo]={};
     if(!_D[store][mo][day])_D[store][mo][day]={clients:[],sqOther:'',sqCash:'',sqTip:'',sqGC:'',sqTotal:'',note:''};
     if(!Array.isArray(_D[store][mo][day].clients))_D[store][mo][day].clients=[];
     _D[store][mo][day].clients.push({
-      clientName:mem.name+'（會員兌換）', tech:tech, staff:[tech], time:time,
-      svc:0, pay:'cash', tip:tip, tipPay:tipPay,
+      clientName:mem.name+'（會員兌換'+(topup>0?'+加價':'')+'）', tech:tech, staff:[tech], time:time,
+      svc:topup, pay:topup>0?topupPay:'cash', tip:tip, tipPay:tipPay,
       isMemberRedeem:true, memberId:mem.id, memberItemName:item.name
     });
   }
 
   mem.redeemed=true;
-  mem.redeem={date:date,time:time,mo:mo,day:day,store:store,itemId:item.id,itemName:item.name,category:item.category||'其他',tech:tech,redeemAmt:item.redeemAmt||0,tip:tip,tipPay:tipPay,dayEntryAdded:!skipTip};
+  mem.redeem={date:date,time:time,mo:mo,day:day,store:store,itemId:item.id,itemName:item.name,category:item.category||'其他',tech:tech,redeemAmt:item.redeemAmt||0,tip:tip,tipPay:tipPay,topup:topup,topupPay:topupPay,dayEntryAdded:!skipTip};
   save();
   renderMembersPage();
   if(document.getElementById('page-tips')&&document.getElementById('page-tips').classList.contains('on'))renderTipsPage();
-  alert(skipTip?'✓ 已登記兌換（小費未重複寫入，只計入技師抽成）':'✓ 已登記兌換，小費已自動計入小費分配，技師抽成已計入月結報表');
+  var msg=skipTip?'✓ 已登記兌換（小費未重複寫入，只計入技師抽成）':'✓ 已登記兌換，小費已自動計入小費分配，技師抽成已計入月結報表';
+  if(topup>0)msg+='\n💰 加價 $'+topup.toFixed(2)+' 已計入當天營業額與技師抽成';
+  alert(msg);
 }
 
 function undoRedeem(id){
@@ -4024,6 +4029,14 @@ function renderMembersPage(){
         +'<div><div style="font-size:10px;color:var(--sub);margin-bottom:3px">小費</div><input type="text" inputmode="decimal" id="rf-tip-'+m.id+'" class="ti" placeholder="0.00" style="width:100%"></div>'
         +'<div><div style="font-size:10px;color:var(--sub);margin-bottom:3px">小費付款方式</div><select id="rf-tippay-'+m.id+'" class="ti" style="width:100%;text-align:left"><option value="cash">現金</option><option value="card">刷卡</option><option value="venmo">Venmo</option></select></div>'
       +'</div>'
+      +'<div style="background:var(--gold-bg);border:1px solid #DDD0A0;border-radius:7px;padding:10px;margin-bottom:10px">'
+        +'<div style="font-size:10px;font-weight:600;color:var(--gold);margin-bottom:6px">💰 加價購（選填）— 例如升級成更貴的項目，會員多付差額</div>'
+        +'<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:8px">'
+          +'<div><div style="font-size:10px;color:var(--sub);margin-bottom:3px">加價金額</div><input type="text" inputmode="decimal" id="rf-topup-'+m.id+'" class="ti" placeholder="0.00" style="width:100%"></div>'
+          +'<div><div style="font-size:10px;color:var(--sub);margin-bottom:3px">加價付款方式</div><select id="rf-topuppay-'+m.id+'" class="ti" style="width:100%;text-align:left"><option value="card">刷卡</option><option value="cash">現金</option><option value="venmo">Venmo</option></select></div>'
+        +'</div>'
+        +'<div style="font-size:10px;color:var(--sub);margin-top:6px">加價的部分會正常算進當天營業額，技師也會照平常抽成規則多拿——跟免費兌換的固定所得是分開算的兩筆。</div>'
+      +'</div>'
       +'<label style="display:flex;align-items:center;gap:6px;font-size:11px;color:var(--sub);margin-bottom:10px;cursor:pointer">'
         +'<input type="checkbox" id="rf-skiptip-'+m.id+'" style="width:14px;height:14px;cursor:pointer">'
         +'補登過去的紀錄：這筆小費之前已經記在「每日客人紀錄」裡了，不要重複寫入小費紀錄（只登記技師抽成）'
@@ -4067,6 +4080,7 @@ function renderMembersPage(){
         +'<th style="padding:8px 14px;text-align:left;font-size:10px;color:var(--sub);font-weight:600">項目</th>'
         +'<th style="padding:8px 14px;text-align:left;font-size:10px;color:var(--sub);font-weight:600">技師</th>'
         +'<th style="padding:8px 14px;text-align:right;font-size:10px;color:var(--ok);font-weight:600">技師抽成</th>'
+        +'<th style="padding:8px 14px;text-align:right;font-size:10px;color:var(--gold);font-weight:600">加價</th>'
         +'<th style="padding:8px 14px;text-align:right;font-size:10px;color:var(--tip);font-weight:600">小費</th>'
         +'<th style="padding:8px 14px;width:60px"></th>'
         +'</tr></thead><tbody>'
@@ -4079,6 +4093,7 @@ function renderMembersPage(){
             +'<td style="padding:8px 14px">'+r.itemName+'</td>'
             +'<td style="padding:8px 14px">'+r.tech+'</td>'
             +'<td style="padding:8px 14px;text-align:right;font-weight:700;color:var(--ok)">'+$f(r.redeemAmt||0)+'</td>'
+            +'<td style="padding:8px 14px;text-align:right;color:var(--gold)">'+(r.topup>0?$f(r.topup):'—')+'</td>'
             +'<td style="padding:8px 14px;text-align:right;color:var(--tip)">'+(r.tip>0?$f(r.tip):'—')+'</td>'
             +'<td style="padding:8px 14px"><button onclick="undoRedeem('+m.id+')" style="font-size:11px;color:var(--warn);background:none;border:none;cursor:pointer;font-family:inherit">取消兌換</button></td>'
             +'</tr>';
@@ -5868,7 +5883,7 @@ function renderReportPage(){
           return '<td style="padding:6px 12px;text-align:right">'+lines+'</td>';
         }())+
         '<td style="padding:10px 12px;text-align:right;font-size:12px;color:var(--gold)">'+(d.mvRev+d.srRev>0?$f(d.mvRev+d.srRev):'—')+'</td>'+
-        '<td style="padding:10px 12px;text-align:right;font-size:12px;color:#7B5EA7;font-weight:'+((d.prodComm+d.memberComm)>0?'700':'400')+'" title="產品抽成 '+$f(d.prodComm)+' + 會員兌換抽成 '+$f(d.memberComm)+'">'+((d.prodComm+d.memberComm)>0?$f(d.prodComm+d.memberComm):'—')+'</td>'+
+        '<td style="padding:10px 12px;text-align:right;font-size:12px;color:#7B5EA7;font-weight:'+((d.prodComm+d.memberComm+d.memberSaleRev)>0?'700':'400')+'" title="產品抽成 '+$f(d.prodComm)+' + 會員兌換抽成 '+$f(d.memberComm)+' + 會員卡銷售獎勵 '+$f(d.memberSaleRev)+'">'+((d.prodComm+d.memberComm+d.memberSaleRev)>0?$f(d.prodComm+d.memberComm+d.memberSaleRev):'—')+'</td>'+
         '<td style="padding:10px 12px;text-align:right;font-size:12px;color:var(--warn);font-weight:'+(d.bossSupp>0?'700':'400')+'">'+(d.bossSupp>0?$f(d.bossSupp):'—')+'</td>'+
         '<td style="padding:10px 14px;text-align:right;font-size:16px;font-weight:700;color:'+grandColor+'">'+$f(d.grand)+'</td>'+
       '</tr>'+
