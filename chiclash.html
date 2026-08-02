@@ -47,6 +47,7 @@ input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-
 .pg-hd{margin-bottom:20px}
 .pg-title{font-size:17px;font-weight:700;margin-bottom:2px}
 .pg-sub{font-size:12px;color:var(--sub)}
+#report-sub{font-size:20px;font-weight:700;color:var(--text)}
 
 /* Overview */
 .gd-banner{border-radius:10px;padding:13px 18px;display:flex;align-items:center;gap:14px;margin-bottom:12px;border:1px solid}
@@ -6284,8 +6285,16 @@ function buildStaffCardHTML(d,moLabel,isPreview,note){
   '</div>';
 }
 
+function enBaseLabel(cfg,totalNetMins){
+  var hrs=Math.round(totalNetMins/60*100)/100;
+  if(cfg.payType==='commission')return 'Commission '+(cfg.commRate||50)+'%';
+  if(cfg.payType==='hourly')return 'Hourly $'+(cfg.hourlyRate||0)+' × '+hrs+'h';
+  if(cfg.payType==='salary')return 'Fixed Salary';
+  if(cfg.payType==='mixed')return 'Commission '+(cfg.commRate||0)+'% + Hourly $'+(cfg.hourlyRate||0);
+  return '';
+}
 function downloadAllPDFs(){
-  var moLabel=cur.toLocaleDateString('zh-TW',{year:'numeric',month:'long'});
+  var moLabel=cur.toLocaleDateString('en-US',{year:'numeric',month:'long'});
   var allData=buildStaffReportData();
   var notes=reportNotes();
 
@@ -6297,7 +6306,7 @@ function downloadAllPDFs(){
     var note=notes[d.name]||'';
     // 小費合計（不分MV/SR）
     var totalTipAmt=d.pooledTip!==undefined?d.pooledTip:((d.mvTip||0)+(d.srTip||0));
-    var tipLabel=d.pooledTip!==undefined?'小費（平分後）':'小費';
+    var tipLabel=d.pooledTip!==undefined?'Tip (pooled)':'Tip';
     var tipRow=totalTipAmt>0?'<tr><td>'+tipLabel+'</td><td style="color:#7A5A10;font-weight:600">$'+totalTipAmt.toFixed(2)+'</td></tr>':'';
 
     // ── 打卡明細 ──
@@ -6316,16 +6325,16 @@ function downloadAllPDFs(){
     }).join('');
     var attSection=attDetailRows?(
       '<div style="margin-top:12px">'
-      +'<div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:#666;margin-bottom:6px;border-bottom:1px solid #ddd;padding-bottom:4px">出勤明細</div>'
+      +'<div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:#666;margin-bottom:6px;border-bottom:1px solid #ddd;padding-bottom:4px">Attendance Details</div>'
       +'<table style="font-size:11px">'
         +'<thead><tr style="background:#f5f5f5">'
-          +'<th style="text-align:left;padding:4px;font-weight:600">日期</th>'
-          +'<th style="text-align:left;padding:4px;font-weight:600">時間</th>'
-          +'<th style="text-align:right;padding:4px;font-weight:600">工時</th>'
+          +'<th style="text-align:left;padding:4px;font-weight:600">Date</th>'
+          +'<th style="text-align:left;padding:4px;font-weight:600">Time</th>'
+          +'<th style="text-align:right;padding:4px;font-weight:600">Hours</th>'
         +'</tr></thead>'
         +'<tbody>'+attDetailRows+'</tbody>'
         +'<tfoot><tr style="border-top:2px solid #ddd;background:#f7f7f7">'
-          +'<td colspan="2" style="padding:5px 4px;font-weight:600;font-size:11px">合計 '+d.workDays+' 天</td>'
+          +'<td colspan="2" style="padding:5px 4px;font-weight:600;font-size:11px">Total '+d.workDays+' days</td>'
           +'<td style="text-align:right;font-weight:700;padding:5px 4px">'+d.hoursStr+'</td>'
         +'</tr></tfoot>'
       +'</table></div>'
@@ -6362,25 +6371,25 @@ function downloadAllPDFs(){
     }
     var txnSection2=txnRows2?(
       '<div style="margin-top:12px">'
-      +'<div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:#666;margin-bottom:6px;border-bottom:1px solid #ddd;padding-bottom:4px">逐筆明細</div>'
+      +'<div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:#666;margin-bottom:6px;border-bottom:1px solid #ddd;padding-bottom:4px">Transaction Details</div>'
       +'<table style="font-size:11px">'
         +'<thead><tr style="background:#f5f5f5">'
-          +'<th style="text-align:left;padding:4px;font-weight:600">日期</th>'
-          +'<th style="text-align:left;padding:4px;font-weight:600">客人</th>'
-          +'<th style="text-align:right;padding:4px;font-weight:600">服務費</th>'
-          +'<th style="text-align:right;padding:4px;font-weight:600">小費</th>'
-          +(hasMinTipPDF2?'<th style="text-align:right;padding:4px;font-weight:600">應得('+(d.cfg.bonusThreshold||15)+'%)</th>'
-            +'<th style="text-align:right;padding:4px;color:#C0392B;font-weight:600">老闆補</th>':'')
-          +'<th style="text-align:center;padding:4px;font-weight:600">現金</th>'
+          +'<th style="text-align:left;padding:4px;font-weight:600">Date</th>'
+          +'<th style="text-align:left;padding:4px;font-weight:600">Client</th>'
+          +'<th style="text-align:right;padding:4px;font-weight:600">Service</th>'
+          +'<th style="text-align:right;padding:4px;font-weight:600">Tip</th>'
+          +(hasMinTipPDF2?'<th style="text-align:right;padding:4px;font-weight:600">Due ('+(d.cfg.bonusThreshold||15)+'%)</th>'
+            +'<th style="text-align:right;padding:4px;color:#C0392B;font-weight:600">Owner Top-up</th>':'')
+          +'<th style="text-align:center;padding:4px;font-weight:600">Cash</th>'
         +'</tr></thead>'
         +'<tbody>'+txnRows2+'</tbody>'
-        +(txnTotalSupp2>0?'<tfoot><tr style="border-top:2px solid #ddd;background:#fff8f7"><td colspan="'+(hasMinTipPDF2?5:3)+'" style="padding:5px 4px;font-weight:600;font-size:11px">老闆補款合計</td><td style="text-align:right;font-weight:700;color:#C0392B;padding:5px 4px">+$'+txnTotalSupp2.toFixed(2)+'</td><td></td></tr></tfoot>':'')
+        +(txnTotalSupp2>0?'<tfoot><tr style="border-top:2px solid #ddd;background:#fff8f7"><td colspan="'+(hasMinTipPDF2?5:3)+'" style="padding:5px 4px;font-weight:600;font-size:11px">Owner Top-up Total</td><td style="text-align:right;font-weight:700;color:#C0392B;padding:5px 4px">+$'+txnTotalSupp2.toFixed(2)+'</td><td></td></tr></tfoot>':'')
       +'</table></div>'
     ):'';
     var penRows='';
     d.pens.forEach(function(p){
       var isB=p.type==='bonus';
-      penRows+='<tr><td>'+p.date.slice(5).replace('-','/')+' ['+(isB?'獎勵':'扣款')+'] '+p.desc+'</td>'
+      penRows+='<tr><td>'+p.date.slice(5).replace('-','/')+' ['+(isB?'Bonus':'Deduction')+'] '+p.desc+'</td>'
         +'<td style="color:'+(isB?'#1A7A45':'#B83010')+';font-weight:600">'+(isB?'+':'-')+'$'+Math.abs(p.amt).toFixed(2)+'</td></tr>';
     });
     var grandColor=d.grand>=0?'#1A7A45':'#B83010';
@@ -6388,22 +6397,22 @@ function downloadAllPDFs(){
       +'<div class="hdr">'
         +'<div><div class="studio">Chic Lash Studio</div>'
         +'<div class="staff-name">'+d.name+'</div>'
-        +'<div class="mo-label">'+moLabel+' 月結報表</div></div>'
+        +'<div class="mo-label">'+moLabel+' Payroll Report</div></div>'
         +'<div class="grand" style="color:'+grandColor+'">'+$f2(d.grand)+'</div>'
       +'</div>'
       +'<table>'
-        +(d.totalNetMins>0?'<tr><td>出勤工時</td><td>'+d.hoursStr+'（'+d.workDays+' 天）</td></tr>':'')
-        +'<tr><td>服務費</td><td>$'+d.totalSales.toFixed(2)+'</td></tr>'
-        +'<tr><td>'+d.baseLabel+'</td><td style="color:#1656A0;font-weight:600">$'+d.basePay.toFixed(2)+'</td></tr>'
+        +(d.totalNetMins>0?'<tr><td>Hours Worked</td><td>'+d.hoursStr+' ('+d.workDays+' days)</td></tr>':'')
+        +'<tr><td>Service Fee</td><td>$'+d.totalSales.toFixed(2)+'</td></tr>'
+        +'<tr><td>'+enBaseLabel(d.cfg,d.totalNetMins)+'</td><td style="color:#1656A0;font-weight:600">$'+d.basePay.toFixed(2)+'</td></tr>'
         +tipRow
-        +(d.mvRev>0?'<tr><td>MV 評論獎勵</td><td style="color:#7A5A10">$'+d.mvRev.toFixed(2)+'</td></tr>':'')
-        +(d.srRev>0?'<tr><td>SR 評論獎勵</td><td style="color:#7A5A10">$'+d.srRev.toFixed(2)+'</td></tr>':'')
-        +(d.memberSaleRev>0?'<tr><td>🎁 會員卡銷售獎勵</td><td style="color:#7A5A10">$'+d.memberSaleRev.toFixed(2)+'</td></tr>':'')
+        +(d.mvRev>0?'<tr><td>MV Review Bonus</td><td style="color:#7A5A10">$'+d.mvRev.toFixed(2)+'</td></tr>':'')
+        +(d.srRev>0?'<tr><td>SR Review Bonus</td><td style="color:#7A5A10">$'+d.srRev.toFixed(2)+'</td></tr>':'')
+        +(d.memberSaleRev>0?'<tr><td>🎁 Membership Sale Bonus</td><td style="color:#7A5A10">$'+d.memberSaleRev.toFixed(2)+'</td></tr>':'')
         +penRows
-        +(d.prodComm>0?'<tr><td>產品抽成 (15%)</td><td style="color:#7B5EA7;font-weight:600">$'+d.prodComm.toFixed(2)+'</td></tr>':'')
-        +(d.memberComm>0?'<tr><td>會員卡免費兌換抽成</td><td style="color:#1A7A45;font-weight:600">$'+d.memberComm.toFixed(2)+'</td></tr>':'')
-        +(d.bossSupp>0?'<tr><td>老闆補款</td><td style="color:#B45309;font-weight:600">$'+d.bossSupp.toFixed(2)+'</td></tr>':'')
-        +'<tr class="total"><td>合計應得</td><td style="color:'+grandColor+'">'+$f2(d.grand)+'</td></tr>'
+        +(d.prodComm>0?'<tr><td>Product Commission (15%)</td><td style="color:#7B5EA7;font-weight:600">$'+d.prodComm.toFixed(2)+'</td></tr>':'')
+        +(d.memberComm>0?'<tr><td>Membership Redemption Commission</td><td style="color:#1A7A45;font-weight:600">$'+d.memberComm.toFixed(2)+'</td></tr>':'')
+        +(d.bossSupp>0?'<tr><td>Owner Top-up</td><td style="color:#B45309;font-weight:600">$'+d.bossSupp.toFixed(2)+'</td></tr>':'')
+        +'<tr class="total"><td>Total Due</td><td style="color:'+grandColor+'">'+$f2(d.grand)+'</td></tr>'
       +'</table>'
       +txnSection2
       +attSection
@@ -6414,16 +6423,16 @@ function downloadAllPDFs(){
         var payIcon={card:'💳',cash:'💵',venmo:'📱',zelle:'⚡'};
         return '<div style="margin-top:12px;border:1px solid #ddd;border-radius:6px;overflow:hidden">'
           +'<div style="background:#F3EFF9;padding:7px 10px;border-bottom:1px solid #ddd;display:flex;justify-content:space-between">'
-            +'<span style="font-size:10px;font-weight:700;text-transform:uppercase;color:#7B5EA7">產品銷售明細</span>'
-            +'<span style="font-size:11px;font-weight:700;color:#7B5EA7">抽成合計 $'+d.prodComm.toFixed(2)+'</span>'
+            +'<span style="font-size:10px;font-weight:700;text-transform:uppercase;color:#7B5EA7">Product Sales Details</span>'
+            +'<span style="font-size:11px;font-weight:700;color:#7B5EA7">Commission Total $'+d.prodComm.toFixed(2)+'</span>'
           +'</div>'
           +'<table style="width:100%;border-collapse:collapse;font-size:11px">'
             +'<thead><tr style="background:#f7f7f7">'
-              +'<th style="padding:4px 8px;text-align:left;font-weight:600">日期</th>'
-              +'<th style="padding:4px 8px;text-align:left;font-weight:600">產品</th>'
-              +'<th style="padding:4px 8px;text-align:left;font-weight:600">顧客</th>'
-              +'<th style="padding:4px 8px;text-align:right;font-weight:600">售價</th>'
-              +'<th style="padding:4px 8px;text-align:right;color:#7B5EA7;font-weight:600">抽成15%</th>'
+              +'<th style="padding:4px 8px;text-align:left;font-weight:600">Date</th>'
+              +'<th style="padding:4px 8px;text-align:left;font-weight:600">Product</th>'
+              +'<th style="padding:4px 8px;text-align:left;font-weight:600">Customer</th>'
+              +'<th style="padding:4px 8px;text-align:right;font-weight:600">Price</th>'
+              +'<th style="padding:4px 8px;text-align:right;color:#7B5EA7;font-weight:600">Commission 15%</th>'
             +'</tr></thead><tbody>'
             +prods.sort(function(a,b){return a.date<b.date?-1:1;}).map(function(p){
               return '<tr style="border-bottom:1px solid #eee">'
@@ -6436,8 +6445,8 @@ function downloadAllPDFs(){
             }).join('')
           +'</tbody></table></div>';
       }())
-      +(note?'<div class="note"><strong>備註：</strong>'+note+'</div>':'')
-      +'<div class="footer">Chic Lash Studio · '+moLabel+' · 列印日期：'+new Date().toLocaleDateString('zh-TW')+'</div>'
+      +(note?'<div class="note"><strong>Note:</strong> '+note+'</div>':'')
+      +'<div class="footer">Chic Lash Studio · '+moLabel+' · Printed: '+new Date().toLocaleDateString('en-US')+'</div>'
     +'</div>';
   }).join('');
 
@@ -7768,8 +7777,9 @@ function exportAttPDF(){
   var y=cur.getFullYear(),m=cur.getMonth();
   var mo=mk();var d=attData();var staff=(_D.staff||[]);
   var pad=function(n){return String(n).padStart(2,'0');};
-  var moLabel=y+'年'+pad(m+1)+'月';
-  var DAYS=['日','一','二','三','四','五','六'];
+  var MONTHS_EN=['January','February','March','April','May','June','July','August','September','October','November','December'];
+  var moLabel=MONTHS_EN[m]+' '+y;
+  var DAYS=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
 
   // ── 第一頁：全員總覽 ──
   var summaryRows=staff.map(function(name){
@@ -7788,7 +7798,7 @@ function exportAttPDF(){
         '<span style="display:inline-block;width:12px;height:12px;border-radius:50%;background:'+color.hex+';margin-right:8px;vertical-align:middle"></span>'+
         '<strong>'+name+'</strong>'+
       '</td>'+
-      '<td style="padding:10px 14px;text-align:center">'+recs.length+' 天</td>'+
+      '<td style="padding:10px 14px;text-align:center">'+recs.length+' days</td>'+
       '<td style="padding:10px 14px;text-align:right;font-size:18px;font-weight:700;color:'+color.hex+'">'+hrsLabel+'</td>'+
       '<td style="padding:10px 14px;text-align:right;color:'+(penNet>=0?'#1A7A45':'#B83010')+';font-weight:600">'+(penNet!==0?(penNet>=0?'+':'')+penNet.toFixed(2):'—')+'</td>'+
     '</tr>';
@@ -7803,20 +7813,20 @@ function exportAttPDF(){
   var summaryPage='<div class="pg" style="display:flex;flex-direction:column">'+
     '<div style="border-bottom:3px solid #1C1A17;padding-bottom:16px;margin-bottom:24px">'+
       '<div style="font-size:28px;font-weight:700;letter-spacing:-.5px">Chic Lash</div>'+
-      '<div style="font-size:15px;color:#7A746C;margin-top:4px">'+moLabel+' 出勤報表總覽</div>'+
-      '<div style="font-size:11px;color:#B0AAA2;margin-top:2px">列印日期：'+new Date().toLocaleDateString('zh-TW')+'</div>'+
+      '<div style="font-size:15px;color:#7A746C;margin-top:4px">'+moLabel+' Attendance Report Overview</div>'+
+      '<div style="font-size:11px;color:#B0AAA2;margin-top:2px">Printed: '+new Date().toLocaleDateString('en-US')+'</div>'+
     '</div>'+
     '<table style="width:100%;border-collapse:collapse;font-size:14px">'+
       '<thead><tr style="background:#F4F2EF">'+
-        '<th style="padding:10px 14px;text-align:left;font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:#7A746C;border-bottom:2px solid #E0DBD5">員工</th>'+
-        '<th style="padding:10px 14px;text-align:center;font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:#7A746C;border-bottom:2px solid #E0DBD5">出勤天數</th>'+
-        '<th style="padding:10px 14px;text-align:right;font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:#7A746C;border-bottom:2px solid #E0DBD5">實際工時</th>'+
-        '<th style="padding:10px 14px;text-align:right;font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:#7A746C;border-bottom:2px solid #E0DBD5">獎懲淨額</th>'+
+        '<th style="padding:10px 14px;text-align:left;font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:#7A746C;border-bottom:2px solid #E0DBD5">Staff</th>'+
+        '<th style="padding:10px 14px;text-align:center;font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:#7A746C;border-bottom:2px solid #E0DBD5">Days Worked</th>'+
+        '<th style="padding:10px 14px;text-align:right;font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:#7A746C;border-bottom:2px solid #E0DBD5">Actual Hours</th>'+
+        '<th style="padding:10px 14px;text-align:right;font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:#7A746C;border-bottom:2px solid #E0DBD5">Bonus/Deduction Net</th>'+
       '</tr></thead>'+
       '<tbody>'+summaryRows+'</tbody>'+
       '<tfoot><tr style="background:#F4F2EF;border-top:2px solid #C8C2BA">'+
-        '<td style="padding:10px 14px;font-weight:700">全員合計</td>'+
-        '<td style="padding:10px 14px;text-align:center;font-weight:700">'+staff.reduce(function(s,n){return s+(d.records[n]||[]).length;},0)+' 天</td>'+
+        '<td style="padding:10px 14px;font-weight:700">Team Total</td>'+
+        '<td style="padding:10px 14px;text-align:center;font-weight:700">'+staff.reduce(function(s,n){return s+(d.records[n]||[]).length;},0)+' days</td>'+
         '<td style="padding:10px 14px;text-align:right;font-size:20px;font-weight:700">'+grandHrs+'h'+(grandMinR>0?' '+grandMinR+'m':'')+'</td>'+
         '<td></td>'+
       '</tr></tfoot>'+
@@ -7845,18 +7855,18 @@ function exportAttPDF(){
       return '<tr>'+
         '<td style="color:'+(isWk?'#B83010':'inherit')+'">'+r.date.slice(5)+' ('+dow+')</td>'+
         '<td style="text-align:right">'+rawH+' hr</td>'+
-        '<td style="text-align:center">'+(r.breakDeducted!==false?'&#9654; 扣30分':'不扣')+'</td>'+
+        '<td style="text-align:center">'+(r.breakDeducted!==false?'&#9654; -30 min':'No deduction')+'</td>'+
         '<td style="text-align:right;font-weight:700;color:'+c+'">'+minsToHrs(nm)+'</td>'+
         '<td style="color:#7A746C">'+(r.note||'')+'</td>'+
       '</tr>';
     }).join('');
-    if(!attRows)attRows='<tr><td colspan="5" style="text-align:center;color:#B0AAA2;padding:16px">本月無出勤記錄</td></tr>';
+    if(!attRows)attRows='<tr><td colspan="5" style="text-align:center;color:#B0AAA2;padding:16px">No attendance records this month</td></tr>';
 
     var penRows=myPens.map(function(p){
       var isB=p.type==='bonus';
       return '<tr>'+
         '<td>'+p.date.slice(5)+'</td>'+
-        '<td style="font-weight:700;color:'+(isB?'#1A7A45':'#B83010')+'">'+(isB?'&#11088; 獎勵':'&#9888; 扣款')+'</td>'+
+        '<td style="font-weight:700;color:'+(isB?'#1A7A45':'#B83010')+'">'+(isB?'&#11088; Bonus':'&#9888; Deduction')+'</td>'+
         '<td>'+p.desc+'</td>'+
         '<td style="text-align:right;font-weight:700;color:'+(isB?'#1A7A45':'#B83010')+'">'+(isB?'+':'-')+'$'+p.amt.toFixed(2)+'</td>'+
       '</tr>';
@@ -7870,45 +7880,45 @@ function exportAttPDF(){
           '<div style="width:36px;height:36px;border-radius:50%;background:'+cbg+';border:2px solid '+c+';display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:700;color:'+c+'">'+name.slice(0,1)+'</div>'+
           '<div>'+
             '<div class="pn" style="color:'+c+'">'+name+'</div>'+
-            '<div class="pm">'+moLabel+' 出勤報表</div>'+
+            '<div class="pm">'+moLabel+' Attendance Report</div>'+
           '</div>'+
         '</div>'+
         '<div class="logo" style="color:'+c+'">Chic Lash</div>'+
       '</div>'+
 
-      '<div class="sec-title">&#128197; 出勤明細</div>'+
+      '<div class="sec-title">&#128197; Attendance Details</div>'+
       '<table>'+
-        '<thead><tr style="background:'+cbg+'"><th style="border-bottom-color:'+cbr+'">日期</th><th style="text-align:right;border-bottom-color:'+cbr+'">上班時數</th><th style="text-align:center;border-bottom-color:'+cbr+'">休息</th><th style="text-align:right;border-bottom-color:'+cbr+'">實際工時</th><th style="border-bottom-color:'+cbr+'">備註</th></tr></thead>'+
+        '<thead><tr style="background:'+cbg+'"><th style="border-bottom-color:'+cbr+'">Date</th><th style="text-align:right;border-bottom-color:'+cbr+'">Hours Worked</th><th style="text-align:center;border-bottom-color:'+cbr+'">Break</th><th style="text-align:right;border-bottom-color:'+cbr+'">Actual Hours</th><th style="border-bottom-color:'+cbr+'">Note</th></tr></thead>'+
         '<tbody>'+attRows+'</tbody>'+
         '<tfoot><tr style="background:'+cbg+'">'+
-          '<td colspan="3" style="font-weight:700;color:#7A746C;border-color:'+cbr+'">本月合計</td>'+
+          '<td colspan="3" style="font-weight:700;color:#7A746C;border-color:'+cbr+'">Monthly Total</td>'+
           '<td style="text-align:right;font-weight:700;font-size:15px;color:'+c+';border-color:'+cbr+'">'+minsToHrs(totalNet)+'</td>'+
-          '<td style="color:#7A746C;border-color:'+cbr+'">共 '+recs.length+' 天</td>'+
+          '<td style="color:#7A746C;border-color:'+cbr+'">'+recs.length+' days total</td>'+
         '</tr></tfoot>'+
       '</table>'+
 
       (myPens.length>0?
-        '<div class="sec-title" style="margin-top:16px">&#127942; 獎懲記錄</div>'+
+        '<div class="sec-title" style="margin-top:16px">&#127942; Bonus/Deduction Records</div>'+
         '<table>'+
-          '<thead><tr style="background:'+cbg+'"><th style="border-bottom-color:'+cbr+'">日期</th><th style="border-bottom-color:'+cbr+'">類型</th><th style="border-bottom-color:'+cbr+'">說明</th><th style="text-align:right;border-bottom-color:'+cbr+'">金額</th></tr></thead>'+
+          '<thead><tr style="background:'+cbg+'"><th style="border-bottom-color:'+cbr+'">Date</th><th style="border-bottom-color:'+cbr+'">Type</th><th style="border-bottom-color:'+cbr+'">Description</th><th style="text-align:right;border-bottom-color:'+cbr+'">Amount</th></tr></thead>'+
           '<tbody>'+penRows+'</tbody>'+
           '<tfoot><tr style="background:'+cbg+'">'+
-            '<td colspan="2" style="font-weight:700;color:#7A746C;border-color:'+cbr+'">獎懲合計</td>'+
-            '<td style="font-size:11px;color:#7A746C;border-color:'+cbr+'">獎 $'+bonusTotal.toFixed(2)+' &nbsp; 扣 $'+deductTotal.toFixed(2)+'</td>'+
+            '<td colspan="2" style="font-weight:700;color:#7A746C;border-color:'+cbr+'">Total</td>'+
+            '<td style="font-size:11px;color:#7A746C;border-color:'+cbr+'">Bonus $'+bonusTotal.toFixed(2)+' &nbsp; Deduct $'+deductTotal.toFixed(2)+'</td>'+
             '<td style="text-align:right;font-weight:700;font-size:15px;color:'+(penNet>=0?'#1A7A45':'#B83010')+';border-color:'+cbr+'">'+(penNet>=0?'+':'')+penNet.toFixed(2)+'</td>'+
           '</tr></tfoot>'+
         '</table>'
       :'')+
 
       '<div class="sumbox" style="background:'+cbg+';border-color:'+cbr+'">'+
-        '<div class="sumrow"><span>出勤天數</span><span class="sumval">'+recs.length+' 天</span></div>'+
-        '<div class="sumrow"><span>實際總工時</span><span class="sumval" style="color:'+c+'">'+minsToHrs(totalNet)+'</span></div>'+
-        '<div class="sumrow"><span>獎勵合計</span><span class="sumval" style="color:#1A7A45">+$'+bonusTotal.toFixed(2)+'</span></div>'+
-        '<div class="sumrow"><span>扣款合計</span><span class="sumval" style="color:#B83010">-$'+deductTotal.toFixed(2)+'</span></div>'+
-        '<div class="sumrow" style="border-top:1.5px solid '+cbr+';margin-top:6px;padding-top:6px;font-weight:700"><span>獎懲淨額</span><span class="sumval" style="font-size:16px;color:'+(penNet>=0?'#1A7A45':'#B83010')+'">'+(penNet>=0?'+':'')+penNet.toFixed(2)+'</span></div>'+
+        '<div class="sumrow"><span>Days Worked</span><span class="sumval">'+recs.length+' days</span></div>'+
+        '<div class="sumrow"><span>Total Actual Hours</span><span class="sumval" style="color:'+c+'">'+minsToHrs(totalNet)+'</span></div>'+
+        '<div class="sumrow"><span>Bonus Total</span><span class="sumval" style="color:#1A7A45">+$'+bonusTotal.toFixed(2)+'</span></div>'+
+        '<div class="sumrow"><span>Deduction Total</span><span class="sumval" style="color:#B83010">-$'+deductTotal.toFixed(2)+'</span></div>'+
+        '<div class="sumrow" style="border-top:1.5px solid '+cbr+';margin-top:6px;padding-top:6px;font-weight:700"><span>Net Bonus/Deduction</span><span class="sumval" style="font-size:16px;color:'+(penNet>=0?'#1A7A45':'#B83010')+'">'+(penNet>=0?'+':'')+penNet.toFixed(2)+'</span></div>'+
       '</div>'+
 
-      '<div class="ft">Chic Lash &nbsp;|&nbsp; '+moLabel+' &nbsp;|&nbsp; 列印日期：'+new Date().toLocaleDateString('zh-TW')+'</div>'+
+      '<div class="ft">Chic Lash &nbsp;|&nbsp; '+moLabel+' &nbsp;|&nbsp; Printed: '+new Date().toLocaleDateString('en-US')+'</div>'+
     '</div>';
   }).join('');
 
@@ -7934,7 +7944,7 @@ function exportAttPDF(){
     '@media print{.pg{padding:16px 20px}body{-webkit-print-color-adjust:exact;print-color-adjust:exact}}';
 
   var html='<!DOCTYPE html><html><head><meta charset="UTF-8">'+
-    '<title>Chic Lash 打卡報表 '+moLabel+'</title>'+
+    '<title>Chic Lash Attendance Report '+moLabel+'</title>'+
     '<style>'+css+'<\/style><\/head>'+
     '<body>'+summaryPage+pages+
     '<script>window.onload=function(){window.print();}<\/script>'+
@@ -9251,6 +9261,29 @@ function impRenderGDRecon() {
 
 
 // ── Commit functions ──
+// 掃描匯入的 Square 資料，找出「membership 299 / membership 99」的銷售項目，自動建立會員名單
+// 用 姓名+卡別+購買日 去重，避免同一筆重複匯入時建立出兩筆一樣的會員
+function impDetectMembershipSales(){
+  if(!impRows||!impRows.length)return {added:0,skipped:0,names:[]};
+  if(!_D.members)_D.members=[];
+  var added=0,skipped=0,names=[];
+  impRows.forEach(function(r){
+    var desc=(r.desc||'').toLowerCase();
+    var m=desc.match(/membership\s*(299|99)\b/);
+    if(!m)return;
+    var tier=m[1];
+    var name=(r.customer||'').trim();
+    if(!name)return;
+    var exists=_D.members.some(function(mm){
+      return mm.name.trim().toLowerCase()===name.toLowerCase() && String(mm.tier)===tier && mm.purchaseDate===r.date;
+    });
+    if(exists){skipped++;return;}
+    _D.members.push({id:Date.now()+Math.floor(Math.random()*1000),name:name,tier:tier,store:r.store,purchaseDate:r.date,notes:'',redeemed:false,redeem:null});
+    added++;
+    names.push(name+'（Membership '+tier+'）');
+  });
+  return {added:added,skipped:skipped,names:names};
+}
 function impCommitDailyForce(doReplace) {
   // 無 confirm 版本，供一鍵寫入使用（避免瀏覽器封鎖彈出視窗）
   if (!impRows.length) return;
@@ -9282,6 +9315,8 @@ function impCommitDailyForce(doReplace) {
       });
     });
   });
+  save();
+  window.impLastMemberResult = impDetectMembershipSales();
   save();
   renderAll();
 }
@@ -9351,9 +9386,13 @@ function impCommitDaily(doReplace) {
   });
 
   save();
+  var memResult = impDetectMembershipSales();
+  save();
   var el = document.getElementById('imp-commit-status');
   if (el) {
-    el.textContent = (doReplace ? '✓ 已覆蓋寫入 ' : '✓ 已追加寫入 ') + dayCount + ' 天記帳';
+    var msg = (doReplace ? '✓ 已覆蓋寫入 ' : '✓ 已追加寫入 ') + dayCount + ' 天記帳';
+    if (memResult.added > 0) msg += ' ｜ 💳 自動新增 ' + memResult.added + ' 位會員卡會員：' + memResult.names.join('、');
+    el.textContent = msg;
     el.style.display = 'block';
   }
   renderAll();
@@ -9471,6 +9510,9 @@ function impCommitAll() {
     if (Object.keys(impGDData).length) parts.push('GoDaddy Payout 已記錄');
     if (cashRows.length) parts.push(cashRows.length+'筆現金已入現金櫃');
     if (prUpdated) parts.push('💜 Lucy & Luter 薪資已更新');
+    if (window.impLastMemberResult && window.impLastMemberResult.added > 0) {
+      parts.push('💳 自動新增 '+window.impLastMemberResult.added+' 位會員卡會員：'+window.impLastMemberResult.names.join('、'));
+    }
     parts.push('小費可到「小費分配」頁面確認');
     el.textContent = parts.join(' ｜ ');
     el.style.display = 'block';
