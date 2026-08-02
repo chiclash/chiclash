@@ -6408,7 +6408,7 @@ function downloadAllPDFs(){
     var grandColor=d.grand>=0?'#1A7A45':'#B83010';
     return '<div class="pg">'
       +'<div class="hdr">'
-        +'<div><img src="'+CHIC_LASH_LOGO_B64+'" style="height:34px;display:block;margin-bottom:6px">'
+        +'<div><img src="'+CHIC_LASH_LOGO_B64+'" style="height:64px;display:block;margin-bottom:8px">'
         +'<div class="staff-name">'+d.name+'</div>'
         +'<div class="mo-label">'+moLabel+' Payroll Report</div></div>'
         +'<div class="grand" style="color:'+grandColor+'">'+$f2(d.grand)+'</div>'
@@ -6427,7 +6427,6 @@ function downloadAllPDFs(){
         +(d.bossSupp>0?'<tr><td>Owner Top-up</td><td style="color:#B45309;font-weight:600">$'+d.bossSupp.toFixed(2)+'</td></tr>':'')
         +'<tr class="total"><td>Total Due</td><td style="color:'+grandColor+'">'+$f2(d.grand)+'</td></tr>'
       +'</table>'
-      +txnSection2
       +attSection
       +(function(){
         // 產品銷售明細
@@ -7825,7 +7824,7 @@ function exportAttPDF(){
 
   var summaryPage='<div class="pg" style="display:flex;flex-direction:column">'+
     '<div style="border-bottom:3px solid #1C1A17;padding-bottom:16px;margin-bottom:24px">'+
-      '<img src="'+CHIC_LASH_LOGO_B64+'" style="height:36px;display:block;margin-bottom:6px">'+
+      '<img src="'+CHIC_LASH_LOGO_B64+'" style="height:64px;display:block;margin-bottom:8px">'+
       '<div style="font-size:15px;color:#7A746C;margin-top:4px">'+moLabel+' Attendance Report Overview</div>'+
       '<div style="font-size:11px;color:#B0AAA2;margin-top:2px">Printed: '+new Date().toLocaleDateString('en-US')+'</div>'+
     '</div>'+
