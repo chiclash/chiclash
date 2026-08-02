@@ -4127,22 +4127,20 @@ function renderMembersPage(){
   function pendingCardHTML(m,expired){
     var exp=memberExpireDateStr(m);
     var tc=tierColor(m.tier);
-    return '<div style="background:'+tc.bg+';border:1.5px solid '+tc.border+';border-radius:9px;padding:10px 12px'+(expired?';opacity:.75':'')+'">'
-      +'<div style="display:flex;align-items:center;gap:6px;margin-bottom:4px">'
-        +'<span style="width:8px;height:8px;border-radius:50%;background:'+tc.dot+';flex-shrink:0"></span>'
-        +'<span style="font-weight:700;font-size:13px">'+m.name+'</span>'
-      +'</div>'
-      +'<div style="font-size:10px;color:'+tc.text+';font-weight:600;margin-bottom:2px">Membership '+m.tier+(expired?' · ⚠已過期':'')+'</div>'
-      +'<div style="font-size:10px;color:var(--sub);margin-bottom:8px">'+storeLabel[m.store]+' · 購買 '+m.purchaseDate+(exp?'<br>到期 '+exp:'')+'</div>'
-      +'<div style="display:flex;gap:6px">'
-        +'<button onclick="toggleRedeemForm('+m.id+')" style="flex:1;padding:6px 8px;background:var(--white);color:'+tc.text+';border:1.5px solid '+tc.border+';border-radius:6px;font-size:11px;font-weight:600;cursor:pointer;font-family:inherit">登記兌換</button>'
+    return '<div style="padding:10px 14px;border-left:4px solid '+tc.dot+';background:'+(expired?'#FFF8F7':tc.bg)+';margin-bottom:6px;border-radius:0 7px 7px 0'+(expired?';opacity:.8':'')+'">'
+      +'<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">'
+        +'<span style="font-weight:700;font-size:14px">'+m.name+'</span>'
+        +'<span style="font-size:11px;padding:2px 8px;border-radius:10px;background:var(--white);color:'+tc.text+';font-weight:600;border:1px solid '+tc.border+'">Membership '+m.tier+'</span>'
+        +(expired?'<span style="font-size:11px;padding:2px 8px;border-radius:10px;background:var(--warn-bg);color:var(--warn);font-weight:600">⚠ 已過期</span>':'')
+        +'<span style="font-size:11px;color:var(--sub)">'+storeLabel[m.store]+' · 購買 '+m.purchaseDate+(exp?' · 到期 '+exp:'')+'</span>'
+        +'<button onclick="toggleRedeemForm('+m.id+')" style="margin-left:auto;padding:6px 14px;background:var(--white);color:'+tc.text+';border:1.5px solid '+tc.border+';border-radius:7px;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit">登記兌換</button>'
         +'<button class="del-btn" onclick="delMember('+m.id+')">×</button>'
       +'</div>'
       +redeemFormHTML(m)
     +'</div>';
   }
 
-  // 依購買月份分欄（月份新到舊排列）
+  // 依購買月份分區（月份新到舊排列）
   function groupByPurchaseMonth(list){
     var groups={};
     list.forEach(function(m){
@@ -4162,12 +4160,10 @@ function renderMembersPage(){
     var cols=groupByPurchaseMonth(list);
     return cols.map(function(g){
       return '<div style="background:var(--white);border-radius:12px;box-shadow:var(--shadow);padding:16px;margin-bottom:14px">'
-        +'<div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:12px;padding-bottom:8px;border-bottom:1.5px solid var(--border);display:flex;justify-content:space-between;align-items:center">'
+        +'<div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:10px;padding-bottom:8px;border-bottom:1.5px solid var(--border);display:flex;justify-content:space-between;align-items:center">'
           +'<span>📅 '+moLabel(g.mo)+'</span><span style="color:var(--sub);font-weight:500;font-size:12px">'+g.list.length+' 人</span>'
         +'</div>'
-        +'<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:10px">'
-          +g.list.map(function(m){return pendingCardHTML(m,expired);}).join('')
-        +'</div>'
+        +g.list.map(function(m){return pendingCardHTML(m,expired);}).join('')
       +'</div>';
     }).join('');
   }
