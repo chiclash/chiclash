@@ -1145,17 +1145,13 @@ input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-
     <div id="mb-stats" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px;margin-bottom:16px"></div>
 
     <!-- 未兌換 -->
-    <div style="margin-bottom:8px;font-size:13px;font-weight:700;color:var(--warn)">🎟 尚未兌換（依購買月份分欄）</div>
-    <div style="background:var(--white);border-radius:12px;box-shadow:var(--shadow);margin-bottom:20px;padding:14px;overflow-x:auto">
-      <div id="mb-list-pending" style="display:flex;gap:14px;align-items:flex-start;min-height:40px"><div style="text-align:center;padding:24px;font-size:13px;color:var(--faint);width:100%">目前沒有未兌換的會員</div></div>
-    </div>
+    <div style="margin-bottom:8px;font-size:13px;font-weight:700;color:var(--warn)">🎟 尚未兌換（依購買月份分區）</div>
+    <div id="mb-list-pending" style="margin-bottom:20px"><div style="text-align:center;padding:24px;font-size:13px;color:var(--faint);background:var(--white);border-radius:12px;box-shadow:var(--shadow)">目前沒有未兌換的會員</div></div>
 
     <!-- 已過期未兌換（一年制，超過購買日+1年還沒兌換） -->
     <div id="mb-expired-section" style="display:none">
-      <div style="margin-bottom:8px;font-size:13px;font-weight:700;color:#B83010">⚠ 已過期未兌換（依購買月份分欄）</div>
-      <div style="background:var(--white);border-radius:12px;box-shadow:var(--shadow);margin-bottom:20px;padding:14px;overflow-x:auto">
-        <div id="mb-list-expired" style="display:flex;gap:14px;align-items:flex-start"></div>
-      </div>
+      <div style="margin-bottom:8px;font-size:13px;font-weight:700;color:#B83010">⚠ 已過期未兌換（依購買月份分區）</div>
+      <div id="mb-list-expired" style="margin-bottom:20px"></div>
     </div>
 
     <!-- 已兌換 -->
@@ -4131,7 +4127,7 @@ function renderMembersPage(){
   function pendingCardHTML(m,expired){
     var exp=memberExpireDateStr(m);
     var tc=tierColor(m.tier);
-    return '<div style="background:'+tc.bg+';border:1.5px solid '+tc.border+';border-radius:9px;padding:10px 12px;margin-bottom:8px'+(expired?';opacity:.75':'')+'">'
+    return '<div style="background:'+tc.bg+';border:1.5px solid '+tc.border+';border-radius:9px;padding:10px 12px'+(expired?';opacity:.75':'')+'">'
       +'<div style="display:flex;align-items:center;gap:6px;margin-bottom:4px">'
         +'<span style="width:8px;height:8px;border-radius:50%;background:'+tc.dot+';flex-shrink:0"></span>'
         +'<span style="font-weight:700;font-size:13px">'+m.name+'</span>'
@@ -4165,11 +4161,13 @@ function renderMembersPage(){
     if(!list.length)return '';
     var cols=groupByPurchaseMonth(list);
     return cols.map(function(g){
-      return '<div style="flex:0 0 260px;min-width:260px;background:var(--bg);border-radius:9px;padding:10px">'
-        +'<div style="font-size:12px;font-weight:700;color:var(--text);margin-bottom:8px;padding-bottom:6px;border-bottom:1.5px solid var(--border);display:flex;justify-content:space-between">'
-          +'<span>'+moLabel(g.mo)+'</span><span style="color:var(--sub);font-weight:500">'+g.list.length+' 人</span>'
+      return '<div style="background:var(--white);border-radius:12px;box-shadow:var(--shadow);padding:16px;margin-bottom:14px">'
+        +'<div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:12px;padding-bottom:8px;border-bottom:1.5px solid var(--border);display:flex;justify-content:space-between;align-items:center">'
+          +'<span>📅 '+moLabel(g.mo)+'</span><span style="color:var(--sub);font-weight:500;font-size:12px">'+g.list.length+' 人</span>'
         +'</div>'
-        +g.list.map(function(m){return pendingCardHTML(m,expired);}).join('')
+        +'<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:10px">'
+          +g.list.map(function(m){return pendingCardHTML(m,expired);}).join('')
+        +'</div>'
       +'</div>';
     }).join('');
   }
