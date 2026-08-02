@@ -1154,6 +1154,14 @@ input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-
       <div id="mb-list-expired" style="margin-bottom:20px"></div>
     </div>
 
+    <!-- 無免費兌換權益的卡別（目前是99）僅供查詢，不會有登記兌換按鈕 -->
+    <div id="mb-noperk-section" style="display:none">
+      <div style="margin-bottom:8px;font-size:13px;font-weight:700;color:var(--sub)">💳 無免費兌換項目的會員（僅供查詢）</div>
+      <div style="background:var(--white);border-radius:12px;overflow:hidden;box-shadow:var(--shadow);margin-bottom:20px">
+        <div id="mb-list-noperk"></div>
+      </div>
+    </div>
+
     <!-- 已兌換 -->
     <div style="margin-bottom:8px;font-size:13px;font-weight:700;color:var(--ok)">✓ 已兌換</div>
     <div style="background:var(--white);border-radius:12px;overflow:hidden;box-shadow:var(--shadow)">
@@ -4067,15 +4075,18 @@ function renderMembersPage(){
   var statsEl=document.getElementById('mb-stats');
   if(statsEl){
     var total=members.length;
-    var pendingAll=members.filter(function(m){return !m.redeemed;});
-    var expiredCount=pendingAll.filter(isMemberExpired).length;
-    var pending=pendingAll.length-expiredCount;
+    var unredeemedAll=members.filter(function(m){return !m.redeemed;});
+    var unredeemedWithPerk=unredeemedAll.filter(function(m){return tierHasRedeemRight(m.tier);});
+    var noPerkCount=unredeemedAll.length-unredeemedWithPerk.length;
+    var expiredCount=unredeemedWithPerk.filter(isMemberExpired).length;
+    var pending=unredeemedWithPerk.length-expiredCount;
     var done=members.filter(function(m){return m.redeemed;}).length;
     var thisMoRedeemVal=members.filter(function(m){return m.redeemed&&m.redeem&&m.redeem.mo===mk();}).reduce(function(s,m){return s+(m.redeem.redeemAmt||0);},0);
     statsEl.innerHTML=[
       ['會員總數',total,'var(--rose)'],
       ['尚未兌換（有效）',pending,'var(--warn)'],
       ['已過期未兌換',expiredCount,'#B83010'],
+      ['無兌換權益（99）',noPerkCount,'var(--sub)'],
       ['已兌換',done,'var(--ok)'],
       ['本月兌換技師抽成合計',$f(thisMoRedeemVal),'var(--mv)']
     ].map(function(c){
@@ -4118,9 +4129,13 @@ function renderMembersPage(){
     '99':{bg:'#E8F0FE',border:'#7EA6E0',text:'#2A5CAD',dot:'#4C86D6'}
   };
   function tierColor(tier){return TIER_COLORS[String(tier)]||{bg:'#F0F0F0',border:'var(--border)',text:'var(--sub)',dot:'#999'};}
+  // 99 完全沒有免費兌換的權益，只有 299 有——所以99的會員不該出現在「待兌換」清單裡
+  function tierHasRedeemRight(tier){return String(tier)!=='99';}
 
   var pendingEl=document.getElementById('mb-list-pending');
-  var allPending=members.filter(function(m){return !m.redeemed;}).sort(function(a,b){return a.purchaseDate<b.purchaseDate?1:-1;});
+  var allUnredeemed=members.filter(function(m){return !m.redeemed;}).sort(function(a,b){return a.purchaseDate<b.purchaseDate?1:-1;});
+  var allPending=allUnredeemed.filter(function(m){return tierHasRedeemRight(m.tier);});
+  var noPerkMembers=allUnredeemed.filter(function(m){return !tierHasRedeemRight(m.tier);});
   var pendingMembers=allPending.filter(function(m){return !isMemberExpired(m);});
   var expiredMembers=allPending.filter(isMemberExpired);
 
@@ -4183,6 +4198,25 @@ function renderMembersPage(){
     } else {
       expiredSectionEl.style.display='block';
       expiredEl.innerHTML=renderKanbanColumns(expiredMembers,true);
+    }
+  }
+  var noPerkEl=document.getElementById('mb-list-noperk');
+  var noPerkSectionEl=document.getElementById('mb-noperk-section');
+  if(noPerkEl&&noPerkSectionEl){
+    if(!noPerkMembers.length){
+      noPerkSectionEl.style.display='none';
+    } else {
+      noPerkSectionEl.style.display='block';
+      noPerkEl.innerHTML=noPerkMembers.map(function(m){
+        var tc=tierColor(m.tier);
+        return '<div style="padding:10px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px;flex-wrap:wrap">'
+          +'<span style="font-weight:600;font-size:13px">'+m.name+'</span>'
+          +'<span style="font-size:11px;padding:2px 8px;border-radius:10px;background:'+tc.bg+';color:'+tc.text+';font-weight:600">Membership '+m.tier+'</span>'
+          +'<span style="font-size:11px;color:var(--sub)">'+storeLabel[m.store]+' · 購買於 '+m.purchaseDate+'</span>'
+          +'<span style="margin-left:auto;font-size:10px;color:var(--faint)">此卡別無免費兌換項目</span>'
+          +'<button class="del-btn" onclick="delMember('+m.id+')">×</button>'
+        +'</div>';
+      }).join('');
     }
   }
 
