@@ -6327,32 +6327,41 @@ function downloadAllPDFs(){
     // ── 打卡明細 ──
     var attRecs=(attD.records[d.name]||[]).filter(function(r){return netMins(r.rawMins,r.breakDeducted)>0;});
     attRecs.sort(function(a,b){return a.date<b.date?-1:1;});
-    var attDetailRows=attRecs.map(function(r){
+    function attRowHTML(r){
       var mins=netMins(r.rawMins,r.breakDeducted);
       var hStr=Math.floor(mins/60)+'h '+String(mins%60).padStart(2,'0')+'m';
       var dateDisp=r.date?r.date.slice(5).replace('-','/'):'-';
       var timeDisp=(r.startTime?r.startTime.slice(0,5):'')+(r.endTime?' – '+r.endTime.slice(0,5):'');
+      var td='padding:2px 4px;font-size:9.5px';
       return '<tr>'
-        +'<td>'+dateDisp+'</td>'
-        +'<td>'+(timeDisp||'—')+'</td>'
-        +'<td style="text-align:right">'+hStr+'</td>'
+        +'<td style="'+td+'">'+dateDisp+'</td>'
+        +'<td style="'+td+'">'+(timeDisp||'—')+'</td>'
+        +'<td style="'+td+';text-align:right">'+hStr+'</td>'
         +'</tr>';
-    }).join('');
-    var attSection=attDetailRows?(
-      '<div style="margin-top:12px">'
-      +'<div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:#666;margin-bottom:6px;border-bottom:1px solid #ddd;padding-bottom:4px">Attendance Details</div>'
-      +'<table style="font-size:11px">'
+    }
+    function attMiniTable(recs){
+      return '<table style="font-size:9.5px;flex:1;margin-bottom:0">'
         +'<thead><tr style="background:#f5f5f5">'
-          +'<th style="text-align:left;padding:4px;font-weight:600">Date</th>'
-          +'<th style="text-align:left;padding:4px;font-weight:600">Time</th>'
-          +'<th style="text-align:right;padding:4px;font-weight:600">Hours</th>'
+          +'<th style="text-align:left;padding:2px 4px;font-weight:600">Date</th>'
+          +'<th style="text-align:left;padding:2px 4px;font-weight:600">Time</th>'
+          +'<th style="text-align:right;padding:2px 4px;font-weight:600">Hrs</th>'
         +'</tr></thead>'
-        +'<tbody>'+attDetailRows+'</tbody>'
-        +'<tfoot><tr style="border-top:2px solid #ddd;background:#f7f7f7">'
-          +'<td colspan="2" style="padding:5px 4px;font-weight:600;font-size:11px">Total '+d.workDays+' days</td>'
-          +'<td style="text-align:right;font-weight:700;padding:5px 4px">'+d.hoursStr+'</td>'
-        +'</tr></tfoot>'
-      +'</table></div>'
+        +'<tbody>'+recs.map(attRowHTML).join('')+'</tbody>'
+      +'</table>';
+    }
+    var attHalf=Math.ceil(attRecs.length/2);
+    var attSection=attRecs.length?(
+      '<div style="margin-top:10px">'
+      +'<div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:#666;margin-bottom:5px;border-bottom:1px solid #ddd;padding-bottom:3px">Attendance Details</div>'
+      +'<div style="display:flex;gap:10px">'
+        +attMiniTable(attRecs.slice(0,attHalf))
+        +attMiniTable(attRecs.slice(attHalf))
+      +'</div>'
+      +'<div style="display:flex;justify-content:space-between;border-top:2px solid #ddd;background:#f7f7f7;padding:4px 4px;font-size:10.5px;margin-top:2px">'
+        +'<span style="font-weight:600">Total '+d.workDays+' days</span>'
+        +'<span style="font-weight:700">'+d.hoursStr+'</span>'
+      +'</div>'
+      +'</div>'
     ):'';
 
     // ── 逐筆小費明細 ──
@@ -6408,10 +6417,14 @@ function downloadAllPDFs(){
     var grandColor=d.grand>=0?'#1A7A45':'#B83010';
     return '<div class="pg">'
       +'<div class="hdr">'
-        +'<div><img src="'+CHIC_LASH_LOGO_B64+'" style="height:64px;display:block;margin-bottom:8px">'
-        +'<div class="staff-name">'+d.name+'</div>'
-        +'<div class="mo-label">'+moLabel+' Payroll Report</div></div>'
-        +'<div class="grand" style="color:'+grandColor+'">'+$f2(d.grand)+'</div>'
+        +'<div style="text-align:center;margin-bottom:10px">'
+          +'<img src="'+CHIC_LASH_LOGO_B64+'" style="height:52px;display:inline-block">'
+        +'</div>'
+        +'<div style="display:flex;justify-content:space-between;align-items:flex-end">'
+          +'<div><div class="staff-name">'+d.name+'</div>'
+          +'<div class="mo-label">'+moLabel+' Payroll Report</div></div>'
+          +'<div class="grand" style="color:'+grandColor+'">'+$f2(d.grand)+'</div>'
+        +'</div>'
       +'</div>'
       +'<table>'
         +(d.totalNetMins>0?'<tr><td>Hours Worked</td><td>'+d.hoursStr+' ('+d.workDays+' days)</td></tr>':'')
@@ -6467,7 +6480,7 @@ function downloadAllPDFs(){
     'body{font-family:"Helvetica Neue",Arial,"PingFang TC","Heiti TC",sans-serif;font-size:12px;margin:0;padding:0}'+
     '.pg{padding:28px 32px;page-break-after:always;break-after:page;box-sizing:border-box}'+
     '.pg:last-child{page-break-after:avoid;break-after:avoid}'+
-    '.hdr{display:flex;justify-content:space-between;align-items:flex-start;background:#f7f7f7;padding:16px 20px;border-radius:8px;margin-bottom:20px}'+
+    '.hdr{background:#f7f7f7;padding:16px 20px;border-radius:8px;margin-bottom:16px}'+
     '.studio{font-size:10px;color:#999;margin-bottom:4px}'+
     '.staff-name{font-size:22px;font-weight:700;color:#1a1a1a}'+
     '.mo-label{font-size:11px;color:#666;margin-top:4px}'+
