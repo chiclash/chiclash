@@ -1224,6 +1224,11 @@ input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-
         </div>
       </div>
       <div id="boss-recon-mv" style="font-size:11px;font-weight:600;margin-top:8px;color:#888">—</div>
+      <div style="border-top:1px solid var(--mv-bd);margin-top:10px;padding-top:10px;display:flex;justify-content:space-between;align-items:center">
+        <span style="font-size:9px;color:#888">🧮 帳面應有餘額<br><span style="font-size:8px;opacity:.7">（點鈔/放入/現金收入/取出推算）</span></span>
+        <span id="boss-expect-mv" style="font-size:17px;font-weight:700;color:var(--mv)">—</span>
+      </div>
+      <div id="boss-diff-mv" style="font-size:11px;font-weight:600;margin-top:4px;text-align:right;color:#888">—</div>
       <div style="border-top:1px solid var(--mv-bd);margin-top:10px;padding-top:10px;display:flex;gap:6px;align-items:center">
         <span style="font-size:9px;color:var(--mv);font-weight:600;white-space:nowrap">手動更正餘額</span>
         <input type="text" inputmode="decimal" id="cd-manual-mv" step="0.01" placeholder="輸入實際金額…"
@@ -1251,6 +1256,11 @@ input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-
         </div>
       </div>
       <div id="boss-recon-sr" style="font-size:11px;font-weight:600;margin-top:8px;color:#888">—</div>
+      <div style="border-top:1px solid var(--sr-bd);margin-top:10px;padding-top:10px;display:flex;justify-content:space-between;align-items:center">
+        <span style="font-size:9px;color:#888">🧮 帳面應有餘額<br><span style="font-size:8px;opacity:.7">（點鈔/放入/現金收入/取出推算）</span></span>
+        <span id="boss-expect-sr" style="font-size:17px;font-weight:700;color:var(--sr)">—</span>
+      </div>
+      <div id="boss-diff-sr" style="font-size:11px;font-weight:600;margin-top:4px;text-align:right;color:#888">—</div>
       <div style="border-top:1px solid var(--sr-bd);margin-top:10px;padding-top:10px;display:flex;gap:6px;align-items:center">
         <span style="font-size:9px;color:var(--sr);font-weight:600;white-space:nowrap">手動更正餘額</span>
         <input type="text" inputmode="decimal" id="cd-manual-sr" step="0.01" placeholder="輸入實際金額…"
@@ -2872,7 +2882,7 @@ function toggleGDStaff(d,btn,name){
 
 function staffPayCfg(name){
   if(!_D.staffPay)_D.staffPay={};
-  if(!_D.staffPay[name])_D.staffPay[name]={payType:'commission',commRate:50,hourlyRate:0,salary:0,bonusType:'none',bonusThreshold:160,bonusGroup:''};
+  if(!_D.staffPay[name])_D.staffPay[name]={payType:'commission',commRate:50,hourlyRate:0,salary:0,bonusType:'none',bonusThreshold:160,bonusGroup:'',isFrontDesk:false};
   return _D.staffPay[name];
 }
 
@@ -2881,6 +2891,15 @@ function saveStaffPay(name,field,val){
   if(field==='commRate'||field==='hourlyRate'||field==='salary'||field==='bonusThreshold')
     cfg[field]=parseFloat(val)||0;
   else cfg[field]=val;
+  if(!_D.staffPay)_D.staffPay={};
+  _D.staffPay[name]=cfg;
+  saveOnly();
+  renderStaffPage();
+}
+
+function toggleFrontDesk(name){
+  var cfg=staffPayCfg(name);
+  cfg.isFrontDesk=!cfg.isFrontDesk;
   if(!_D.staffPay)_D.staffPay={};
   _D.staffPay[name]=cfg;
   saveOnly();
@@ -3009,7 +3028,8 @@ function renderStaffPage(){
       '<div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">'+
         '<span style="width:9px;height:9px;border-radius:50%;background:'+sc.hex+';flex-shrink:0;display:inline-block"></span>'+
         '<span style="font-weight:700;font-size:14px">'+name+'</span>'+
-        '<div style="margin-left:auto;display:flex;gap:6px">'+
+        '<div style="margin-left:auto;display:flex;gap:6px;align-items:center">'+
+          '<button onclick="toggleFrontDesk(\''+esc+'\')" title="標記為前台，才會在打卡記錄顯示兩週工資小計" style="background:'+(cfg.isFrontDesk?'var(--gold-bg)':'var(--white)')+';border:1.5px solid '+(cfg.isFrontDesk?'var(--gold)':'var(--border)')+';border-radius:5px;padding:3px 10px;font-size:11px;cursor:pointer;font-family:inherit;color:'+(cfg.isFrontDesk?'var(--gold)':'var(--sub)')+';font-weight:'+(cfg.isFrontDesk?'700':'500')+'">'+(cfg.isFrontDesk?'✓ 前台（兩週發薪）':'標記為前台')+'</button>'+
           '<button onclick="renameStaff('+i+')" style="background:var(--white);border:1px solid var(--border);border-radius:5px;padding:3px 10px;font-size:11px;cursor:pointer;font-family:inherit;color:var(--mv)">改名</button>'+
           '<button onclick="delStaff('+i+')" style="background:var(--white);border:1px solid var(--warn-bd);border-radius:5px;padding:3px 8px;font-size:11px;cursor:pointer;color:var(--warn);font-family:inherit">×</button>'+
         '</div>'+
@@ -5820,6 +5840,23 @@ function saveReportNote(name,val){
   reportNotes()[name]=val;
   saveOnly();
 }
+// ── 已發薪標記（每月每人一個勾選，方便老闆記錄有沒有發過薪水）──
+function reportPaid(){
+  if(!_D.reportPaid)_D.reportPaid={};
+  var mo=mk();
+  if(!_D.reportPaid[mo])_D.reportPaid[mo]={};
+  return _D.reportPaid[mo];
+}
+function isReportPaid(name){
+  return !!reportPaid()[name];
+}
+function toggleReportPaid(name,ev){
+  if(ev)ev.stopPropagation();
+  var p=reportPaid();
+  p[name]=!p[name];
+  saveOnly();
+  renderReportPage();
+}
 function reportAdjs(){
   if(!_D.reportAdjs)_D.reportAdjs={};
   var mo=mk();
@@ -5888,7 +5925,7 @@ function renderReportPage(){
     var detailId='rpt-detail-'+i;
     var sc=getStaffColor(d.name);
     var staffHex=sc.hex,staffBg=sc.bg,staffBd=sc.border;
-    var COLS=9; // total cols in table (added product comm)
+    var COLS=10; // total cols in table (added product comm + 已發薪)
 
     var details='';
     // Work hours
@@ -6026,7 +6063,37 @@ function renderReportPage(){
 
     var hasAny=d.totalNetMins>0||d.totalSales>0||d.mvTip>0||d.srTip>0||d.pooledTip>0||d.mvRev>0||d.srRev>0||d.pens.length>0||d.bossSupp>0;
 
-    return '<tr style="border-bottom:1px solid var(--border);cursor:pointer;background:'+staffBg+'" onclick="rptToggle('+i+')">'+
+    var paid=isReportPaid(d.name);
+    var nameEsc2=d.name.replace(/\\/g,'\\\\').replace(/'/g,"\\'");
+    var fdCfgRow=staffPayCfg(d.name);
+    var isFD=fdCfgRow.isFrontDesk;
+    var paidCellBg=isFD?staffBg:(paid?'var(--ok-bg)':staffBg);
+    var paidCellHtml;
+    if(isFD){
+      var fdRate=fdCfgRow.hourlyRate||0;
+      var fdPeriods2=getSemiMonthlyPeriods();
+      var fdTotalPay=0;
+      var fdLines=fdPeriods2.map(function(p){
+        var pPaid=isBiweeklyPaid(d.name,p.start);
+        var pMins=sumAttNetMinsInRange(d.name,p.start,p.end);
+        var pPay=Math.round((pMins/60)*fdRate*100)/100;
+        fdTotalPay+=pPay;
+        return '<label style="display:flex;align-items:center;gap:5px;cursor:pointer;user-select:none;white-space:nowrap">'+
+          '<input type="checkbox" '+(pPaid?'checked':'')+' onchange="toggleBiweeklyPaidRpt(\''+nameEsc2+'\',\''+p.start+'\')" style="width:14px;height:14px;cursor:pointer;accent-color:var(--ok)">'+
+          '<span style="font-size:10px;font-weight:600;color:'+(pPaid?'var(--ok)':'var(--faint)')+';min-width:34px">'+p.label+'</span>'+
+          '<span style="font-size:11px;font-weight:700;color:'+(pPaid?'var(--ok)':'var(--text)')+'">'+$f(pPay)+'</span>'+
+        '</label>';
+      }).join('');
+      paidCellHtml='<div style="display:flex;flex-direction:column;gap:3px;align-items:flex-start">'+fdLines+
+        '<div style="font-size:10px;color:var(--sub);border-top:1px solid var(--border);margin-top:2px;padding-top:3px;width:100%;text-align:left">合計 <b style="color:var(--text);font-size:12px">'+$f(fdTotalPay)+'</b></div>'+
+      '</div>';
+    } else {
+      paidCellHtml='<label style="display:inline-flex;align-items:center;gap:5px;cursor:pointer;user-select:none">'+
+          '<input type="checkbox" '+(paid?'checked':'')+' onchange="toggleReportPaid(\''+nameEsc2+'\')" style="width:16px;height:16px;cursor:pointer;accent-color:var(--ok)">'+
+          '<span style="font-size:11px;font-weight:600;color:'+(paid?'var(--ok)':'var(--faint)')+'">'+(paid?'✓ 已發':'未發')+'</span>'+
+        '</label>';
+    }
+    return '<tr style="border-bottom:1px solid var(--border);cursor:pointer;background:'+paidCellBg+'" onclick="rptToggle('+i+')">'+
         '<td style="padding:10px 8px 10px 14px;width:24px">'+
           '<span id="rpt-arr-'+i+'" style="font-size:10px;color:'+staffHex+';display:inline-block;transition:transform .15s">▶</span>'+
         '</td>'+
@@ -6056,6 +6123,7 @@ function renderReportPage(){
         '<td style="padding:10px 12px;text-align:right;font-size:12px;color:#7B5EA7;font-weight:'+((d.prodComm+d.memberComm+d.memberSaleRev)>0?'700':'400')+'" title="產品抽成 '+$f(d.prodComm)+' + 會員兌換抽成 '+$f(d.memberComm)+' + 會員卡銷售獎勵 '+$f(d.memberSaleRev)+'">'+((d.prodComm+d.memberComm+d.memberSaleRev)>0?$f(d.prodComm+d.memberComm+d.memberSaleRev):'—')+'</td>'+
         '<td style="padding:10px 12px;text-align:right;font-size:12px;color:var(--warn);font-weight:'+(d.bossSupp>0?'700':'400')+'">'+(d.bossSupp>0?$f(d.bossSupp):'—')+'</td>'+
         '<td style="padding:10px 14px;text-align:right;font-size:16px;font-weight:700;color:'+grandColor+'">'+$f(d.grand)+'</td>'+
+        '<td style="padding:10px 12px;text-align:center" onclick="event.stopPropagation()">'+paidCellHtml+'</td>'+
       '</tr>'+
       (hasAny?details:'')+
       noteRow;
@@ -6069,7 +6137,17 @@ function renderReportPage(){
     '</div>':
     '<div style="background:var(--ok-bg);border:1px solid var(--ok-bd);border-radius:8px;padding:8px 16px;margin-top:10px;font-size:12px;color:var(--ok)">✓ 本月無需老闆補款</div>';
 
+  // 已發薪進度摘要
+  var paidCount=allData.filter(function(d){return isReportPaid(d.name);}).length;
+  var totalCount=allData.length;
+  var allPaid=totalCount>0&&paidCount===totalCount;
+  var paidSummary='<div style="background:'+(allPaid?'var(--ok-bg)':'var(--white)')+';border:1px solid '+(allPaid?'var(--ok-bd)':'var(--border)')+';border-radius:8px;padding:9px 16px;margin-bottom:12px;display:flex;align-items:center;justify-content:space-between">'+
+    '<span style="font-size:12px;font-weight:700;color:'+(allPaid?'var(--ok)':'var(--text)')+'">'+(allPaid?'✓ 本月薪水都已標記發放':'💰 發薪進度')+'</span>'+
+    '<span style="font-size:13px;font-weight:700;color:'+(allPaid?'var(--ok)':'var(--sub)')+'">'+paidCount+' / '+totalCount+' 人已發</span>'+
+  '</div>';
+
   preview.innerHTML=
+    paidSummary+
     '<div style="background:var(--white);border:1px solid var(--border);border-radius:10px;overflow:hidden">'+
       '<table style="width:100%;border-collapse:collapse;font-size:13px;min-width:700px">'+
         '<thead><tr style="background:var(--bg);border-bottom:1.5px solid var(--border)">'+
@@ -6082,6 +6160,7 @@ function renderReportPage(){
           '<th style="padding:8px 12px;text-align:right;font-size:10px;color:#7B5EA7;font-weight:600">產品/會員抽成</th>'+
           '<th style="padding:8px 12px;text-align:right;font-size:10px;color:var(--warn);font-weight:600">老闆補款</th>'+
           '<th style="padding:8px 12px;text-align:right;font-size:10px;color:var(--ok);font-weight:600">實領合計</th>'+
+          '<th style="padding:8px 12px;text-align:center;font-size:10px;color:var(--sub);font-weight:600">已發薪</th>'+
         '</tr></thead>'+
         '<tbody>'+rows+'</tbody>'+
       '</table>'+
@@ -7291,6 +7370,82 @@ function attRec(name){
 function fmtDate(date){return date.getFullYear()+'-'+String(date.getMonth()+1).padStart(2,'0')+'-'+String(date.getDate()).padStart(2,'0');}
 function minsToHrs(m){if(!m||m<=0)return'0h 0m';return Math.floor(m/60)+'h '+String(m%60).padStart(2,'0')+'m';}
 function netMins(rawMins,breakDeducted){var n=(rawMins||0)-(breakDeducted!==false?30:0);return n>0?n:0;}
+
+// ── 半月發薪（時薪制員工，如前台）──
+// 固定跟目前檢視的月份綁在一起：上半月 1–15 號、下半月 16 號–月底，每個月都是乾淨的兩期
+function getSemiMonthlyPeriods(){
+  var y=cur.getFullYear(),m=cur.getMonth();
+  var mo=mk();
+  var lastDay=new Date(y,m+1,0).getDate();
+  var pad2=function(n){return String(n).padStart(2,'0');};
+  return [
+    {label:'上半月',start:mo+'-01',end:mo+'-15'},
+    {label:'下半月',start:mo+'-16',end:mo+'-'+pad2(lastDay)}
+  ];
+}
+// 加總某員工在某日期區間內的實際工時（分鐘），會跨月份撈 _D.att 的資料
+function sumAttNetMinsInRange(name,startDate,endDate){
+  var total=0;
+  if(!_D.att)return 0;
+  Object.keys(_D.att).forEach(function(mo){
+    var monthRecs=(_D.att[mo]&&_D.att[mo].records&&_D.att[mo].records[name])||[];
+    monthRecs.forEach(function(r){
+      if(r.date>=startDate&&r.date<=endDate) total+=netMins(r.rawMins,r.breakDeducted);
+    });
+  });
+  return total;
+}
+// ── 半月薪資是否已發放（依人員 + 該期起始日記錄，換期會自動變回未勾）──
+function isBiweeklyPaid(name,periodStart){
+  if(!_D.biweeklyPaid)_D.biweeklyPaid={};
+  if(!_D.biweeklyPaid[name])_D.biweeklyPaid[name]={};
+  return !!_D.biweeklyPaid[name][periodStart];
+}
+function toggleBiweeklyPaid(name,periodStart){
+  if(!_D.biweeklyPaid)_D.biweeklyPaid={};
+  if(!_D.biweeklyPaid[name])_D.biweeklyPaid[name]={};
+  _D.biweeklyPaid[name][periodStart]=!_D.biweeklyPaid[name][periodStart];
+  saveOnly();
+  renderOneStaffCard(name);
+}
+// 月結報表裡切換前台半月已發薪狀態（跟打卡記錄共用同一份資料，只是重繪的畫面不同）
+function toggleBiweeklyPaidRpt(name,periodStart){
+  if(!_D.biweeklyPaid)_D.biweeklyPaid={};
+  if(!_D.biweeklyPaid[name])_D.biweeklyPaid[name]={};
+  _D.biweeklyPaid[name][periodStart]=!_D.biweeklyPaid[name][periodStart];
+  saveOnly();
+  renderReportPage();
+}
+// 半月工資小計區塊（只給標記為前台的員工顯示，一次顯示兩格：上半月/下半月）
+function buildBiweeklyBox(name,esc,safeId){
+  var cfg=staffPayCfg(name);
+  if(!cfg.isFrontDesk)return '';
+  var periods=getSemiMonthlyPeriods();
+  var rate=cfg.hourlyRate||0;
+  var q="'";
+  var boxes=periods.map(function(period){
+    var mins=sumAttNetMinsInRange(name,period.start,period.end);
+    var hrs=Math.round(mins/60*100)/100;
+    var pay=Math.round(hrs*rate*100)/100;
+    var rangeLabel=period.start.slice(5)+' ~ '+period.end.slice(5);
+    var paid=isBiweeklyPaid(name,period.start);
+    var boxBg=paid?'#F0EEEA':'var(--gold-bg)';
+    var boxBd=paid?'var(--border2)':'var(--gold)';
+    var boxColor=paid?'var(--faint)':'var(--gold)';
+    return '<div style="flex:1;min-width:210px;background:'+boxBg+';border:1.5px solid '+boxBd+';border-radius:10px;padding:12px 14px;'+(paid?'opacity:.75':'')+'">'+
+      '<div style="font-size:10px;text-transform:uppercase;letter-spacing:.06em;color:'+boxColor+';font-weight:700;margin-bottom:3px">'+(paid?'✓':'💰')+' '+period.label+' &nbsp;'+rangeLabel+'</div>'+
+      '<div style="font-size:17px;font-weight:700;color:'+boxColor+';margin-bottom:8px;'+(paid?'text-decoration:line-through;text-decoration-color:var(--border2)':'')+'">'+minsToHrs(mins)+' &nbsp;×&nbsp; $'+rate+'/hr &nbsp;=&nbsp; $'+pay.toFixed(2)+'</div>'+
+      '<label style="display:inline-flex;align-items:center;gap:6px;cursor:pointer;user-select:none;background:var(--white);border:1.5px solid '+(paid?'var(--border2)':'var(--border)')+';border-radius:8px;padding:5px 10px">'+
+        '<input type="checkbox" '+(paid?'checked':'')+' onchange="toggleBiweeklyPaid('+q+esc+q+',\''+period.start+'\')" style="width:15px;height:15px;cursor:pointer;accent-color:var(--sub)">'+
+        '<span style="font-size:11px;font-weight:700;color:'+(paid?'var(--faint)':'var(--sub)')+'">'+(paid?'✓ 已發薪':'尚未發薪')+'</span>'+
+      '</label>'+
+    '</div>';
+  }).join('');
+  return '<div style="padding:12px 16px;border-bottom:1px solid var(--border);background:var(--bg)">'+
+    '<div style="display:flex;gap:10px;flex-wrap:wrap">'+boxes+'</div>'+
+    '<div style="font-size:10px;color:var(--sub);margin-top:8px">💡 每月固定分兩期：1–15 號、16 號–月底。只算時薪部分，不含小費/獎懲。換月份會自動變回未勾，不用擔心忘記重設。</div>'+
+  '</div>';
+}
 function addAttRow(name){
   var recs=attRec(name);
   var cfg=staffPayCfg(name);
@@ -7382,6 +7537,69 @@ function runGenMonthRows(name){
   alert(msg);
 }
 window.runGenMonthRows=runGenMonthRows;
+
+// 依日期區間生成班表（給前台選半個月用，邏輯跟整月版一樣，只是限制在指定範圍內）
+function genRangeRows(name,startDate,endDate){
+  var recs=attRec(name);
+  var existingDates={};
+  recs.forEach(function(r){existingDates[r.date]=true;});
+  var cfg2=staffPayCfg(name);
+  var hasSchedule=cfg2.weeklySchedule&&Array.isArray(cfg2.weeklySchedule)&&cfg2.weeklySchedule.length===7;
+  var sched=hasSchedule?cfg2.weeklySchedule:null;
+  var added=0,skippedOff=0;
+  var d=new Date(startDate+'T12:00:00');
+  var end=new Date(endDate+'T12:00:00');
+  while(d<=end){
+    var dow=d.getDay();
+    var dateStr=fmtDate(d);
+    if(existingDates[dateStr]){d.setDate(d.getDate()+1);continue;}
+    var s2,e2;
+    if(sched){
+      if(sched[dow].off){skippedOff++;d.setDate(d.getDate()+1);continue;}
+      s2=sched[dow].start||''; e2=sched[dow].end||'';
+    } else {
+      s2=cfg2.defaultStart||''; e2=cfg2.defaultEnd||'';
+    }
+    var rm=0;
+    if(s2&&e2&&s2<e2){var sm3=parseInt(s2.slice(0,2))*60+parseInt(s2.slice(3,5)),em3=parseInt(e2.slice(0,2))*60+parseInt(e2.slice(3,5));if(em3>sm3)rm=em3-sm3;}
+    recs.push({date:dateStr,rawMins:rm,breakDeducted:true,note:'',startTime:s2,endTime:e2});
+    added++;
+    d.setDate(d.getDate()+1);
+  }
+  recs.sort(function(a,b){return a.date<b.date?-1:1;});
+  saveOnly();renderOneStaffCard(name);renderAttSummary();
+  return {added:added,skippedOff:skippedOff};
+}
+function runGenRangeRows(name,safeId){
+  var sEl=document.getElementById('att-range-s-'+safeId);
+  var eEl=document.getElementById('att-range-e-'+safeId);
+  var s=sEl?sEl.value:'', e=eEl?eEl.value:'';
+  if(!s||!e){alert('請先選開始和結束日期');return;}
+  if(s>e){alert('開始日期不能晚於結束日期');return;}
+  var r=genRangeRows(name,s,e);
+  var msg='✓ 已產生 '+r.added+' 天的班表（'+s.slice(5)+' ~ '+e.slice(5)+'）';
+  if(r.skippedOff>0)msg+='\n（'+r.skippedOff+' 天是固定休息日，已自動跳過）';
+  if(r.added===0&&r.skippedOff===0)msg='這個範圍已經沒有可以新增的天數了（可能都已經有紀錄，或還沒設定每週固定班表）';
+  alert(msg);
+}
+window.runGenRangeRows=runGenRangeRows;
+// 前台專用：選日期區間一鍵生成（預設帶入本月上半月），方便對齊發薪期間
+function buildFrontDeskRangeGen(name,esc,safeId){
+  var periods=getSemiMonthlyPeriods();
+  var defStart=periods[0].start, defEnd=periods[0].end;
+  var q="'";
+  var quickBtns=periods.map(function(p){
+    return '<button type="button" onclick="document.getElementById(\'att-range-s-'+safeId+'\').value=\''+p.start+'\';document.getElementById(\'att-range-e-'+safeId+'\').value=\''+p.end+'\'" style="padding:5px 10px;font-size:11px;font-weight:600;border-radius:6px;cursor:pointer;font-family:inherit;border:1px solid var(--gold);background:var(--white);color:var(--gold)">'+p.label+' ('+p.start.slice(5)+'~'+p.end.slice(5)+')</button>';
+  }).join('');
+  return '<div style="padding:10px 14px;background:var(--gold-bg);border-top:1px dashed var(--gold);display:flex;align-items:center;gap:8px;flex-wrap:wrap">'+
+    '<span style="font-size:11px;font-weight:700;color:var(--gold);white-space:nowrap">📅 前台半月生成</span>'+
+    quickBtns+
+    '<input type="date" id="att-range-s-'+safeId+'" value="'+defStart+'" style="border:1px solid var(--gold);border-radius:6px;padding:5px 8px;font-size:12px;font-family:inherit;color:var(--gold);background:var(--white);outline:none">'+
+    '<span style="font-size:12px;color:var(--gold)">~</span>'+
+    '<input type="date" id="att-range-e-'+safeId+'" value="'+defEnd+'" style="border:1px solid var(--gold);border-radius:6px;padding:5px 8px;font-size:12px;font-family:inherit;color:var(--gold);background:var(--white);outline:none">'+
+    '<button class="att-add-btn" style="background:var(--gold);color:#fff;border-color:var(--gold)" onclick="runGenRangeRows('+q+esc+q+',\''+safeId+'\')">&#9889; 生成這個範圍</button>'+
+  '</div>';
+}
 
 function updAttField(name,idx,field,val){
 
@@ -7678,11 +7896,25 @@ function buildStaffCard(name){
   }).join('');
 
   var statsColor=penNet>=0?'var(--ok)':'var(--warn)';
+  var fdCfg=staffPayCfg(name);
+  var fdBadge='';
+  if(fdCfg.isFrontDesk){
+    var fdPeriods=getSemiMonthlyPeriods();
+    var fdPaidCount=fdPeriods.filter(function(p){return isBiweeklyPaid(name,p.start);}).length;
+    var fdAllPaid=fdPaidCount===fdPeriods.length;
+    var fdNonePaid=fdPaidCount===0;
+    var fdBg=fdAllPaid?'var(--ok-bg)':fdNonePaid?'var(--warn-bg)':'var(--gold-bg)';
+    var fdColor=fdAllPaid?'var(--ok)':fdNonePaid?'var(--warn)':'var(--gold)';
+    var fdBd=fdAllPaid?'var(--ok-bd)':fdNonePaid?'var(--warn-bd)':'var(--gold)';
+    var fdText=fdAllPaid?'✓ 本月已發薪':'💰 發薪 '+fdPaidCount+'/'+fdPeriods.length;
+    fdBadge='<span style="font-size:10px;font-weight:700;padding:3px 9px;border-radius:20px;margin-left:6px;white-space:nowrap;background:'+fdBg+';color:'+fdColor+';border:1px solid '+fdBd+'">'+fdText+'</span>';
+  }
 
   return '<div class="att-staff-card" id="attcard-'+safeId+'" style="border-color:'+color.border+'">'+
     '<div class="att-card-hdr" style="background:'+color.bg+'" onclick="toggleStaffCard(\''+safeId+'\')">'+
       '<div style="width:10px;height:10px;border-radius:50%;background:'+color.hex+';flex-shrink:0"></div>'+
       '<div class="att-card-name" style="color:'+color.hex+'">'+name+'</div>'+
+      fdBadge+
       '<div class="att-card-stats" style="color:'+color.hex+'">'+
         '出勤 '+recs.length+' 天 &nbsp;|&nbsp; 工時 '+minsToHrs(totalNet)+
         (myPens.length>0?' &nbsp;|&nbsp; 獎懲 <span style="color:'+(penNet>=0?color.hex:'var(--warn)')+'">'+(penNet>=0?'+':'')+penNet.toFixed(2)+'</span>':'')+
@@ -7694,6 +7926,8 @@ function buildStaffCard(name){
       '<div class="att-color-row">'+
         '<span class="att-color-lbl">顏色</span>'+swatches+
       '</div>'+
+      // 兩週工資小計（時薪/混合制員工才顯示）
+      buildBiweeklyBox(name,esc,safeId)+
       // 每週固定班表
       buildWeeklyScheduleEditor(name,esc,safeId)+
       // Attendance records
@@ -7717,6 +7951,7 @@ function buildStaffCard(name){
         '<button class="att-add-btn" style="background:var(--ok-bg);color:var(--ok);border-color:var(--ok-bd)" onclick="runGenMonthRows(\''+esc+'\')">&#9889; 一鍵生成整月</button>'+
         '<button class="att-add-btn" style="background:var(--bg);color:var(--sub);border-color:var(--border)" onclick="setAllNoBreak(\''+esc+'\')">&#10003; 全部不扣</button>'+
       '</div>'+
+      (fdCfg.isFrontDesk?buildFrontDeskRangeGen(name,esc,safeId):'')+
       // Inline penalty section
       '<div class="att-pen-inline">'+
         '<div class="att-pen-inline-title">&#127942; 獎懲記錄</div>'+
@@ -8231,6 +8466,22 @@ function calcCDMonthIn(store, month){
     return e.store===store&&e.type==='in'&&e.date.slice(0,7)===month;
   }).reduce(function(s,e){return s+e.amt;},0)*100)/100;
 }
+// 計算某店某月的現金櫃支出合計
+function calcCDMonthExpense(store, month){
+  return Math.round(cdData().filter(function(e){
+    return e.store===store&&e.type==='expense'&&e.date.slice(0,7)===month;
+  }).reduce(function(s,e){return s+e.amt;},0)*100)/100;
+}
+// 帳面應有餘額 = 上月底點鈔餘額 + 本月放入 + 本月現金收入 − 老闆取出 − 支出
+// （不管有沒有點鈔或手動更正，純粹用記帳資料推算，方便跟「目前顯示」的餘額比對）
+function calcCDExpectedBalance(store, month){
+  var prevBal=calcCDBalanceBefore(store, month);
+  var monthIn=calcCDMonthIn(store, month);
+  var cash=calcStoreCashRevForMonth(store, month);
+  var out=calcCDStoreBossOut(store, month);
+  var exp=calcCDMonthExpense(store, month);
+  return Math.round((prevBal+monthIn+cash-out-exp)*100)/100;
+}
 
 function renderCDReconPanel(store, selMonth){
   var panel=document.getElementById('cd-recon-'+store);
@@ -8475,6 +8726,24 @@ function renderCDPage(){
     if(balEl){balEl.textContent=$f(bal);balEl.style.color=bal>=0?storeColor:'#B83010';}
     if(cashEl)cashEl.textContent=$f(cash);
     if(outEl)outEl.textContent=$f(out);
+    // 帳面應有餘額（跟目前顯示的保險箱現金比對）
+    var expected=calcCDExpectedBalance(store,selMonth);
+    var expEl=document.getElementById('boss-expect-'+store);
+    var diffEl=document.getElementById('boss-diff-'+store);
+    if(expEl){expEl.textContent=$f(expected);expEl.style.color=expected>=0?storeColor:'#B83010';}
+    if(diffEl){
+      var diffBal=Math.round((bal-expected)*100)/100;
+      if(Math.abs(diffBal)<0.05){
+        diffEl.textContent='✓ 跟目前顯示的餘額相符';
+        diffEl.style.color='#1A7A45';
+      } else if(diffBal>0){
+        diffEl.textContent='目前顯示比帳面多 +'+$f(diffBal);
+        diffEl.style.color='#B83010';
+      } else {
+        diffEl.textContent='目前顯示比帳面少 -'+$f(Math.abs(diffBal));
+        diffEl.style.color='#B83010';
+      }
+    }
     if(reconEl){
       var manBal=cdGetManual(store,selMonth);
       if(manBal!==null){
