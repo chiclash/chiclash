@@ -1229,6 +1229,7 @@ input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-
         <span id="boss-expect-mv" style="font-size:17px;font-weight:700;color:var(--mv)">—</span>
       </div>
       <div id="boss-diff-mv" style="font-size:11px;font-weight:600;margin-top:4px;text-align:right;color:#888">—</div>
+      <div id="boss-expect-basis-mv" style="font-size:9px;color:#aaa;margin-top:2px;text-align:right">—</div>
       <div style="border-top:1px solid var(--mv-bd);margin-top:10px;padding-top:10px;display:flex;gap:6px;align-items:center">
         <span style="font-size:9px;color:var(--mv);font-weight:600;white-space:nowrap">手動更正餘額</span>
         <input type="text" inputmode="decimal" id="cd-manual-mv" step="0.01" placeholder="輸入實際金額…"
@@ -1261,6 +1262,7 @@ input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-
         <span id="boss-expect-sr" style="font-size:17px;font-weight:700;color:var(--sr)">—</span>
       </div>
       <div id="boss-diff-sr" style="font-size:11px;font-weight:600;margin-top:4px;text-align:right;color:#888">—</div>
+      <div id="boss-expect-basis-sr" style="font-size:9px;color:#aaa;margin-top:2px;text-align:right">—</div>
       <div style="border-top:1px solid var(--sr-bd);margin-top:10px;padding-top:10px;display:flex;gap:6px;align-items:center">
         <span style="font-size:9px;color:var(--sr);font-weight:600;white-space:nowrap">手動更正餘額</span>
         <input type="text" inputmode="decimal" id="cd-manual-sr" step="0.01" placeholder="輸入實際金額…"
@@ -8472,15 +8474,75 @@ function calcCDMonthExpense(store, month){
     return e.store===store&&e.type==='expense'&&e.date.slice(0,7)===month;
   }).reduce(function(s,e){return s+e.amt;},0)*100)/100;
 }
-// 帳面應有餘額 = 上月底點鈔餘額 + 本月放入 + 本月現金收入 − 老闆取出 − 支出
-// （不管有沒有點鈔或手動更正，純粹用記帳資料推算，方便跟「目前顯示」的餘額比對）
+// 找出某店在某月份「之前」最近一次的重設基準：點鈔或手動更正，取比較新的那個
+function calcCDResetBefore(store, month){
+  var counts=cdData().filter(function(e){
+    return e.store===store&&e.type==='count'&&e.date.slice(0,7)<month;
+  });
+  var lastCountMonth=counts.length?counts[counts.length-1].date.slice(0,7):null;
+  var lastCountAmt=counts.length?counts[counts.length-1].amt:null;
+
+  var manualMonths=[];
+  if(_D.cdManual){
+    Object.keys(_D.cdManual).forEach(function(m){
+      if(m<month&&_D.cdManual[m]&&_D.cdManual[m][store]!==undefined&&_D.cdManual[m][store]!==null) manualMonths.push(m);
+    });
+  }
+  manualMonths.sort();
+  var lastManualMonth=manualMonths.length?manualMonths[manualMonths.length-1]:null;
+  var lastManualAmt=lastManualMonth?_D.cdManual[lastManualMonth][store]:null;
+
+  if(lastManualMonth&&(!lastCountMonth||lastManualMonth>=lastCountMonth)){
+    return {amt:lastManualAmt,afterMonth:lastManualMonth};
+  }
+  if(lastCountMonth){
+    return {amt:lastCountAmt,afterMonth:lastCountMonth};
+  }
+  return {amt:0,afterMonth:null};
+}
+// 找出某店最早有資料（收入/放入/取出/支出/點鈔）的月份，當作完全沒重設過時的起算點
+function calcCDEarliestMonth(store){
+  var months=[];
+  cdData().forEach(function(e){if(e.store===store)months.push(e.date.slice(0,7));});
+  if(_D[store])Object.keys(_D[store]).forEach(function(m){months.push(m);});
+  months.sort();
+  return months.length?months[0]:null;
+}
+// 產生 fromMonth（不含）到 toMonth（含）之間的月份清單，例如 '2026-06' -> '2026-08' => ['2026-07','2026-08']
+function monthsBetween(fromMonthExclusive,toMonthInclusive){
+  var list=[];
+  var y,m;
+  if(fromMonthExclusive){
+    y=parseInt(fromMonthExclusive.slice(0,4));m=parseInt(fromMonthExclusive.slice(5,7))+1;
+  } else {
+    y=parseInt(toMonthInclusive.slice(0,4));m=parseInt(toMonthInclusive.slice(5,7));
+  }
+  if(m>12){m=1;y++;}
+  var guard=0;
+  while(guard++<240){ // 安全上限 20 年，避免資料異常造成無窮迴圈
+    var ms=y+'-'+String(m).padStart(2,'0');
+    list.push(ms);
+    if(ms>=toMonthInclusive)break;
+    m++; if(m>12){m=1;y++;}
+  }
+  return list;
+}
+// 帳面應有餘額 = 最近一次重設基準（點鈔或手動更正，取較新）+ 之後每個月的放入/現金收入/取出/支出，一路累加到指定月份
+// （純粹用記帳資料推算，方便跟「目前顯示」的餘額比對，抓出漏記帳或未記錄的現金流出入）
 function calcCDExpectedBalance(store, month){
-  var prevBal=calcCDBalanceBefore(store, month);
-  var monthIn=calcCDMonthIn(store, month);
-  var cash=calcStoreCashRevForMonth(store, month);
-  var out=calcCDStoreBossOut(store, month);
-  var exp=calcCDMonthExpense(store, month);
-  return Math.round((prevBal+monthIn+cash-out-exp)*100)/100;
+  var reset=calcCDResetBefore(store, month);
+  var startMonth=reset.afterMonth;
+  if(!startMonth){
+    // 從來沒有點鈔也沒有手動更正過：退而求其次，從最早有資料的月份開始算
+    var earliest=calcCDEarliestMonth(store);
+    startMonth=earliest&&earliest<month?earliest:null;
+  }
+  var months=monthsBetween(startMonth,month);
+  var total=reset.amt||0;
+  months.forEach(function(m){
+    total+=calcCDMonthIn(store,m)+calcStoreCashRevForMonth(store,m)-calcCDStoreBossOut(store,m)-calcCDMonthExpense(store,m);
+  });
+  return Math.round(total*100)/100;
 }
 
 function renderCDReconPanel(store, selMonth){
@@ -8730,7 +8792,17 @@ function renderCDPage(){
     var expected=calcCDExpectedBalance(store,selMonth);
     var expEl=document.getElementById('boss-expect-'+store);
     var diffEl=document.getElementById('boss-diff-'+store);
+    var basisEl=document.getElementById('boss-expect-basis-'+store);
     if(expEl){expEl.textContent=$f(expected);expEl.style.color=expected>=0?storeColor:'#B83010';}
+    if(basisEl){
+      var resetInfo=calcCDResetBefore(store,selMonth);
+      if(resetInfo.afterMonth){
+        basisEl.textContent='基準：'+resetInfo.afterMonth+' 的餘額 '+$f(resetInfo.amt)+'（點鈔或手動更正）';
+      } else {
+        var earliestM=calcCDEarliestMonth(store);
+        basisEl.textContent=earliestM?'基準：從最早有資料的 '+earliestM+' 開始累加（從未點鈔或手動更正過）':'尚無資料';
+      }
+    }
     if(diffEl){
       var diffBal=Math.round((bal-expected)*100)/100;
       if(Math.abs(diffBal)<0.05){
