@@ -1225,7 +1225,7 @@ input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-
       </div>
       <div id="boss-recon-mv" style="font-size:11px;font-weight:600;margin-top:8px;color:#888">—</div>
       <div style="border-top:1px solid var(--mv-bd);margin-top:10px;padding-top:10px;display:flex;justify-content:space-between;align-items:center">
-        <span style="font-size:9px;color:#888">🧮 帳面應有餘額<br><span style="font-size:8px;opacity:.7">（點鈔/放入/現金收入/取出推算）</span></span>
+        <span style="font-size:9px;color:#888">🧮 帳面應有餘額<br><span style="font-size:8px;opacity:.7">（點鈔/放入/取出/支出推算）</span></span>
         <span id="boss-expect-mv" style="font-size:17px;font-weight:700;color:var(--mv)">—</span>
       </div>
       <div id="boss-diff-mv" style="font-size:11px;font-weight:600;margin-top:4px;text-align:right;color:#888">—</div>
@@ -1258,7 +1258,7 @@ input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-
       </div>
       <div id="boss-recon-sr" style="font-size:11px;font-weight:600;margin-top:8px;color:#888">—</div>
       <div style="border-top:1px solid var(--sr-bd);margin-top:10px;padding-top:10px;display:flex;justify-content:space-between;align-items:center">
-        <span style="font-size:9px;color:#888">🧮 帳面應有餘額<br><span style="font-size:8px;opacity:.7">（點鈔/放入/現金收入/取出推算）</span></span>
+        <span style="font-size:9px;color:#888">🧮 帳面應有餘額<br><span style="font-size:8px;opacity:.7">（點鈔/放入/取出/支出推算）</span></span>
         <span id="boss-expect-sr" style="font-size:17px;font-weight:700;color:var(--sr)">—</span>
       </div>
       <div id="boss-diff-sr" style="font-size:11px;font-weight:600;margin-top:4px;text-align:right;color:#888">—</div>
@@ -3454,17 +3454,64 @@ async function loadFBGiftCards(){
     if(cards.length===0){fbWrap.innerHTML='<div style="font-size:12px;color:var(--faint);padding:8px 0">No active certificates · 無有效禮品卡</div>';return;}
     fbWrap.innerHTML=cards.sort(function(a,b){return(b.issuedAt||'').localeCompare(a.issuedAt||'');}).map(function(g){
       var exp=g.expireDate?new Date(g.expireDate+'T12:00:00').toLocaleDateString('en-US'):'—';
-      return '<div style="display:flex;align-items:center;gap:10px;padding:8px 12px;background:var(--white);border:1px solid var(--border);border-radius:8px;margin-bottom:6px;flex-wrap:wrap">'
+      var safeGid=String(g.id).replace(/[^a-zA-Z0-9]/g,'_');
+      return '<div style="background:var(--white);border:1px solid var(--border);border-radius:8px;margin-bottom:6px;overflow:hidden">'
+        +'<div onclick="toggleGCDetail(\''+safeGid+'\')" style="display:flex;align-items:center;gap:10px;padding:8px 12px;flex-wrap:wrap;cursor:pointer" onmouseover="this.style.background=\'var(--bg)\'" onmouseout="this.style.background=\'\'">'
+        +'<span id="gcarr-'+safeGid+'" style="font-size:9px;color:var(--faint);transition:transform .15s;display:inline-block">▶</span>'
         +'<span style="font-family:monospace;font-weight:700;color:#C0392B;font-size:13px">'+g.code+'</span>'
         +'<span style="font-size:13px;font-weight:600">$'+g.amount.toFixed(2)+'</span>'
         +'<span style="font-size:11px;color:var(--sub)">For: '+(g.giftFor||'—')+'</span>'
         +'<span style="font-size:11px;color:var(--sub)">Exp: '+exp+'</span>'
-        +'<button onclick="markFBGCUsed(\''+g.id+'\',\''+g.code+'\')" style="margin-left:auto;font-size:11px;padding:4px 10px;border:1px solid #C0392B;border-radius:6px;background:#FFF0EE;color:#C0392B;cursor:pointer;font-family:inherit;font-weight:600">✓ 標記已使用</button>'
+        +'<button onclick="event.stopPropagation();markFBGCUsed(\''+g.id+'\',\''+g.code+'\')" style="margin-left:auto;font-size:11px;padding:4px 10px;border:1px solid #C0392B;border-radius:6px;background:#FFF0EE;color:#C0392B;cursor:pointer;font-family:inherit;font-weight:600">✓ 標記已使用</button>'
+        +'</div>'
+        +'<div id="gcdetail-'+safeGid+'" style="display:none;padding:10px 14px 12px 30px;background:var(--bg);border-top:1px solid var(--border)">'+buildGCDetailHtml(g)+'</div>'
         +'</div>';
     }).join('');
   }).catch(function(e){fbWrap.innerHTML='<div style="font-size:12px;color:var(--warn)">無法載入：'+e.message+'</div>';});
 }
 window.loadFBGiftCards=loadFBGiftCards;
+function toggleGCDetail(safeGid){
+  var d=document.getElementById('gcdetail-'+safeGid);
+  var a=document.getElementById('gcarr-'+safeGid);
+  if(!d)return;
+  var open=d.style.display!=='none';
+  d.style.display=open?'none':'block';
+  if(a)a.style.transform=open?'':'rotate(90deg)';
+}
+// 顯示這張禮品卡的完整詳細資訊：已知欄位用中文標籤，其他 iPad 那邊寫進 Firebase 的欄位（比如備註、電話等）也全部列出來，不遺漏
+function buildGCDetailHtml(g){
+  var fmtTs=function(v){
+    if(!v)return '—';
+    var d=new Date(v);
+    if(isNaN(d.getTime()))return String(v);
+    return d.toLocaleDateString('zh-TW')+' '+d.toLocaleTimeString('zh-TW',{hour:'2-digit',minute:'2-digit'});
+  };
+  var known=[
+    ['卡號',g.code||'—'],
+    ['金額','$'+(g.amount!==undefined?Number(g.amount).toFixed(2):'—')],
+    ['收禮人',g.giftFor||'—'],
+    ['購買/發卡時間',fmtTs(g.issuedAt)],
+    ['到期日',g.expireDate?new Date(g.expireDate+'T12:00:00').toLocaleDateString('zh-TW'):'—'],
+    ['狀態',g.used?'已使用':'未使用'],
+  ];
+  if(g.used||g.usedAt)known.push(['使用時間',fmtTs(g.usedAt)]);
+  var knownKeys={code:1,amount:1,giftFor:1,issuedAt:1,expireDate:1,used:1,usedAt:1,id:1};
+  var extra=[];
+  Object.keys(g).forEach(function(k){
+    if(knownKeys[k])return;
+    var v=g[k];
+    if(v===''||v===null||v===undefined)return;
+    if(typeof v==='object')v=JSON.stringify(v);
+    extra.push([k,String(v)]);
+  });
+  var rows=known.concat(extra);
+  return '<div style="display:grid;grid-template-columns:auto 1fr;gap:5px 14px;font-size:12px">'+
+    rows.map(function(r){
+      return '<span style="color:var(--sub);white-space:nowrap">'+r[0]+'</span><span style="color:var(--text);font-weight:600">'+r[1]+'</span>';
+    }).join('')+
+  '</div>'+
+  (extra.length?'':'<div style="font-size:10px;color:var(--faint);margin-top:8px">（iPad 那邊目前沒有寫入其他額外欄位，例如購買人、電話、備註等——如果需要，要請你們在 iPad 那個表單那邊加上去，這裡才有資料可以顯示）</div>');
+}
 
 // 把「手動輸入」跟「iPad 賣出（Firebase）」的禮品卡合併起來，更新最上面那四個統計數字
 // 這樣總覽數字才是完整的，不會漏掉 iPad 賣出的那些
@@ -3539,11 +3586,16 @@ async function loadGCUsedHistory(){
     if(cards.length===0){wrap.innerHTML='<div style="font-size:12px;color:var(--faint);padding:8px 0">尚無已使用的禮品卡記錄 No used certificates yet</div>';return;}
     wrap.innerHTML=cards.sort(function(a,b){return(b.usedAt||'').localeCompare(a.usedAt||'');}).map(function(g){
       var usedDate=g.usedAt?new Date(g.usedAt).toLocaleString('zh-TW',{timeZone:'America/Los_Angeles'}):'—';
-      return '<div style="display:flex;align-items:center;gap:10px;padding:8px 12px;background:var(--bg,#FAFAF8);border:1px solid var(--border);border-radius:8px;margin-bottom:6px;flex-wrap:wrap;opacity:.85">'
+      var safeGid='u_'+String(g.id).replace(/[^a-zA-Z0-9]/g,'_');
+      return '<div style="background:var(--bg,#FAFAF8);border:1px solid var(--border);border-radius:8px;margin-bottom:6px;opacity:.85;overflow:hidden">'
+        +'<div onclick="toggleGCDetail(\''+safeGid+'\')" style="display:flex;align-items:center;gap:10px;padding:8px 12px;flex-wrap:wrap;cursor:pointer">'
+        +'<span id="gcarr-'+safeGid+'" style="font-size:9px;color:var(--faint);transition:transform .15s;display:inline-block">▶</span>'
         +'<span style="font-family:monospace;font-weight:700;color:var(--sub);font-size:13px">'+g.code+'</span>'
         +'<span style="font-size:13px;font-weight:600">$'+g.amount.toFixed(2)+'</span>'
         +'<span style="font-size:11px;color:var(--sub)">For: '+(g.giftFor||'—')+'</span>'
         +'<span style="margin-left:auto;font-size:11px;color:var(--ok);font-weight:600">✓ 已使用 '+usedDate+'</span>'
+        +'</div>'
+        +'<div id="gcdetail-'+safeGid+'" style="display:none;padding:10px 14px 12px 30px;border-top:1px solid var(--border)">'+buildGCDetailHtml(g)+'</div>'
         +'</div>';
     }).join('');
   }catch(e){wrap.innerHTML='<div style="font-size:12px;color:var(--warn)">無法載入：'+e.message+'</div>';}
@@ -7627,6 +7679,16 @@ function updAttField(name,idx,field,val){
   }
 
   saveOnly();
+
+  // 改「日期」會影響星期幾/假日標示、跟排序，這些不是局部更新能處理的，直接整張卡片重繪，
+  // 不然畫面看起來會像卡住、改了日期卻沒反應
+  if(field==='date'){
+    recs.sort(function(a,b){return a.date<b.date?-1:1;});
+    renderOneStaffCard(name);
+    renderAttSummary();
+    return;
+  }
+
   var r=recs[idx];
   var nm=netMins(r.rawMins,r.breakDeducted);
   var safeId=name.replace(/[^a-zA-Z0-9]/g,'_');
@@ -7843,17 +7905,19 @@ function buildStaffCard(name){
           // Date + day
           '<div style="min-width:110px">'+
             '<input type="date" value="'+r.date+'" style="'+inpStyle+';width:130px;font-family:inherit;font-size:12px;color:'+(isWk?'var(--warn)':'inherit')+'" onchange="updAttField('+q+esc+q+','+idx+','+q+'date'+q+',this.value)">'+
-            '<div style="font-size:10px;color:'+(isWk?'var(--warn)':'var(--sub)')+';margin-top:2px;padding-left:2px">週'+dow+(isWk?' （假日）':'')+'</div>'+
+            '<div style="margin-top:3px;padding-left:2px">'+(isWk?
+              '<span style="display:inline-block;padding:2px 8px;border-radius:10px;background:var(--warn-bg);color:var(--warn);font-weight:700;font-size:10px;border:1px solid var(--warn-bd)">週'+dow+' · 週末</span>':
+              '<span style="font-size:10px;color:var(--sub)">週'+dow+'</span>')+'</div>'+
           '</div>'+
           // Start time
           '<div>'+
             '<div style="font-size:9px;color:var(--sub);text-transform:uppercase;letter-spacing:.06em;margin-bottom:3px">上班</div>'+
-            '<select style="'+inpStyle+';width:100px" onchange="updAttField('+q+esc+q+','+idx+','+q+'startTime'+q+',this.value)">'+timeOptions30(r.startTime||'')+'</select>'+
+            '<select style="'+inpStyle+';width:132px" onchange="updAttField('+q+esc+q+','+idx+','+q+'startTime'+q+',this.value)">'+timeOptions30(r.startTime||'')+'</select>'+
           '</div>'+
           // End time
           '<div>'+
             '<div style="font-size:9px;color:var(--sub);text-transform:uppercase;letter-spacing:.06em;margin-bottom:3px">下班</div>'+
-            '<select style="'+inpStyle+';width:100px" onchange="updAttField('+q+esc+q+','+idx+','+q+'endTime'+q+',this.value)">'+timeOptions30(r.endTime||'')+'</select>'+
+            '<select style="'+inpStyle+';width:132px" onchange="updAttField('+q+esc+q+','+idx+','+q+'endTime'+q+',this.value)">'+timeOptions30(r.endTime||'')+'</select>'+
           '</div>'+
           // Hours (auto-calculated, still editable)
           '<div>'+
@@ -8474,74 +8538,28 @@ function calcCDMonthExpense(store, month){
     return e.store===store&&e.type==='expense'&&e.date.slice(0,7)===month;
   }).reduce(function(s,e){return s+e.amt;},0)*100)/100;
 }
-// 找出某店在某月份「之前」最近一次的重設基準：點鈔或手動更正，取比較新的那個
+// 找出「這個月自己」的餘額基準：手動更正優先（通常是每月初寫的正確金額），沒有的話看這個月最早一筆點鈔
+// 只看這個月自己，完全不會去拉上個月或更早的數字進來
 function calcCDResetBefore(store, month){
-  var counts=cdData().filter(function(e){
-    return e.store===store&&e.type==='count'&&e.date.slice(0,7)<month;
-  });
-  var lastCountMonth=counts.length?counts[counts.length-1].date.slice(0,7):null;
-  var lastCountAmt=counts.length?counts[counts.length-1].amt:null;
-
-  var manualMonths=[];
-  if(_D.cdManual){
-    Object.keys(_D.cdManual).forEach(function(m){
-      if(m<month&&_D.cdManual[m]&&_D.cdManual[m][store]!==undefined&&_D.cdManual[m][store]!==null) manualMonths.push(m);
-    });
+  var manualAmt=(_D.cdManual&&_D.cdManual[month]&&_D.cdManual[month][store]!==undefined&&_D.cdManual[month][store]!==null)?_D.cdManual[month][store]:null;
+  if(manualAmt!==null){
+    return {amt:manualAmt,afterMonth:month};
   }
-  manualMonths.sort();
-  var lastManualMonth=manualMonths.length?manualMonths[manualMonths.length-1]:null;
-  var lastManualAmt=lastManualMonth?_D.cdManual[lastManualMonth][store]:null;
-
-  if(lastManualMonth&&(!lastCountMonth||lastManualMonth>=lastCountMonth)){
-    return {amt:lastManualAmt,afterMonth:lastManualMonth};
+  var firstCount=cdData().filter(function(e){
+    return e.store===store&&e.type==='count'&&e.date.slice(0,7)===month;
+  }).sort(function(a,b){return a.date<b.date?-1:1;})[0];
+  if(firstCount){
+    return {amt:firstCount.amt,afterMonth:month};
   }
-  if(lastCountMonth){
-    return {amt:lastCountAmt,afterMonth:lastCountMonth};
-  }
-  return {amt:0,afterMonth:null};
+  return {amt:null,afterMonth:null};
 }
-// 找出某店最早有資料（收入/放入/取出/支出/點鈔）的月份，當作完全沒重設過時的起算點
-function calcCDEarliestMonth(store){
-  var months=[];
-  cdData().forEach(function(e){if(e.store===store)months.push(e.date.slice(0,7));});
-  if(_D[store])Object.keys(_D[store]).forEach(function(m){months.push(m);});
-  months.sort();
-  return months.length?months[0]:null;
-}
-// 產生 fromMonth（不含）到 toMonth（含）之間的月份清單，例如 '2026-06' -> '2026-08' => ['2026-07','2026-08']
-function monthsBetween(fromMonthExclusive,toMonthInclusive){
-  var list=[];
-  var y,m;
-  if(fromMonthExclusive){
-    y=parseInt(fromMonthExclusive.slice(0,4));m=parseInt(fromMonthExclusive.slice(5,7))+1;
-  } else {
-    y=parseInt(toMonthInclusive.slice(0,4));m=parseInt(toMonthInclusive.slice(5,7));
-  }
-  if(m>12){m=1;y++;}
-  var guard=0;
-  while(guard++<240){ // 安全上限 20 年，避免資料異常造成無窮迴圈
-    var ms=y+'-'+String(m).padStart(2,'0');
-    list.push(ms);
-    if(ms>=toMonthInclusive)break;
-    m++; if(m>12){m=1;y++;}
-  }
-  return list;
-}
-// 帳面應有餘額 = 最近一次重設基準（點鈔或手動更正，取較新）+ 之後每個月的放入/現金收入/取出/支出，一路累加到指定月份
-// （純粹用記帳資料推算，方便跟「目前顯示」的餘額比對，抓出漏記帳或未記錄的現金流出入）
+// 帳面應有餘額 = 這個月自己的餘額基準（手動更正或點鈔）＋ 這個月的放入 － 老闆取走 － 支出
+// 完全只看這一個月，不會拉上個月或更早的數字進來；如果這個月完全沒設定過餘額，就沒有基準可以比對，回傳 null
+// 注意：不加「現金收入」，因為「放入」是手動登記實際存進保險箱的錢，跟「現金收入」講的是同一筆錢，加兩次會重複計算
 function calcCDExpectedBalance(store, month){
   var reset=calcCDResetBefore(store, month);
-  var startMonth=reset.afterMonth;
-  if(!startMonth){
-    // 從來沒有點鈔也沒有手動更正過：退而求其次，從最早有資料的月份開始算
-    var earliest=calcCDEarliestMonth(store);
-    startMonth=earliest&&earliest<month?earliest:null;
-  }
-  var months=monthsBetween(startMonth,month);
-  var total=reset.amt||0;
-  months.forEach(function(m){
-    total+=calcCDMonthIn(store,m)+calcStoreCashRevForMonth(store,m)-calcCDStoreBossOut(store,m)-calcCDMonthExpense(store,m);
-  });
+  if(reset.amt===null) return null; // 這個月沒有基準，沒辦法算，交給呼叫端處理顯示
+  var total=reset.amt+calcCDMonthIn(store,month)-calcCDStoreBossOut(store,month)-calcCDMonthExpense(store,month);
   return Math.round(total*100)/100;
 }
 
@@ -8788,32 +8806,33 @@ function renderCDPage(){
     if(balEl){balEl.textContent=$f(bal);balEl.style.color=bal>=0?storeColor:'#B83010';}
     if(cashEl)cashEl.textContent=$f(cash);
     if(outEl)outEl.textContent=$f(out);
-    // 帳面應有餘額（跟目前顯示的保險箱現金比對）
+    // 帳面應有餘額（跟目前顯示的保險箱現金比對，只看「上個月」有沒有基準，沒有就不硬算）
     var expected=calcCDExpectedBalance(store,selMonth);
     var expEl=document.getElementById('boss-expect-'+store);
     var diffEl=document.getElementById('boss-diff-'+store);
     var basisEl=document.getElementById('boss-expect-basis-'+store);
-    if(expEl){expEl.textContent=$f(expected);expEl.style.color=expected>=0?storeColor:'#B83010';}
-    if(basisEl){
-      var resetInfo=calcCDResetBefore(store,selMonth);
-      if(resetInfo.afterMonth){
+    if(expected===null){
+      if(expEl){expEl.textContent='—';expEl.style.color='#888';}
+      if(basisEl)basisEl.textContent='這個月還沒點鈔或設定手動餘額，暫時無法比對';
+      if(diffEl){diffEl.textContent='';}
+    } else {
+      if(expEl){expEl.textContent=$f(expected);expEl.style.color=expected>=0?storeColor:'#B83010';}
+      if(basisEl){
+        var resetInfo=calcCDResetBefore(store,selMonth);
         basisEl.textContent='基準：'+resetInfo.afterMonth+' 的餘額 '+$f(resetInfo.amt)+'（點鈔或手動更正）';
-      } else {
-        var earliestM=calcCDEarliestMonth(store);
-        basisEl.textContent=earliestM?'基準：從最早有資料的 '+earliestM+' 開始累加（從未點鈔或手動更正過）':'尚無資料';
       }
-    }
-    if(diffEl){
-      var diffBal=Math.round((bal-expected)*100)/100;
-      if(Math.abs(diffBal)<0.05){
-        diffEl.textContent='✓ 跟目前顯示的餘額相符';
-        diffEl.style.color='#1A7A45';
-      } else if(diffBal>0){
-        diffEl.textContent='目前顯示比帳面多 +'+$f(diffBal);
-        diffEl.style.color='#B83010';
-      } else {
-        diffEl.textContent='目前顯示比帳面少 -'+$f(Math.abs(diffBal));
-        diffEl.style.color='#B83010';
+      if(diffEl){
+        var diffBal=Math.round((bal-expected)*100)/100;
+        if(Math.abs(diffBal)<0.05){
+          diffEl.textContent='✓ 跟目前顯示的餘額相符';
+          diffEl.style.color='#1A7A45';
+        } else if(diffBal>0){
+          diffEl.textContent='目前顯示比帳面多 +'+$f(diffBal);
+          diffEl.style.color='#B83010';
+        } else {
+          diffEl.textContent='目前顯示比帳面少 -'+$f(Math.abs(diffBal));
+          diffEl.style.color='#B83010';
+        }
       }
     }
     if(reconEl){
