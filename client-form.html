@@ -144,23 +144,6 @@ body{background:var(--cream);font-family:'Inter',sans-serif;color:var(--ink);min
   </div>
 </div>
 
-<!-- STEP 0.5: Language Selection -->
-<div id="step-lang" style="display:none;padding:32px 20px;max-width:500px;margin:0 auto">
-  <button onclick="goBackFromLangToStore()" style="display:flex;align-items:center;gap:6px;background:none;border:none;color:var(--sub);font-size:14px;font-family:'Inter',sans-serif;cursor:pointer;padding:4px 0;margin-bottom:16px">← <span data-i18n="back">Back</span></button>
-  <div style="text-align:center;margin-bottom:28px">
-    <div style="font-size:22px;font-weight:600;margin-bottom:6px" data-i18n="select_language">Select Language</div>
-    <div style="font-size:14px;color:var(--sub)" data-i18n="select_language_sub">Please choose your preferred language</div>
-  </div>
-  <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;max-width:420px;margin:0 auto">
-    <div class="svc-btn" onclick="pickLanguage('en')" style="padding:20px 14px">English</div>
-    <div class="svc-btn" onclick="pickLanguage('es')" style="padding:20px 14px">Español</div>
-    <div class="svc-btn" onclick="pickLanguage('ja')" style="padding:20px 14px">日本語</div>
-    <div class="svc-btn" onclick="pickLanguage('ko')" style="padding:20px 14px">한국어</div>
-    <div class="svc-btn" onclick="pickLanguage('zhTW')" style="padding:20px 14px">中文（繁體）</div>
-    <div class="svc-btn" onclick="pickLanguage('zhCN')" style="padding:20px 14px">中文（简体）</div>
-  </div>
-</div>
-
 <!-- STEP GC: Gift Card Form -->
 <div id="step-gc" style="display:none;padding:24px 20px;max-width:520px;margin:0 auto">
   <button onclick="goBackFromGC()" style="display:flex;align-items:center;gap:6px;background:none;border:none;color:var(--sub);font-size:14px;font-family:'Inter',sans-serif;cursor:pointer;padding:4px 0;margin-bottom:20px">← Back 返回</button>
@@ -333,9 +316,20 @@ body{background:var(--cream);font-family:'Inter',sans-serif;color:var(--ink);min
 
 <!-- STEP 1: Pick service -->
 <div id="step-pick" style="display:none">
-  <div style="display:flex;align-items:center;padding:12px 20px;border-bottom:1px solid var(--border);background:var(--white)">
-    <button onclick="goBackToStore()" style="background:none;border:none;color:var(--sub);font-size:14px;font-family:'Inter',sans-serif;cursor:pointer;padding:4px 0;margin-right:12px">← <span data-i18n="back">Back</span></button>
-    <span id="pick-store-badge" style="font-size:13px;font-weight:600;color:var(--sub)"></span>
+  <div style="display:flex;align-items:center;padding:12px 20px;border-bottom:1px solid var(--border);background:var(--white);gap:12px">
+    <button onclick="goBackToStore()" style="background:none;border:none;color:var(--sub);font-size:14px;font-family:'Inter',sans-serif;cursor:pointer;padding:4px 0">← <span data-i18n="back">Back</span></button>
+    <span id="pick-store-badge" style="font-size:13px;font-weight:600;color:var(--sub);flex:1"></span>
+    <label style="display:flex;align-items:center;gap:5px;border:1.5px solid var(--border);border-radius:8px;padding:6px 8px 6px 10px;cursor:pointer">
+      <span style="font-size:14px">🌐</span>
+      <select id="lang-picker" class="lang-picker-sync" onchange="setLanguage(this.value)" style="border:none;padding:0;font-size:13px;font-family:'Inter',sans-serif;color:var(--ink);background:transparent;outline:none;-webkit-appearance:none">
+        <option value="en">English</option>
+        <option value="es">Español</option>
+        <option value="ja">日本語</option>
+        <option value="ko">한국어</option>
+        <option value="zhTW">中文（繁體）</option>
+        <option value="zhCN">中文（简体）</option>
+      </select>
+    </label>
   </div>
   <div class="step-title" style="margin-top:24px" data-i18n="welcome">Welcome!</div>
   <div class="step-sub" data-i18n="select_service_sub">Please select your service today</div>
@@ -363,7 +357,21 @@ body{background:var(--cream);font-family:'Inter',sans-serif;color:var(--ink);min
 <!-- STEP 2: Form -->
 <div id="step-form">
   <div class="form-wrap" autocomplete="off">
-    <button onclick="goBack()" style="display:flex;align-items:center;gap:6px;background:none;border:none;color:var(--sub);font-size:14px;font-family:'Inter',sans-serif;cursor:pointer;padding:4px 0;margin-bottom:16px">← <span data-i18n="back">Back</span></button>
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px">
+      <button onclick="goBack()" style="display:flex;align-items:center;gap:6px;background:none;border:none;color:var(--sub);font-size:14px;font-family:'Inter',sans-serif;cursor:pointer;padding:4px 0">← <span data-i18n="back">Back</span></button>
+      <span style="flex:1"></span>
+      <label style="display:flex;align-items:center;gap:5px;border:1.5px solid var(--border);border-radius:8px;padding:6px 8px 6px 10px;cursor:pointer">
+        <span style="font-size:14px">🌐</span>
+        <select onchange="setLanguage(this.value)" class="lang-picker-sync" style="border:none;padding:0;font-size:13px;font-family:'Inter',sans-serif;color:var(--ink);background:transparent;outline:none;-webkit-appearance:none">
+          <option value="en">English</option>
+          <option value="es">Español</option>
+          <option value="ja">日本語</option>
+          <option value="ko">한국어</option>
+          <option value="zhTW">中文（繁體）</option>
+          <option value="zhCN">中文（简体）</option>
+        </select>
+      </label>
+    </div>
     <div class="form-title" id="form-title"></div>
     <div class="form-subtitle" id="form-subtitle"></div>
     <div id="form-body"></div>
@@ -840,18 +848,10 @@ function getSigDataURL() {
 }
 
 // ── SHOW FORM ──
-function showForm() {
-  var titles = {lash:'Eyelash Agreement & Consent 睫毛協議與同意書',facial:'Skin Care Report & Consent 護膚報告與同意書',headspa:'Head Spa Agreement & Consent 頭療協議與同意書',massage:'Massage Therapy Consent 按摩治療同意書'};
-  document.getElementById('form-title').textContent = titles[curSvc];
-  document.getElementById('form-subtitle').textContent = t('form_subtitle');
-  var builders = {lash:buildLash, facial:buildFacial, headspa:buildHeadSpa, massage:buildMassage};
-  document.getElementById('form-body').innerHTML = builders[curSvc]();
-  document.getElementById('step-pick').style.display = 'none';
-  document.getElementById('step-form').style.display = 'block';
-  applyI18n();
-  window.scrollTo(0,0);
-  setTimeout(initSig, 100);
+var FORM_BUILDERS = {lash:buildLash, facial:buildFacial, headspa:buildHeadSpa, massage:buildMassage};
+var FORM_TITLES = {lash:'Eyelash Agreement & Consent 睫毛協議與同意書',facial:'Skin Care Report & Consent 護膚報告與同意書',headspa:'Head Spa Agreement & Consent 頭療協議與同意書',massage:'Massage Therapy Consent 按摩治療同意書'};
 
+function attachDynamicListeners() {
   // Lash allergy toggle
   document.querySelectorAll('[data-name="lash-allergy"]').forEach(el=>{
     el.addEventListener('click', ()=>{
@@ -862,6 +862,65 @@ function showForm() {
       }, 50);
     });
   });
+}
+
+// Capture current answers so switching language mid-form doesn't lose input
+function captureFormState() {
+  var body = document.getElementById('form-body');
+  if(!body) return null;
+  var state = {values:{}, opts:[], initials:[], sig:''};
+  body.querySelectorAll('input[id],select[id],textarea[id]').forEach(el=>{
+    state.values[el.id] = el.value;
+  });
+  body.querySelectorAll('.opt-btn.sel').forEach(el=>{
+    state.opts.push({name: el.dataset.name, val: el.dataset.val});
+  });
+  body.querySelectorAll('.initial-check').forEach((el,i)=>{
+    if(el.classList.contains('chk')) state.initials.push(i);
+  });
+  var canvas = document.getElementById('sig-canvas');
+  if(canvas && sigCtx && getSigDataURL()) state.sig = canvas.toDataURL('image/png');
+  return state;
+}
+
+function restoreFormState(state) {
+  if(!state) return;
+  var body = document.getElementById('form-body');
+  if(!body) return;
+  Object.keys(state.values).forEach(function(id){
+    var el = document.getElementById(id);
+    if(el && !el.readOnly) el.value = state.values[id];
+  });
+  state.opts.forEach(function(o){
+    var el = body.querySelector('.opt-btn[data-name="'+o.name+'"][data-val="'+o.val+'"]');
+    if(el) el.classList.add('sel');
+  });
+  var checks = body.querySelectorAll('.initial-check');
+  state.initials.forEach(function(i){
+    if(checks[i]) checks[i].classList.add('chk');
+  });
+  autoFillPrintName();
+  if(state.sig) {
+    setTimeout(function(){
+      var canvas = document.getElementById('sig-canvas');
+      if(!canvas || !sigCtx) return;
+      var img = new Image();
+      img.onload = function(){ sigCtx.drawImage(img, 0, 0, canvas.offsetWidth, 160); };
+      img.src = state.sig;
+    }, 150);
+  }
+}
+
+function showForm() {
+  document.getElementById('form-title').textContent = FORM_TITLES[curSvc];
+  document.getElementById('form-subtitle').textContent = t('form_subtitle');
+  document.getElementById('form-body').innerHTML = FORM_BUILDERS[curSvc]();
+  document.getElementById('step-pick').style.display = 'none';
+  document.getElementById('step-form').style.display = 'block';
+  applyI18n();
+  window.scrollTo(0,0);
+  setTimeout(initSig, 100);
+  attachDynamicListeners();
 }
 
 // ── COLLECT DATA ──
@@ -1409,29 +1468,34 @@ function pickStore(store, el) {
   el.style.background = store==='mv' ? 'var(--mv-bg)' : 'var(--sr-bg)';
   setTimeout(function() {
     document.getElementById('step-store').style.display = 'none';
-    document.getElementById('step-lang').style.display = 'block';
-    // Show store badge (set now, shown once we reach step-pick)
+    document.getElementById('step-pick').style.display = 'block';
+    // Show store badge
     var badge = document.getElementById('pick-store-badge');
     if(badge) badge.textContent = store==='mv' ? '📍 Mill Valley' : '📍 San Rafael';
+    var picker = document.getElementById('lang-picker');
+    if(picker) picker.value = curLang;
     applyI18n();
     window.scrollTo(0,0);
   }, 300);
 }
 
-function pickLanguage(code) {
+function setLanguage(code) {
   curLang = code;
-  document.getElementById('step-lang').style.display = 'none';
-  document.getElementById('step-pick').style.display = 'block';
-  applyI18n();
-  window.scrollTo(0,0);
+  document.querySelectorAll('.lang-picker-sync').forEach(function(sel){ sel.value = code; });
+  var formVisible = document.getElementById('step-form') && document.getElementById('step-form').style.display !== 'none';
+  if(formVisible && curSvc) {
+    var state = captureFormState();
+    document.getElementById('form-title').textContent = FORM_TITLES[curSvc];
+    document.getElementById('form-subtitle').textContent = t('form_subtitle');
+    document.getElementById('form-body').innerHTML = FORM_BUILDERS[curSvc]();
+    applyI18n();
+    attachDynamicListeners();
+    setTimeout(function(){ initSig(); restoreFormState(state); }, 100);
+  } else {
+    applyI18n();
+  }
 }
-
-function goBackFromLangToStore() {
-  document.getElementById('step-lang').style.display = 'none';
-  document.getElementById('step-store').style.display = 'block';
-  _selectedStore = null;
-  window.scrollTo(0,0);
-}
+window.setLanguage = setLanguage;
 
 function goBackToStore() {
   document.getElementById('step-pick').style.display = 'none';
@@ -1444,9 +1508,7 @@ function goBackToStore() {
 }
 
 window.goBackToStore = goBackToStore;
-window.goBackFromLangToStore = goBackFromLangToStore;
 window.pickStore = pickStore;
-window.pickLanguage = pickLanguage;
 
 function checkAgreement() {
   var cb = document.getElementById('staff-agreement-cb');
