@@ -142,7 +142,7 @@ input[type=file]{font-size:12px;font-family:'Inter',sans-serif;color:var(--sub)}
   <!-- ── 客戶列表 tab ── -->
   <div id="tab-clients">
     <div class="toolbar">
-      <input class="tb-input" id="search" placeholder="🔍 搜尋 Search 姓名 Name / 電話 Phone / Email…" style="width:260px" oninput="applyFilters()">
+      <input class="tb-input" id="search" placeholder="🔍 搜尋 Search 姓名 Name / 電話 Phone / Email…" style="width:260px" oninput="debouncedApplyFilters()">
       <select class="tb-select" id="filter-svc" onchange="applyFilters()">
         <option value="">所有服務 All Services</option>
         <option value="lash">Eyelash</option>
@@ -275,7 +275,7 @@ input[type=file]{font-size:12px;font-family:'Inter',sans-serif;color:var(--sub)}
 
 <script type="module">
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
-import { getFirestore, collection, getDocs, query, orderBy, addDoc, deleteDoc, updateDoc, doc } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
+import { getFirestore, collection, getDocs, query, orderBy, addDoc, deleteDoc, updateDoc, doc, writeBatch } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
 
 const app = initializeApp({
   apiKey:"AIzaSyCbiJE0WiBy9oOPp0Vh0AdsEOcPjyNsVwk",
@@ -306,7 +306,28 @@ async function fbUpdate(id, data) {
   await updateDoc(doc(db, 'client_forms', id), data);
 }
 
-window._fb = { load: fbLoad, saveCustomer: fbSaveCustomer, delete: fbDelete, update: fbUpdate,
+// Batch import: writes/updates many docs in chunks of <=450 per network round-trip
+// instead of one round-trip per row. Massively speeds up large Square CSV imports.
+async function fbBatchImport(newRecs, updates) {
+  var CHUNK = 450; // Firestore batch limit is 500 ops
+  var i;
+  for (i = 0; i < newRecs.length; i += CHUNK) {
+    var batch = writeBatch(db);
+    newRecs.slice(i, i+CHUNK).forEach(function(rec){
+      batch.set(doc(collection(db, 'client_forms')), rec);
+    });
+    await batch.commit();
+  }
+  for (i = 0; i < updates.length; i += CHUNK) {
+    var batch2 = writeBatch(db);
+    updates.slice(i, i+CHUNK).forEach(function(u){
+      batch2.update(doc(db, 'client_forms', u.id), u.data);
+    });
+    await batch2.commit();
+  }
+}
+
+window._fb = { load: fbLoad, saveCustomer: fbSaveCustomer, delete: fbDelete, update: fbUpdate, batchImport: fbBatchImport,
   query, collection, orderBy, getDocs, addDoc, deleteDoc, updateDoc, doc, getFirestore };
 
 // Auto-init after module loads
@@ -533,6 +554,16 @@ function showTab(t) {
 }
 
 // ── FILTER & SORT ──
+// Debounce search-as-you-type: typing fast on a long client list re-filters
+// and re-renders the whole table on every keystroke, which is what makes
+// typing feel laggy. Waiting ~200ms after the last keystroke fixes that
+// without changing how filtering/sorting actually works.
+var _filterDebounceTimer=null;
+function debouncedApplyFilters(){
+  clearTimeout(_filterDebounceTimer);
+  _filterDebounceTimer=setTimeout(applyFilters,200);
+}
+
 function applyFilters() {
   var q = (document.getElementById('search').value||'').toLowerCase();
   var svc = document.getElementById('filter-svc').value;
@@ -809,7 +840,8 @@ async function importSqCustomers(){
   if(!window._fb){alert('Firebase 連線失敗，請重新整理頁面');return;}
   var file=document.getElementById('sq-customer-file').files[0];
   if(!file){alert('請選擇 CSV 檔案');return;}
-  document.getElementById('sq-customer-status').textContent='匯入中，請稍候…';
+  var statusEl=document.getElementById('sq-customer-status');
+  statusEl.textContent='讀取 CSV 中…';
   var reader=new FileReader();
   reader.onload=async function(e){
     var text=e.target.result;
@@ -823,8 +855,19 @@ async function importSqCustomers(){
     var iLastVisit=headers.findIndex(h=>/^last.visit$/i.test(h));
     var iFirstVisit=headers.findIndex(h=>/^first.visit$/i.test(h));
     // iCreated removed — 'Creation Source' is text like 'Appointments', not a date
-    var count=0;
+
+    // Build a phone→record lookup ONCE instead of scanning allRecords for every
+    // CSV row — turns an O(rows × existing) scan into O(rows + existing).
+    var byPhone10 = {};
+    allRecords.forEach(function(r){
+      var p10 = (r.phone||'').replace(/\D/g,'').slice(-10);
+      if(p10) byPhone10[p10] = r;
+    });
+
+    var newRecs=[], updates=[], count=0;
+    var total = lines.length - 1;
     for(var i=1;i<lines.length;i++){
+      if(i % 500 === 0) statusEl.textContent='解析中 Parsing… '+i+' / '+total;
       var cols=parseCSVLine(lines[i]);
       if(cols.length<3)continue;
       var phone=(iPhone>=0?cols[iPhone]:'').replace(/\D/g,'');
@@ -834,10 +877,9 @@ async function importSqCustomers(){
       var firstVisit = iFirstVisit>=0 ? cols[iFirstVisit]||'' : '';
       var dateStr = lastVisit || firstVisit; // Only use actual visit dates (Creation Source is text, not a date)
       var submittedAt = dateStr ? new Date(dateStr).toISOString() : new Date().toISOString();
-      // Check if already in allRecords by phone
       // Match by last 10 digits to handle 1XXXXXXXXXX vs XXXXXXXXXX differences
       var phone10=phone.slice(-10);
-      var existing=allRecords.find(r=>(r.phone||'').replace(/\D/g,'').slice(-10)===phone10);
+      var existing=byPhone10[phone10];
       if(existing){
         // Update email/name if missing, AND update lastVisit date
         if(!existing.email&&iEmail>=0) existing.email=cols[iEmail]||'';
@@ -845,7 +887,7 @@ async function importSqCustomers(){
           existing.lastVisit = lastVisit;
           existing.firstVisit = firstVisit;
           existing.submittedAt = submittedAt;
-          try{ await window._fb.update(existing.id, {lastVisit, firstVisit, submittedAt: existing.submittedAt}); }catch(err){}
+          updates.push({id: existing.id, data: {lastVisit, firstVisit, submittedAt: existing.submittedAt}});
         }
         continue;
       }
@@ -860,9 +902,21 @@ async function importSqCustomers(){
         firstVisit: firstVisit,
         service:'',_source:'sq',responses:{},_visits:[]
       };
-      try{await window._fb.saveCustomer(rec);count++;}catch(err){console.error(err);}
+      newRecs.push(rec);
+      count++;
     }
-    document.getElementById('sq-customer-status').textContent='✓ 匯入完成，新增 '+count+' 筆新客戶（已有資料者自動更新到訪日期）';
+
+    // Write everything in batches of ~450 instead of one Firestore round-trip
+    // per row — this is the single biggest speed win for large CSV imports.
+    statusEl.textContent='寫入 Firebase 中 Writing… ('+(newRecs.length+updates.length)+' 筆)';
+    try {
+      await window._fb.batchImport(newRecs, updates);
+    } catch(err) {
+      console.error(err);
+      statusEl.textContent='匯入失敗 Import failed：'+err.message;
+      return;
+    }
+    statusEl.textContent='✓ 匯入完成，新增 '+count+' 筆新客戶（已有資料者自動更新到訪日期）';
     reloadAll();
   };
   reader.readAsText(file);
@@ -972,7 +1026,7 @@ function parseCSVLine(line){
 }
 
 // expose
-window.showTab=showTab;window.applyFilters=applyFilters;window.sortBy=sortBy;
+window.showTab=showTab;window.applyFilters=applyFilters;window.debouncedApplyFilters=debouncedApplyFilters;window.sortBy=sortBy;
 window.openPanel=openPanel;window.closePanel=closePanel;window.toggleLapsed=toggleLapsed;
 window.exportCSV=exportCSV;window.importSqCustomers=importSqCustomers;window.importSqItems=importSqItems;
 window.reloadAll=reloadAll;window.renderAnalytics=renderAnalytics;
@@ -983,7 +1037,11 @@ async function deleteClient(id) {
   try {
     await window._fb.delete(id);
     closePanel();
-    await reloadAll();
+    // Remove locally instead of re-fetching the whole collection from
+    // Firebase — one deleted doc doesn't require a full reload.
+    allRecords = allRecords.filter(r => r.id !== id);
+    updateStats();
+    applyFilters();
   } catch(e) {
     alert('刪除失敗：' + e.message);
   }
