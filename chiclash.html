@@ -521,6 +521,7 @@ input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-
   <button class="ni" id="ni-products" onclick="showPage('products')"><span class="ni-ic">🛍</span>產品銷售</button>
   <button class="ni" id="ni-members" onclick="showPage('members')"><span class="ni-ic">💳</span>會員卡</button>
   <button class="ni" id="ni-gc" onclick="showPage('gc')"><span class="ni-ic">🎁</span>Gift Card 記錄</button>
+  <button class="ni" id="ni-cardexp" onclick="showPage('cardexp')"><span class="ni-ic">🧾</span>員工消費卡</button>
   <div class="s-sec">月結</div>
   <button class="ni" id="ni-report" onclick="showPage('report')"><span class="ni-ic">📋</span>月結報表</button>
   <button class="ni" id="ni-payroll" onclick="showPage('payroll')"><span class="ni-ic">💜</span>Lucy &amp; Luter 薪資</button>
@@ -903,6 +904,41 @@ input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-
       <span id="gc-used-arrow">▶</span> 📜 已使用歷史記錄 Used History
     </div>
     <div id="gc-used-wrap" style="display:none"><div style="font-size:12px;color:var(--sub)">載入中…</div></div>
+  </div>
+</div>
+
+<!-- 員工消費卡 -->
+<div class="page" id="page-cardexp">
+  <div class="pg-hd"><div class="pg-title">🧾 員工消費卡</div><div class="pg-sub">員工刷公司卡的消費記錄，發薪時依此從薪水中扣除</div></div>
+
+  <div class="gc-form">
+    <div class="gc-form-title">＋ 新增刷卡記錄</div>
+    <div class="gc-form-row">
+      <div class="gc-ff"><label>日期</label><input type="date" id="cexf-date" class="gc-field" style="width:140px"></div>
+      <div class="gc-ff"><label>員工</label>
+        <select id="cexf-staff" class="gc-field" style="width:120px"><option value="">— 選擇 —</option></select>
+      </div>
+      <div class="gc-ff"><label>金額 ($)</label><input type="text" inputmode="decimal" id="cexf-amt" class="gc-field" placeholder="0.00" style="width:100px"></div>
+      <div class="gc-ff"><label>店家 / 用途</label><input type="text" id="cexf-note" class="gc-field" placeholder="例：Costco 補貨" style="min-width:180px" onkeydown="if(event.key==='Enter')addCardExp()"></div>
+      <div class="gc-ff"><button class="gc-add-btn" onclick="addCardExp()">新增</button></div>
+    </div>
+  </div>
+
+  <div style="display:flex;gap:16px;flex-wrap:wrap;align-items:center;margin-bottom:14px">
+    <div style="display:flex;align-items:center;gap:6px">
+      <span style="font-size:11px;color:var(--sub);font-weight:600">月份</span>
+      <select id="cex-month-sel" class="gc-field" style="width:130px" onchange="renderCardExpPage()"></select>
+    </div>
+    <div style="display:flex;align-items:center;gap:6px">
+      <span style="font-size:11px;color:var(--sub);font-weight:600">員工</span>
+      <select id="cex-staff-sel" class="gc-field" style="width:130px" onchange="renderCardExpPage()"><option value="">全部員工</option></select>
+    </div>
+  </div>
+
+  <div class="gc-stats" id="cex-stats" style="grid-template-columns:repeat(auto-fit,minmax(140px,1fr))"></div>
+
+  <div class="gd-tbl" id="cex-list-wrap">
+    <div class="gc-empty">尚無刷卡記錄，請在上方新增</div>
   </div>
 </div>
 
@@ -1994,6 +2030,7 @@ function showPage(p){
     if(niEl) niEl.classList.add('on');
   }
   if(p==='gc'){renderGCPage(); loadFBGiftCards();}
+  if(p==='cardexp')renderCardExpPage();
   if(p==='products')renderProductsPage();
   if(p==='members')renderMembersPage();
   if(p==='staff')renderStaffPage();
@@ -3790,6 +3827,155 @@ function renderProductsPage(){
         +'</tr>';
     }).join('')
     +'</tbody></table>';
+}
+
+// ── 員工消費卡（公司卡消費，發薪時扣除）──
+// _D.cardExp: [{id, date:'YYYY-MM-DD', staff, amt, note}]  — 不分月份的流水記錄，畫面上依日期/員工篩選
+function cexList(){ if(!_D.cardExp)_D.cardExp=[]; return _D.cardExp; }
+
+function initCexStaffFormSel(){
+  var sel=document.getElementById('cexf-staff');
+  if(!sel)return;
+  var staff=_D.staff||[];
+  var curV=sel.value;
+  sel.innerHTML='<option value="">— 選擇 —</option>'
+    +staff.map(function(s){return '<option value="'+s+'"'+(s===curV?' selected':'')+'>'+s+'</option>';}).join('');
+}
+
+function addCardExp(){
+  var date=document.getElementById('cexf-date').value;
+  var staff=document.getElementById('cexf-staff').value;
+  var amt=parseFloat(document.getElementById('cexf-amt').value)||0;
+  var note=(document.getElementById('cexf-note').value||'').trim();
+  if(!date||!staff||amt<=0){alert('請填寫日期、員工和金額');return;}
+  cexList().push({id:Date.now(),date:date,staff:staff,amt:amt,note:note});
+  save();
+  document.getElementById('cexf-amt').value='';
+  document.getElementById('cexf-note').value='';
+  renderCardExpPage();
+}
+
+function delCardExp(id){
+  _D.cardExp=cexList().filter(function(x){return x.id!==id;});
+  save();renderCardExpPage();
+}
+
+function updateCardExp(id,field,val){
+  var x=cexList().find(function(e){return e.id===id;});
+  if(!x)return;
+  if(field==='amt')x.amt=parseFloat(val)||0;
+  else if(field==='staff')x.staff=val;
+  else if(field==='date')x.date=val;
+  else if(field==='note')x.note=val;
+  save();renderCardExpPage();
+}
+
+function renderCardExpPage(){
+  initCexStaffFormSel();
+  var di=document.getElementById('cexf-date');
+  if(di&&!di.value)di.value=new Date().toISOString().split('T')[0];
+
+  var all=cexList();
+  var staffList=_D.staff||[];
+
+  // 月份下拉：有資料的月份 + 目前月份 + 「全部月份」
+  var monthSel=document.getElementById('cex-month-sel');
+  var selMonth=mk();
+  if(monthSel){
+    var months={};
+    all.forEach(function(x){if(x.date)months[x.date.slice(0,7)]=true;});
+    months[mk()]=true;
+    var monthKeys=Object.keys(months).sort().reverse();
+    var keepSel=monthSel.value||mk();
+    monthSel.innerHTML=monthKeys.map(function(m){
+      var label=m.slice(0,4)+'年'+parseInt(m.slice(5,7),10)+'月';
+      return '<option value="'+m+'"'+(m===keepSel?' selected':'')+'>'+label+'</option>';
+    }).join('')+'<option value="__all__"'+(keepSel==='__all__'?' selected':'')+'>全部月份</option>';
+    selMonth=monthSel.value;
+  }
+
+  // 員工下拉
+  var staffSel=document.getElementById('cex-staff-sel');
+  var selStaff='';
+  if(staffSel){
+    var keepStaff=staffSel.value||'';
+    staffSel.innerHTML='<option value="">全部員工</option>'
+      +staffList.map(function(s){return '<option value="'+s+'"'+(s===keepStaff?' selected':'')+'>'+s+'</option>';}).join('');
+    selStaff=staffSel.value;
+  }
+
+  // 篩選
+  var filtered=all.filter(function(x){
+    var monthMatch=selMonth==='__all__'||(x.date||'').slice(0,7)===selMonth;
+    var staffMatch=!selStaff||x.staff===selStaff;
+    return monthMatch&&staffMatch;
+  });
+
+  // 統計卡片：總額 + 各員工小計（未指定員工時），依員工管理設定的顏色顯示
+  var statsEl=document.getElementById('cex-stats');
+  if(statsEl){
+    var grandTotal=filtered.reduce(function(s,x){return s+x.amt;},0);
+    var cards=['<div class="gc-stat" style="border:1.5px solid var(--warn-bd);background:var(--warn-bg)"><div class="gc-stat-l" style="color:var(--warn)">'+(selStaff?selStaff+' 消費總額':'全部消費總額')+'</div><div class="gc-stat-v" style="color:var(--warn)">'+$f(grandTotal)+'</div></div>'];
+    if(!selStaff){
+      var byStaff={};
+      filtered.forEach(function(x){
+        if(!byStaff[x.staff])byStaff[x.staff]={amt:0,count:0};
+        byStaff[x.staff].amt+=x.amt;byStaff[x.staff].count++;
+      });
+      Object.keys(byStaff).sort().forEach(function(n){
+        var sc2=getStaffColor(n);
+        cards.push('<div class="gc-stat" style="border:1.5px solid '+sc2.border+';background:'+sc2.bg+'">'
+          +'<div class="gc-stat-l" style="color:'+sc2.hex+';display:flex;align-items:center;justify-content:center;gap:5px"><span style="width:7px;height:7px;border-radius:50%;background:'+sc2.hex+';display:inline-block"></span>'+n+'</div>'
+          +'<div class="gc-stat-v" style="color:'+sc2.hex+'">'+$f(byStaff[n].amt)+'</div>'
+          +'<div style="font-size:10px;color:var(--faint);margin-top:2px">'+byStaff[n].count+' 筆，將從薪水扣除</div></div>');
+      });
+    }
+    statsEl.innerHTML=cards.join('');
+  }
+
+  // 明細：依員工分組，各自一份報表（顏色跟員工管理一致），組內再依日期排序
+  var wrap=document.getElementById('cex-list-wrap');
+  if(!wrap)return;
+  if(filtered.length===0){wrap.innerHTML='<div class="gc-empty">此篩選條件下尚無刷卡記錄</div>';return;}
+
+  var groups={};
+  var groupOrder=[];
+  filtered.forEach(function(x){
+    if(!groups[x.staff]){groups[x.staff]=[];groupOrder.push(x.staff);}
+    groups[x.staff].push(x);
+  });
+  groupOrder.sort();
+
+  var groupsHtml=groupOrder.map(function(staffName){
+    var entries=groups[staffName].slice().sort(function(a,b){return b.date.localeCompare(a.date)||b.id-a.id;});
+    var sc3=getStaffColor(staffName);
+    var subtotal=entries.reduce(function(s,x){return s+x.amt;},0);
+    var rowsHtml=entries.map(function(x){
+      var staffOpts=staffList.map(function(s){return '<option value="'+s+'"'+(s===x.staff?' selected':'')+'>'+s+'</option>';}).join('');
+      var safeNote=(x.note||'').replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;');
+      return '<tr style="border-bottom:1px solid var(--border)">'
+        +'<td style="padding:8px 14px"><input type="date" value="'+x.date+'" style="border:1px solid var(--border);border-radius:6px;padding:4px 6px;font-size:12px;font-family:inherit" onchange="updateCardExp('+x.id+',\'date\',this.value)"></td>'
+        +'<td style="padding:8px 14px"><select style="border:1px solid var(--border);border-radius:6px;padding:4px 6px;font-size:12px;font-family:inherit" onchange="updateCardExp('+x.id+',\'staff\',this.value)">'+staffOpts+'</select></td>'
+        +'<td style="padding:8px 14px"><input type="text" value="'+safeNote+'" style="border:1px solid var(--border);border-radius:6px;padding:4px 6px;font-size:12px;font-family:inherit;width:100%" onchange="updateCardExp('+x.id+',\'note\',this.value)"></td>'
+        +'<td style="padding:8px 14px;text-align:right"><input type="text" inputmode="decimal" value="'+x.amt.toFixed(2)+'" style="border:1px solid var(--border);border-radius:6px;padding:4px 6px;font-size:12px;font-family:inherit;width:80px;text-align:right" onchange="updateCardExp('+x.id+',\'amt\',this.value)"></td>'
+        +'<td style="padding:8px 14px"><button class="del-btn" onclick="delCardExp('+x.id+')">×</button></td>'
+        +'</tr>';
+    }).join('');
+    return '<div style="background:var(--white);border:1.5px solid '+sc3.border+';border-radius:10px;overflow:hidden;margin-bottom:12px">'
+      +'<div style="background:'+sc3.bg+';padding:10px 16px;display:flex;align-items:center;justify-content:space-between">'
+      +'<span style="display:flex;align-items:center;gap:8px;font-size:13px;font-weight:700;color:'+sc3.hex+'"><span style="width:9px;height:9px;border-radius:50%;background:'+sc3.hex+';display:inline-block"></span>'+staffName+' 消費報表</span>'
+      +'<span style="font-size:15px;font-weight:700;color:'+sc3.hex+'">'+$f(subtotal)+'</span>'
+      +'</div>'
+      +'<table style="width:100%;border-collapse:collapse;font-size:13px">'
+      +'<thead><tr style="background:var(--bg);border-bottom:1.5px solid var(--border)">'
+      +'<th style="padding:8px 14px;text-align:left;font-size:10px;color:var(--sub);font-weight:600">日期</th>'
+      +'<th style="padding:8px 14px;text-align:left;font-size:10px;color:var(--sub);font-weight:600">員工</th>'
+      +'<th style="padding:8px 14px;text-align:left;font-size:10px;color:var(--sub);font-weight:600">店家／用途</th>'
+      +'<th style="padding:8px 14px;text-align:right;font-size:10px;color:var(--sub);font-weight:600">金額</th>'
+      +'<th style="padding:8px 14px;width:32px"></th>'
+      +'</tr></thead><tbody>'+rowsHtml+'</tbody></table></div>';
+  }).join('');
+  wrap.innerHTML=groupsHtml;
 }
 
 // ── MEMBERSHIP ──
@@ -5867,7 +6053,10 @@ function buildStaffReportData(){
     var memberRedeems=membersData().filter(function(m){return m.redeemed&&m.redeem&&m.redeem.tech===name&&m.redeem.mo===mk();});
     // 會員卡銷售獎勵（平分制，跟評論獎勵同機制）
     var memberSaleRev=calcMemberSaleRewardForStaff(name,mk());
-    var grand=basePay+effectiveTip+penTotal+mvRev+srRev+bossSuppForGrand+adj+prodComm+memberComm+memberSaleRev;
+    // 員工消費卡（公司卡刷卡消費，從薪水中扣除）
+    var myCardExps=cexList().filter(function(x){return x.staff===name&&(x.date||'').slice(0,7)===mk();}).sort(function(a,b){return a.date<b.date?-1:1;});
+    var cardExpTotal=Math.round(myCardExps.reduce(function(s,x){return s+x.amt;},0)*100)/100;
+    var grand=basePay+effectiveTip+penTotal+mvRev+srRev+bossSuppForGrand+adj+prodComm+memberComm+memberSaleRev-cardExpTotal;
     return{
       name:name, cfg:cfg,
       totalSales:totalSales, basePay:basePay, baseLabel:baseLabel,
@@ -5878,7 +6067,8 @@ function buildStaffReportData(){
       pens:myPens, penTotal:penTotal,
       mvRev:mvRev, srRev:srRev,
       bossSupp:bossSupp, bossSuppLabel:bossSuppLabel,
-      adj:adj, prodComm:prodComm, memberComm:memberComm, memberRedeems:memberRedeems, memberSaleRev:memberSaleRev, grand:grand,
+      adj:adj, prodComm:prodComm, memberComm:memberComm, memberRedeems:memberRedeems, memberSaleRev:memberSaleRev,
+      cardExps:myCardExps, cardExpTotal:cardExpTotal, grand:grand,
       totalNetMins:totalNetMins, workDays:workDays, hoursStr:hoursStr
     };
   });
@@ -5979,7 +6169,7 @@ function renderReportPage(){
     var detailId='rpt-detail-'+i;
     var sc=getStaffColor(d.name);
     var staffHex=sc.hex,staffBg=sc.bg,staffBd=sc.border;
-    var COLS=10; // total cols in table (added product comm + 已發薪)
+    var COLS=11; // total cols in table (added product comm + 已發薪 + 公司卡消費)
 
     var details='';
     // Work hours
@@ -6034,6 +6224,17 @@ function renderReportPage(){
       '<tr id="'+detailId+'-bs" style="display:none;background:var(--warn-bg)"><td></td>'+
       '<td style="padding:4px 14px 4px 28px;font-size:11px;color:var(--warn)">老闆補款：'+d.bossSuppLabel+'</td>'+
       '<td colspan="'+(COLS-2)+'"></td></tr>';
+
+    // 員工消費卡（公司卡）扣款明細
+    if(d.cardExpTotal>0){
+      details+='<tr id="'+detailId+'-cex" style="display:none;background:var(--warn-bg)"><td></td>'+
+        '<td colspan="'+(COLS-1)+'" style="padding:6px 14px 8px 28px">'+
+        '<div style="font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.08em;color:var(--warn);margin-bottom:4px">🧾 員工消費卡扣款 合計 -'+$f(d.cardExpTotal)+'</div>'+
+        (d.cardExps||[]).map(function(x){
+          return '<div style="font-size:11px;color:var(--sub);padding:2px 0">'+x.date+(x.note?' · '+x.note:'')+' · <span style="color:var(--warn);font-weight:600">-'+$f(x.amt)+'</span></div>';
+        }).join('')+
+        '</td></tr>';
+    }
 
     // 會員卡免費兌換抽成明細
     if(d.memberComm>0){
@@ -6115,7 +6316,7 @@ function renderReportPage(){
         '</div>'+
       '</td></tr>';
 
-    var hasAny=d.totalNetMins>0||d.totalSales>0||d.mvTip>0||d.srTip>0||d.pooledTip>0||d.mvRev>0||d.srRev>0||d.pens.length>0||d.bossSupp>0;
+    var hasAny=d.totalNetMins>0||d.totalSales>0||d.mvTip>0||d.srTip>0||d.pooledTip>0||d.mvRev>0||d.srRev>0||d.pens.length>0||d.bossSupp>0||d.cardExpTotal>0;
 
     var paid=isReportPaid(d.name);
     var nameEsc2=d.name.replace(/\\/g,'\\\\').replace(/'/g,"\\'");
@@ -6176,6 +6377,7 @@ function renderReportPage(){
         '<td style="padding:10px 12px;text-align:right;font-size:12px;color:var(--gold)">'+(d.mvRev+d.srRev>0?$f(d.mvRev+d.srRev):'—')+'</td>'+
         '<td style="padding:10px 12px;text-align:right;font-size:12px;color:#7B5EA7;font-weight:'+((d.prodComm+d.memberComm+d.memberSaleRev)>0?'700':'400')+'" title="產品抽成 '+$f(d.prodComm)+' + 會員兌換抽成 '+$f(d.memberComm)+' + 會員卡銷售獎勵 '+$f(d.memberSaleRev)+'">'+((d.prodComm+d.memberComm+d.memberSaleRev)>0?$f(d.prodComm+d.memberComm+d.memberSaleRev):'—')+'</td>'+
         '<td style="padding:10px 12px;text-align:right;font-size:12px;color:var(--warn);font-weight:'+(d.bossSupp>0?'700':'400')+'">'+(d.bossSupp>0?$f(d.bossSupp):'—')+'</td>'+
+        '<td style="padding:10px 12px;text-align:right;font-size:12px;color:#B83010;font-weight:'+(d.cardExpTotal>0?'700':'400')+'">'+(d.cardExpTotal>0?'-'+$f(d.cardExpTotal):'—')+'</td>'+
         '<td style="padding:10px 14px;text-align:right;font-size:16px;font-weight:700;color:'+grandColor+'">'+$f(d.grand)+'</td>'+
         '<td style="padding:10px 12px;text-align:center" onclick="event.stopPropagation()">'+paidCellHtml+'</td>'+
       '</tr>'+
@@ -6213,6 +6415,7 @@ function renderReportPage(){
           '<th style="padding:8px 12px;text-align:right;font-size:10px;color:var(--gold);font-weight:600">評論獎勵</th>'+
           '<th style="padding:8px 12px;text-align:right;font-size:10px;color:#7B5EA7;font-weight:600">產品/會員抽成</th>'+
           '<th style="padding:8px 12px;text-align:right;font-size:10px;color:var(--warn);font-weight:600">老闆補款</th>'+
+          '<th style="padding:8px 12px;text-align:right;font-size:10px;color:#B83010;font-weight:600">🧾 公司卡扣款</th>'+
           '<th style="padding:8px 12px;text-align:right;font-size:10px;color:var(--ok);font-weight:600">實領合計</th>'+
           '<th style="padding:8px 12px;text-align:center;font-size:10px;color:var(--sub);font-weight:600">已發薪</th>'+
         '</tr></thead>'+
