@@ -6333,7 +6333,7 @@ function renderReportPage(){
         var pMins=sumAttNetMinsInRange(d.name,p.start,p.end);
         var pPay=Math.round((pMins/60)*fdRate*100)/100;
         fdTotalPay+=pPay;
-        return '<label style="display:flex;align-items:center;gap:5px;cursor:pointer;user-select:none;white-space:nowrap">'+
+        return '<label style="display:flex;align-items:center;gap:5px;cursor:pointer;user-select:none;flex-wrap:wrap">'+
           '<input type="checkbox" '+(pPaid?'checked':'')+' onchange="toggleBiweeklyPaidRpt(\''+nameEsc2+'\',\''+p.start+'\')" style="width:14px;height:14px;cursor:pointer;accent-color:var(--ok)">'+
           '<span style="font-size:10px;font-weight:600;color:'+(pPaid?'var(--ok)':'var(--faint)')+';min-width:34px">'+p.label+'</span>'+
           '<span style="font-size:11px;font-weight:700;color:'+(pPaid?'var(--ok)':'var(--text)')+'">'+$f(pPay)+'</span>'+
@@ -6377,7 +6377,7 @@ function renderReportPage(){
         '<td style="padding:10px 12px;text-align:right;font-size:12px;color:var(--gold)">'+(d.mvRev+d.srRev>0?$f(d.mvRev+d.srRev):'—')+'</td>'+
         '<td style="padding:10px 12px;text-align:right;font-size:12px;color:#7B5EA7;font-weight:'+((d.prodComm+d.memberComm+d.memberSaleRev)>0?'700':'400')+'" title="產品抽成 '+$f(d.prodComm)+' + 會員兌換抽成 '+$f(d.memberComm)+' + 會員卡銷售獎勵 '+$f(d.memberSaleRev)+'">'+((d.prodComm+d.memberComm+d.memberSaleRev)>0?$f(d.prodComm+d.memberComm+d.memberSaleRev):'—')+'</td>'+
         '<td style="padding:10px 12px;text-align:right;font-size:12px;color:var(--warn);font-weight:'+(d.bossSupp>0?'700':'400')+'">'+(d.bossSupp>0?$f(d.bossSupp):'—')+'</td>'+
-        '<td style="padding:10px 12px;text-align:right;font-size:12px;color:#B83010;font-weight:'+(d.cardExpTotal>0?'700':'400')+'">'+(d.cardExpTotal>0?'-'+$f(d.cardExpTotal):'—')+'</td>'+
+        '<td style="padding:10px 8px;text-align:right;font-size:12px;color:#B83010;font-weight:'+(d.cardExpTotal>0?'700':'400')+'">'+(d.cardExpTotal>0?'-'+$f(d.cardExpTotal):'—')+'</td>'+
         '<td style="padding:10px 14px;text-align:right;font-size:16px;font-weight:700;color:'+grandColor+'">'+$f(d.grand)+'</td>'+
         '<td style="padding:10px 12px;text-align:center" onclick="event.stopPropagation()">'+paidCellHtml+'</td>'+
       '</tr>'+
@@ -6404,20 +6404,33 @@ function renderReportPage(){
 
   preview.innerHTML=
     paidSummary+
-    '<div style="background:var(--white);border:1px solid var(--border);border-radius:10px;overflow:hidden">'+
-      '<table style="width:100%;border-collapse:collapse;font-size:13px;min-width:700px">'+
+    '<div style="background:var(--white);border:1px solid var(--border);border-radius:10px;overflow-x:auto;overflow-y:hidden">'+
+      '<table style="width:100%;border-collapse:collapse;font-size:12px;table-layout:fixed">'+
+        '<colgroup>'+
+          '<col style="width:3%">'+
+          '<col style="width:15%">'+
+          '<col style="width:8%">'+
+          '<col style="width:9%">'+
+          '<col style="width:8%">'+
+          '<col style="width:8%">'+
+          '<col style="width:9%">'+
+          '<col style="width:8%">'+
+          '<col style="width:8%">'+
+          '<col style="width:10%">'+
+          '<col style="width:14%">'+
+        '</colgroup>'+
         '<thead><tr style="background:var(--bg);border-bottom:1.5px solid var(--border)">'+
-          '<th style="width:24px;padding:8px 12px"></th>'+
-          '<th style="padding:8px 12px;text-align:left;font-size:10px;text-transform:uppercase;letter-spacing:.07em;color:var(--sub);font-weight:600">員工</th>'+
-          '<th style="padding:8px 12px;text-align:right;font-size:10px;color:var(--sub);font-weight:600">服務費</th>'+
-          '<th style="padding:8px 12px;text-align:right;font-size:10px;color:var(--mv);font-weight:600">抽成/底薪</th>'+
-          '<th style="padding:8px 12px;text-align:right;font-size:10px;color:var(--sub);font-weight:600">小費</th>'+
-          '<th style="padding:8px 12px;text-align:right;font-size:10px;color:var(--gold);font-weight:600">評論獎勵</th>'+
-          '<th style="padding:8px 12px;text-align:right;font-size:10px;color:#7B5EA7;font-weight:600">產品/會員抽成</th>'+
-          '<th style="padding:8px 12px;text-align:right;font-size:10px;color:var(--warn);font-weight:600">老闆補款</th>'+
-          '<th style="padding:8px 12px;text-align:right;font-size:10px;color:#B83010;font-weight:600">🧾 公司卡扣款</th>'+
-          '<th style="padding:8px 12px;text-align:right;font-size:10px;color:var(--ok);font-weight:600">實領合計</th>'+
-          '<th style="padding:8px 12px;text-align:center;font-size:10px;color:var(--sub);font-weight:600">已發薪</th>'+
+          '<th style="padding:8px 6px"></th>'+
+          '<th style="padding:8px 8px;text-align:left;font-size:10px;text-transform:uppercase;letter-spacing:.07em;color:var(--sub);font-weight:600">員工</th>'+
+          '<th style="padding:8px 8px;text-align:right;font-size:10px;color:var(--sub);font-weight:600">服務費</th>'+
+          '<th style="padding:8px 8px;text-align:right;font-size:10px;color:var(--mv);font-weight:600">抽成/底薪</th>'+
+          '<th style="padding:8px 8px;text-align:right;font-size:10px;color:var(--sub);font-weight:600">小費</th>'+
+          '<th style="padding:8px 8px;text-align:right;font-size:10px;color:var(--gold);font-weight:600">評論獎勵</th>'+
+          '<th style="padding:8px 8px;text-align:right;font-size:10px;color:#7B5EA7;font-weight:600">產品/會員抽成</th>'+
+          '<th style="padding:8px 8px;text-align:right;font-size:10px;color:var(--warn);font-weight:600">老闆補款</th>'+
+          '<th style="padding:8px 8px;text-align:right;font-size:10px;color:#B83010;font-weight:600">卡扣款</th>'+
+          '<th style="padding:8px 8px;text-align:right;font-size:10px;color:var(--ok);font-weight:600">實領合計</th>'+
+          '<th style="padding:8px 8px;text-align:center;font-size:10px;color:var(--sub);font-weight:600">已發薪</th>'+
         '</tr></thead>'+
         '<tbody>'+rows+'</tbody>'+
       '</table>'+
