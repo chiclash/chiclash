@@ -8545,7 +8545,14 @@ function cdGetManual(store,mo){
   mo=mo||mk();
   if(!_D.cdManual||!_D.cdManual[mo])return null;
   var v=_D.cdManual[mo][store];
-  return (v!==undefined&&v!==null)?v:null;
+  if(v===undefined||v===null)return null;
+  return (typeof v==='object')?v.amt:v; // 相容舊資料格式（純數字，沒有日期）
+}
+function cdGetManualDate(store,mo){
+  mo=mo||mk();
+  if(!_D.cdManual||!_D.cdManual[mo])return null;
+  var v=_D.cdManual[mo][store];
+  return (v&&typeof v==='object'&&v.date)?v.date:null; // 舊資料沒有日期，視為當月一開始就生效
 }
 function cdSaveManual(store,val,mo){
   mo=mo||mk();
@@ -8553,7 +8560,7 @@ function cdSaveManual(store,val,mo){
   if(!_D.cdManual[mo])_D.cdManual[mo]={};
   var n=parseFloat(val);
   if(val===''||isNaN(n)){delete _D.cdManual[mo][store];}
-  else{_D.cdManual[mo][store]=n;}
+  else{_D.cdManual[mo][store]={amt:n,date:fmtDate(new Date())};}
   saveOnly();renderCDPage();
 }
 function cdClearManual(store,mo){
@@ -8757,26 +8764,49 @@ function calcCDMonthExpense(store, month){
 // 找出「這個月自己」的餘額基準：手動更正優先（通常是每月初寫的正確金額），沒有的話看這個月最早一筆點鈔
 // 只看這個月自己，完全不會去拉上個月或更早的數字進來
 function calcCDResetBefore(store, month){
-  var manualAmt=(_D.cdManual&&_D.cdManual[month]&&_D.cdManual[month][store]!==undefined&&_D.cdManual[month][store]!==null)?_D.cdManual[month][store]:null;
+  var manualAmt=cdGetManual(store,month);
   if(manualAmt!==null){
-    return {amt:manualAmt,afterMonth:month};
+    return {amt:manualAmt,afterMonth:month,manualDate:cdGetManualDate(store,month)};
   }
   var firstCount=cdData().filter(function(e){
     return e.store===store&&e.type==='count'&&e.date.slice(0,7)===month;
   }).sort(function(a,b){return a.date<b.date?-1:1;})[0];
   if(firstCount){
-    return {amt:firstCount.amt,afterMonth:month};
+    return {amt:firstCount.amt,afterMonth:month,manualDate:null};
   }
-  return {amt:null,afterMonth:null};
+  return {amt:null,afterMonth:null,manualDate:null};
 }
-// 帳面應有餘額 = 這個月自己的餘額基準（手動更正或點鈔）＋ 這個月的放入 － 老闆取走 － 支出
+// 帳面應有餘額 = 從這個月的基準開始，依照時間順序套用這個月每一筆紀錄；
+// 如果中途有「點鈔」（實際盤點），就以那次盤點金額為準重新開始算，而不是整個月無視盤點結果硬加總，
+// 這樣才不會跟下面「目前現金餘額」那一列的算法對不起來。
+// 如果「手動更正餘額」有記錄設定日期，只會套用「那天之後」的紀錄──避免把已經反映在那個手動金額裡的錢重複加一次
 // 完全只看這一個月，不會拉上個月或更早的數字進來；如果這個月完全沒設定過餘額，就沒有基準可以比對，回傳 null
-// 注意：不加「現金收入」，因為「放入」是手動登記實際存進保險箱的錢，跟「現金收入」講的是同一筆錢，加兩次會重複計算
 function calcCDExpectedBalance(store, month){
-  var reset=calcCDResetBefore(store, month);
-  if(reset.amt===null) return null; // 這個月沒有基準，沒辦法算，交給呼叫端處理顯示
-  var total=reset.amt+calcCDMonthIn(store,month)-calcCDStoreBossOut(store,month)-calcCDMonthExpense(store,month);
-  return Math.round(total*100)/100;
+  var manualAmt=cdGetManual(store,month);
+  var manualDate=cdGetManualDate(store,month);
+  var hasCountThisMonth=cdData().some(function(e){return e.store===store&&e.type==='count'&&e.date.slice(0,7)===month;});
+  if(manualAmt===null&&!hasCountThisMonth) return null; // 這個月沒有基準，沒辦法算，交給呼叫端處理顯示
+
+  var moEntries=cdData().filter(function(e){
+    return e.store===store&&e.date.slice(0,7)===month;
+  }).sort(function(a,b){
+    if(a.date!==b.date) return a.date<b.date?-1:1;
+    return (a.id||0)-(b.id||0);
+  });
+
+  var running;
+  if(manualAmt!==null){
+    running=manualAmt;
+    if(manualDate) moEntries=moEntries.filter(function(e){return e.date>manualDate;});
+  } else {
+    running=0; // 沒有手動更正，讓這個月第一筆點鈔決定基準
+  }
+  moEntries.forEach(function(e){
+    if(e.type==='count') running=e.amt; // 實際盤點永遠比之前累加出來的數字準，直接重設
+    else if(e.type==='in') running=Math.round((running+e.amt)*100)/100;
+    else if(e.type==='out'||e.type==='expense') running=Math.round((running-e.amt)*100)/100;
+  });
+  return Math.round(running*100)/100;
 }
 
 function renderCDReconPanel(store, selMonth){
@@ -8994,9 +9024,14 @@ function renderCDPage(){
   var moLabel=selMonth.slice(0,4)+'年'+parseInt(selMonth.slice(5,7))+'月';
   ['mv','sr'].forEach(function(store){
     var manualBal=cdGetManual(store,selMonth);
+    var manualDate=cdGetManualDate(store,selMonth);
     var noteEl=document.getElementById('cd-manual-'+store+'-note');
     var inpEl=document.getElementById('cd-manual-'+store);
-    if(noteEl)noteEl.style.display=manualBal!==null?'block':'none';
+    if(noteEl){
+      noteEl.style.display=manualBal!==null?'block':'none';
+      noteEl.textContent=manualBal!==null?
+        ('⚠ 已設定手動基準'+(manualDate?'（'+manualDate+'）':'')+'：$'+manualBal.toFixed(2)+'，上面「保險箱現金」會自動加上這之後的放入/取出/點鈔'):'';
+    }
     if(inpEl) inpEl.value = manualBal !== null ? manualBal : '';
     initCDDenoms(store);
     initCDFormDenoms(store);
@@ -9009,7 +9044,9 @@ function renderCDPage(){
   ['mv','sr'].forEach(function(store){
     var autoBal=calcCDStoreBalance(store);
     var manualBal=cdGetManual(store,selMonth);
-    var bal=manualBal!==null?manualBal:autoBal;
+    var expected=calcCDExpectedBalance(store,selMonth);
+    // 「保險箱現金」永遠顯示目前算出來最準確的金額（手動/點鈔基準 + 之後的紀錄），不會卡在剛設定當下那個舊數字
+    var bal=expected!==null?expected:(manualBal!==null?manualBal:autoBal);
     var out=calcCDStoreBossOut(store,selMonth);
     var cash=calcStoreCashRevForMonth(store,selMonth);
     var impl=calcCDImpliedCashRev(store,selMonth);
@@ -9022,8 +9059,7 @@ function renderCDPage(){
     if(balEl){balEl.textContent=$f(bal);balEl.style.color=bal>=0?storeColor:'#B83010';}
     if(cashEl)cashEl.textContent=$f(cash);
     if(outEl)outEl.textContent=$f(out);
-    // 帳面應有餘額（跟目前顯示的保險箱現金比對，只看「上個月」有沒有基準，沒有就不硬算）
-    var expected=calcCDExpectedBalance(store,selMonth);
+    // 帳面應有餘額（跟「保險箱現金」用同一套算法，正常情況下兩者會一致；只看這個月有沒有基準，沒有就不硬算）
     var expEl=document.getElementById('boss-expect-'+store);
     var diffEl=document.getElementById('boss-diff-'+store);
     var basisEl=document.getElementById('boss-expect-basis-'+store);
@@ -9035,7 +9071,7 @@ function renderCDPage(){
       if(expEl){expEl.textContent=$f(expected);expEl.style.color=expected>=0?storeColor:'#B83010';}
       if(basisEl){
         var resetInfo=calcCDResetBefore(store,selMonth);
-        basisEl.textContent='基準：'+resetInfo.afterMonth+' 的餘額 '+$f(resetInfo.amt)+'（點鈔或手動更正）';
+        basisEl.textContent='基準：'+(resetInfo.manualDate||resetInfo.afterMonth+'-01')+' 的餘額 '+$f(resetInfo.amt)+'（點鈔或手動更正）';
       }
       if(diffEl){
         var diffBal=Math.round((bal-expected)*100)/100;
