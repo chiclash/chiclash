@@ -69,8 +69,8 @@ input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-
 .rev-lbl{font-size:10px;text-transform:uppercase;letter-spacing:.09em;color:var(--sub);margin-bottom:5px}
 .rev-val{font-size:28px;font-weight:700;letter-spacing:-.3px;line-height:1;margin-bottom:4px}
 .rev-desc{font-size:11px;color:var(--sub);margin-bottom:12px}
-.rev-bks{display:flex;border-top:1px solid var(--border);padding-top:12px}
-.rev-bk{flex:1;text-align:center;padding:0 6px}
+.rev-bks{display:flex;flex-wrap:wrap;border-top:1px solid var(--border);padding-top:12px;row-gap:10px}
+.rev-bk{flex:1;min-width:78px;text-align:center;padding:0 6px}
 .rev-bk+.rev-bk{border-left:1px solid var(--border)}
 .rev-bk-l{font-size:9px;text-transform:uppercase;letter-spacing:.07em;color:var(--sub);margin-bottom:3px}
 .rev-bk-v{font-size:13px;font-weight:600}
@@ -722,13 +722,22 @@ input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-
   <div class="rev-card">
     <div class="rev-lbl">兩店合計月營業額</div>
     <div class="rev-val" id="ov-total">—</div>
-    <div class="rev-desc">刷卡收入 + 現金收入 − 刷卡Tip − 現金小費</div>
+    <div class="rev-desc">刷卡收入 + 現金收入 + Venmo收入 + 禮品卡銷售（不含小費，小費另計入小費分配）</div>
     <div class="rev-bks">
-      <div class="rev-bk"><div class="rev-bk-l">ClassPass</div><div class="rev-bk-v" style="color:var(--mv)" id="ov-cp">—</div></div>
       <div class="rev-bk"><div class="rev-bk-l">刷卡收入</div><div class="rev-bk-v" style="color:var(--ok)" id="ov-card">—</div></div>
       <div class="rev-bk"><div class="rev-bk-l">現金收入</div><div class="rev-bk-v" style="color:var(--cash)" id="ov-cash">—</div></div>
-      <div class="rev-bk"><div class="rev-bk-l">刷卡 Tip</div><div class="rev-bk-v" style="color:var(--tip)" id="ov-ctip">—</div></div>
-      <div class="rev-bk"><div class="rev-bk-l">現金小費</div><div class="rev-bk-v" style="color:var(--tk)" id="ov-tk">—</div></div>
+      <div class="rev-bk"><div class="rev-bk-l">Venmo收入</div><div class="rev-bk-v" style="color:#3D5AFE" id="ov-venmo">—</div></div>
+      <div class="rev-bk"><div class="rev-bk-l">禮品卡銷售</div><div class="rev-bk-v" style="color:var(--gc)" id="ov-gc">—</div></div>
+    </div>
+    <div style="font-size:10px;color:var(--faint);margin-top:8px;text-align:right" id="ov-checksum"></div>
+    <div style="margin-top:12px;padding-top:10px;border-top:1px dashed var(--border)">
+      <div style="font-size:9px;text-transform:uppercase;letter-spacing:.07em;color:var(--sub);margin-bottom:6px">以下不計入營業額（僅供參考）</div>
+      <div class="rev-bks" style="padding-top:0">
+        <div class="rev-bk"><div class="rev-bk-l">ClassPass（含於刷卡收入）</div><div class="rev-bk-v" style="color:var(--mv)" id="ov-cp">—</div></div>
+        <div class="rev-bk"><div class="rev-bk-l">刷卡 Tip</div><div class="rev-bk-v" style="color:var(--tip)" id="ov-ctip">—</div></div>
+        <div class="rev-bk"><div class="rev-bk-l">現金小費</div><div class="rev-bk-v" style="color:var(--tk)" id="ov-tk">—</div></div>
+        <div class="rev-bk"><div class="rev-bk-l">Venmo Tip</div><div class="rev-bk-v" style="color:#3D5AFE" id="ov-vtip">—</div></div>
+      </div>
     </div>
   </div>
   <div class="store-row">
@@ -883,6 +892,16 @@ input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-
     <div class="gc-stat"><div class="gc-stat-l" style="color:var(--mv)">未兌現金額（負債）</div><div class="gc-stat-v" style="color:var(--mv)" id="gcs-liability">$0</div></div>
     <div class="gc-stat"><div class="gc-stat-l" style="color:var(--ok)">已完全兌現</div><div class="gc-stat-v" style="color:var(--ok)" id="gcs-used">0</div></div>
   </div>
+
+  <!-- 每月售出統計（手動輸入 + iPad 合併）-->
+  <div style="background:var(--white);border:1px solid var(--border);border-radius:10px;padding:16px;margin-bottom:14px">
+    <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px">
+      <div style="font-size:13px;font-weight:700">📅 每月售出統計</div>
+      <select id="gc-month-sel" onchange="renderGCMonthStats()" style="border:1px solid var(--border);border-radius:6px;padding:6px 10px;font-size:12px;font-family:inherit;background:var(--white);outline:none;margin-left:auto"></select>
+    </div>
+    <div id="gc-month-stats"><div style="font-size:12px;color:var(--sub)">載入中…</div></div>
+  </div>
+
   <div style="display:flex;justify-content:flex-end;margin-bottom:10px">
     <button onclick="exportGCFullReport()" style="padding:7px 16px;background:var(--white);color:var(--sub);border:1px solid var(--border);border-radius:7px;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit">⬇ 匯出完整報表 Export Full Report（手動輸入 + iPad 全部合併）</button>
   </div>
@@ -1977,8 +1996,8 @@ function calcDay(s,d){
   // GoDaddy 應收 = (刷卡服務費 - CP服務費 + 全部刷卡小費含CP小費) × 手續費率
   // CP服務費不算但CP的刷卡小費要算（GoDaddy還是會收那筆小費的手續費）
   const gdDue=((cardSvc-cpSvc)+cardTip)*GD_FEE;
-  // Revenue = 所有服務費 + 所有小費
-  const rev=cardSvc+cashSvc+venmoSvc+gcSvc+cardTip+cashTip+venmoTip;
+  // Revenue（月營業額）＝ 純服務收入，不含小費（小費是要付給技師的錢，另外走「小費分配」頁面計算）
+  const rev=cardSvc+cashSvc+venmoSvc+gcSvc;
 
   // Square reconciliation
   const sqOther=gv(r.sqOther), sqCash=gv(r.sqCash), sqTip=gv(r.sqTip);
@@ -2009,7 +2028,7 @@ function calcMonth(s){
     cardSvc+=t.cardSvc; cashSvc+=t.cashSvc; venmoSvc+=t.venmoSvc; cpSvc+=t.cpSvc;
     gcSvc+=t.gcSvc; cardTip+=t.cardTip; cashTip+=t.cashTip; venmoTip+=t.venmoTip; gdDue+=t.gdDue;
   }
-  const rev=cardSvc+cashSvc+venmoSvc+gcSvc+cardTip+cashTip+venmoTip;
+  const rev=cardSvc+cashSvc+venmoSvc+gcSvc;
   return{cardSvc,cashSvc,venmoSvc,cpSvc,gcSvc,cardTip,cashTip,venmoTip,gdDue,rev};
 }
 
@@ -2436,10 +2455,20 @@ function updateAll(){
   s('ov-cp',(mv.cpSvc+sr.cpSvc)?$n(mv.cpSvc+sr.cpSvc):'—');
   s('ov-card',(mv.cardSvc+sr.cardSvc)?$n(mv.cardSvc+sr.cardSvc):'—');
   s('ov-cash',(mv.cashSvc+sr.cashSvc)?$n(mv.cashSvc+sr.cashSvc):'—');
+  s('ov-venmo',(mv.venmoSvc+sr.venmoSvc)?$n(mv.venmoSvc+sr.venmoSvc):'—');
+  s('ov-gc',(mv.gcSvc+sr.gcSvc)?$n(mv.gcSvc+sr.gcSvc):'—');
   s('ov-ctip',(mv.cardTip+sr.cardTip)?$n(mv.cardTip+sr.cardTip):'—');
   s('ov-tk',(mv.cashTip+sr.cashTip)?$n(mv.cashTip+sr.cashTip):'—');
+  s('ov-vtip',(mv.venmoTip+sr.venmoTip)?$n(mv.venmoTip+sr.venmoTip):'—');
   s('ov-mv',mv.rev?$n(mv.rev):'—');
   s('ov-sr',sr.rev?$n(sr.rev):'—');
+  // 加總檢查：刷卡收入+現金收入+Venmo收入+禮品卡銷售 應該完全等於上面的月營業額（不含小費）
+  const checkSum=(mv.cardSvc+sr.cardSvc)+(mv.cashSvc+sr.cashSvc)+(mv.venmoSvc+sr.venmoSvc)+(mv.gcSvc+sr.gcSvc);
+  const ckEl=document.getElementById('ov-checksum');
+  if(ckEl){
+    const roundedDiff=Math.round((checkSum-tot)*100)/100;
+    ckEl.textContent=tot?('明細加總 '+$f(checkSum)+'（與總營業額差 '+(Math.abs(roundedDiff)<0.01?'$0.00（相符 ✓）':(roundedDiff>=0?'+':'')+$f(roundedDiff))+'）'):'';
+  }
   s('sc-mv-cp',mv.cpSvc?$n(mv.cpSvc):'—');s('sc-mv-ctip',mv.cardTip?$n(mv.cardTip):'—');s('sc-mv-tk',mv.cashTip?$n(mv.cashTip):'—');s('sc-mv-gd',mv.gdDue?$n(mv.gdDue):'—');
   s('sc-sr-cp',sr.cpSvc?$n(sr.cpSvc):'—');s('sc-sr-ctip',sr.cardTip?$n(sr.cardTip):'—');s('sc-sr-tk',sr.cashTip?$n(sr.cashTip):'—');s('sc-sr-gd',sr.gdDue?$n(sr.gdDue):'—');
   const exp=mv.gdDue+sr.gdDue;
@@ -3566,9 +3595,109 @@ async function updateGCCombinedStats(manualCards,manualUnused,manualUsed,manualL
     s('gcs-used', manualUsed.length + usedFb.length);
     s('gcs-liability', '$'+(manualLiability+fbLiability).toFixed(2));
     window._gcCombinedCache={manual:manualCards, fbActive:active, fbUsed:usedFb}; // 供匯出報表使用
+    renderGCMonthStats();
   }catch(e){ console.warn('合併禮品卡統計失敗', e); }
 }
 window.updateGCCombinedStats=updateGCCombinedStats;
+
+// ── 每月售出統計（手動輸入 + iPad 合併，依售出月份分組）──
+function gcSafeDate(v){
+  if(!v)return '';
+  try{
+    var d=new Date(v);
+    if(isNaN(d.getTime()))return '';
+    return d.toISOString().slice(0,10);
+  }catch(e){ return ''; }
+}
+function gcAllRecordsMerged(){
+  var cache=window._gcCombinedCache;
+  var manual=(cache?cache.manual:_D.gc_cards)||[];
+  var fbActive=cache?cache.fbActive:[];
+  var fbUsed=cache?cache.fbUsed:[];
+  var out=[];
+  manual.forEach(function(c){
+    var balance=c.balance!==undefined?c.balance:c.amt;
+    out.push({code:c.code, amt:gv(c.amt), date:c.date||'', name:c.note||'', pay:c.pay||'', store:c.store||'', used:balance<=0.01, source:'manual'});
+  });
+  fbActive.forEach(function(g){
+    out.push({code:g.code, amt:gv(g.amount), date:gcSafeDate(g.issuedAt), name:g.giftFor||'', pay:'', store:'', used:false, source:'ipad'});
+  });
+  fbUsed.forEach(function(g){
+    out.push({code:g.code, amt:gv(g.amount), date:gcSafeDate(g.issuedAt), name:g.giftFor||'', pay:'', store:'', used:true, source:'ipad'});
+  });
+  return out;
+}
+
+function renderGCMonthStats(){
+  try{
+  var sel=document.getElementById('gc-month-sel');
+  var wrap=document.getElementById('gc-month-stats');
+  if(!sel||!wrap)return;
+  var all=gcAllRecordsMerged();
+  var months={};
+  all.forEach(function(r){ if(r.date)months[r.date.slice(0,7)]=true; });
+  months[mk()]=true; // 一定包含目前月份，方便查看
+  var monthKeys=Object.keys(months).sort().reverse();
+  var keepSel=sel.value||mk();
+  sel.innerHTML=monthKeys.map(function(m){
+    var label=m.slice(0,4)+'年'+parseInt(m.slice(5,7),10)+'月';
+    return '<option value="'+m+'"'+(m===keepSel?' selected':'')+'>'+label+'</option>';
+  }).join('');
+  var selMonth=sel.value||monthKeys[0]||mk();
+
+  var filtered=all.filter(function(r){return (r.date||'').slice(0,7)===selMonth;});
+  var count=filtered.length;
+  var totalAmt=filtered.reduce(function(s,r){return s+r.amt;},0);
+  var cardCount=filtered.filter(function(r){return r.pay==='card';}).length;
+  var cashCount=filtered.filter(function(r){return r.pay==='cash';}).length;
+  var ipadCount=filtered.filter(function(r){return r.source==='ipad';}).length;
+
+  var statsHtml='<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:8px;margin-bottom:12px">'
+    +'<div class="gc-stat"><div class="gc-stat-l">本月售出張數</div><div class="gc-stat-v">'+count+'</div></div>'
+    +'<div class="gc-stat"><div class="gc-stat-l" style="color:var(--ok)">本月售出總金額</div><div class="gc-stat-v" style="color:var(--ok)">$'+totalAmt.toFixed(2)+'</div></div>'
+    +'<div class="gc-stat"><div class="gc-stat-l" style="color:var(--mv)">💳 刷卡</div><div class="gc-stat-v" style="color:var(--mv)">'+cardCount+'</div></div>'
+    +'<div class="gc-stat"><div class="gc-stat-l" style="color:#B45309">💵 現金</div><div class="gc-stat-v" style="color:#B45309">'+cashCount+'</div></div>'
+    +'<div class="gc-stat"><div class="gc-stat-l" style="color:#C4726A">📱 iPad 售出</div><div class="gc-stat-v" style="color:#C4726A">'+ipadCount+'</div></div>'
+  +'</div>';
+
+  if(count===0){
+    wrap.innerHTML=statsHtml+'<div class="gc-empty">這個月尚無售出記錄</div>';
+    return;
+  }
+
+  var sortedList=filtered.slice().sort(function(a,b){return (a.date||'').localeCompare(b.date||'');});
+  var rowsHtml=sortedList.map(function(r){
+    var payLabel=r.pay==='card'?'💳 刷卡':r.pay==='cash'?'💵 現金':(r.source==='ipad'?'📱 iPad（未記錄）':'—');
+    var storeLabel=r.store==='mv'?'MV':r.store==='sr'?'SR':'—';
+    return '<tr style="border-bottom:1px solid var(--border)">'
+      +'<td style="padding:7px 10px;font-size:12px;color:var(--sub)">'+(r.date||'—')+'</td>'
+      +'<td style="padding:7px 10px;font-weight:600;font-family:monospace">'+(r.code||'—')+'</td>'
+      +'<td style="padding:7px 10px">'+(r.name||'—')+'</td>'
+      +'<td style="padding:7px 10px;text-align:right;font-weight:600">$'+r.amt.toFixed(2)+'</td>'
+      +'<td style="padding:7px 10px;font-size:12px">'+payLabel+'</td>'
+      +'<td style="padding:7px 10px;font-size:12px">'+storeLabel+'</td>'
+      +'<td style="padding:7px 10px;font-size:11px;color:'+(r.used?'var(--ok)':'var(--warn)')+'">'+(r.used?'已兌現':'未兌現')+'</td>'
+    +'</tr>';
+  }).join('');
+
+  wrap.innerHTML=statsHtml
+    +'<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:13px;min-width:640px">'
+    +'<thead><tr style="background:var(--bg);border-bottom:1.5px solid var(--border)">'
+    +'<th style="padding:7px 10px;text-align:left;font-size:10px;color:var(--sub);font-weight:600">售出日期</th>'
+    +'<th style="padding:7px 10px;text-align:left;font-size:10px;color:var(--sub);font-weight:600">卡號</th>'
+    +'<th style="padding:7px 10px;text-align:left;font-size:10px;color:var(--sub);font-weight:600">名字/備註</th>'
+    +'<th style="padding:7px 10px;text-align:right;font-size:10px;color:var(--sub);font-weight:600">金額</th>'
+    +'<th style="padding:7px 10px;text-align:left;font-size:10px;color:var(--sub);font-weight:600">付款方式</th>'
+    +'<th style="padding:7px 10px;text-align:left;font-size:10px;color:var(--sub);font-weight:600">店</th>'
+    +'<th style="padding:7px 10px;text-align:left;font-size:10px;color:var(--sub);font-weight:600">狀態</th>'
+    +'</tr></thead><tbody>'+rowsHtml+'</tbody></table></div>';
+  }catch(e){
+    console.warn('renderGCMonthStats 發生錯誤：',e);
+    var wrap2=document.getElementById('gc-month-stats');
+    if(wrap2)wrap2.innerHTML='<div class="gc-empty">統計載入失敗，請重新整理頁面再試一次</div>';
+  }
+}
+window.renderGCMonthStats=renderGCMonthStats;
 
 // 匯出完整禮品卡報表（手動輸入 + iPad 賣出，全部合併成一份 CSV）
 async function exportGCFullReport(){
@@ -3672,6 +3801,7 @@ function renderGCPage(){
   s('gcs-total',cards.length);s('gcs-unused',unused.length);s('gcs-used',used.length);
   s('gcs-liability',`$${liability.toFixed(2)}`);
   updateGCCombinedStats(cards,unused,used,liability);
+  renderGCMonthStats();
   const wrap=document.getElementById('gc-list-wrap');if(!wrap)return;
   if(cards.length===0){wrap.innerHTML='<div class="gc-empty">尚無 Gift Card 記錄，請在上方新增</div>';return;}
   const sorted=[...cards].sort((a,b)=>{
