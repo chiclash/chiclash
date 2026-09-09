@@ -815,6 +815,14 @@ input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-
     </div>
     <div style="font-size:14px;font-weight:700;color:#B83010">合計 <span id="home-grand-exp" style="font-family:monospace">—</span></div>
   </div>
+  <!-- Net income row -->
+  <div style="background:var(--white);border:1px solid var(--border);border-radius:10px;padding:14px 18px;margin-top:8px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px">
+    <div>
+      <div style="font-size:11px;font-weight:700;color:var(--sub);text-transform:uppercase;letter-spacing:.07em">當月應收入</div>
+      <div style="font-size:10px;color:var(--faint);margin-top:2px">兩店合計月營業額 − 當月總支出</div>
+    </div>
+    <div style="font-size:24px;font-weight:700;font-family:monospace" id="home-net-income">—</div>
+  </div>
 </div>
 
 <!-- GoDaddy -->
@@ -2628,13 +2636,13 @@ function updateAll(){
     var mvCk=document.getElementById('sc-mv-checksum');
     if(mvCk){
       var mvSum=mv.cardSvc+mv.cashSvc+mv.venmoSvc+mv.gcSvc;
-      var mvDiff=Math.round((mvSum-mvRevR)*100)/100;
+      var mvDiff=Math.round((mvSum-mv.rev)*100)/100;
       mvCk.textContent=mvRevR?('明細加總 '+$f(mvSum)+'（與上方月營業額差 '+(Math.abs(mvDiff)<0.01?'$0.00（相符 ✓）':(mvDiff>=0?'+':'')+$f(mvDiff))+'）'):'';
     }
     var srCk=document.getElementById('sc-sr-checksum');
     if(srCk){
       var srSum=sr.cardSvc+sr.cashSvc+sr.venmoSvc+sr.gcSvc;
-      var srDiff=Math.round((srSum-srRevR)*100)/100;
+      var srDiff=Math.round((srSum-sr.rev)*100)/100;
       srCk.textContent=srRevR?('明細加總 '+$f(srSum)+'（與上方月營業額差 '+(Math.abs(srDiff)<0.01?'$0.00（相符 ✓）':(srDiff>=0?'+':'')+$f(srDiff))+'）'):'';
     }
   })();
@@ -2679,6 +2687,14 @@ function updateAll(){
   s('home-total-sr-exp',   hasExp ? $f(homeSrExp)    : '—');
   s('home-total-shared-exp', hasExp ? $f(homeSharedExp) : '—');
   s('home-grand-exp',  hasExp ? $f(grandExp)   : '—');
+  // 當月應收入 = 兩店合計月營業額（整數，跟畫面最上面那個數字一致） − 當月總支出
+  (function(){
+    var netEl=document.getElementById('home-net-income');
+    if(!netEl)return;
+    var net=Math.round((tot-grandExp)*100)/100;
+    netEl.textContent=(tot||hasExp)?(net>=0?'$':'-$')+Math.abs(net).toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2}):'—';
+    netEl.style.color=net>=0?'var(--ok)':'var(--warn)';
+  })();
 }
 
 // ── GODADDY CSV IMPORT ──
