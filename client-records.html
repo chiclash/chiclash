@@ -102,6 +102,13 @@ input[type=file]{font-size:12px;font-family:'Inter',sans-serif;color:var(--sub)}
 .lapsed-card-name{font-weight:700;font-size:14px;margin-bottom:3px}
 .lapsed-card-sub{color:var(--sub);font-size:12px;margin-top:2px}
 
+.gc-month{margin-bottom:14px;background:var(--white);border-radius:var(--radius);box-shadow:var(--shadow);overflow:hidden}
+.gc-month>summary{list-style:none;cursor:pointer;padding:14px 20px;font-size:13px;font-weight:600;display:flex;align-items:center;justify-content:space-between;background:var(--bg);gap:10px}
+.gc-month>summary::-webkit-details-marker{display:none}
+.gc-month>summary::after{content:'▸';color:var(--sub);font-size:11px;margin-left:8px;flex-shrink:0}
+.gc-month[open]>summary::after{content:'▾'}
+.gc-month-counts{font-size:11px;font-weight:500;color:var(--sub);white-space:nowrap}
+.gc-month-body{padding:14px 20px}
 .empty{text-align:center;padding:60px 20px;color:var(--faint);font-size:14px}
 .loading{text-align:center;padding:40px;color:var(--sub);font-size:14px}
 @media(max-width:768px){
@@ -213,9 +220,16 @@ input[type=file]{font-size:12px;font-family:'Inter',sans-serif;color:var(--sub)}
 
   <!-- ── Gift Cards tab ── -->
   <div id="tab-giftcards" style="display:none">
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;flex-wrap:wrap;gap:10px">
       <div style="font-size:15px;font-weight:600">Gift Certificate Records 礼品卡记录</div>
-      <input type="text" id="gc-search" placeholder="Search / 搜索 name, code…" oninput="filterGC()" style="border:1.5px solid var(--border);border-radius:8px;padding:8px 12px;font-size:13px;font-family:inherit;outline:none;width:200px">
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <select id="gc-status" class="tb-select" onchange="filterGC()" style="font-size:13px">
+          <option value="">全部狀態 All</option>
+          <option value="active">有效 Active</option>
+          <option value="used">已使用 Used</option>
+        </select>
+        <input type="text" id="gc-search" placeholder="Search / 搜索 name, code…" oninput="filterGC()" style="border:1.5px solid var(--border);border-radius:8px;padding:8px 12px;font-size:13px;font-family:inherit;outline:none;width:200px">
+      </div>
     </div>
     <div id="gc-list"><div style="text-align:center;padding:40px;color:var(--sub)">Loading… 载入中…</div></div>
   </div>
@@ -452,53 +466,93 @@ async function loadGiftCards() {
 
 function filterGC() {
   var q = (document.getElementById('gc-search')?.value||'').toLowerCase();
-  var filtered = q ? _gcList.filter(g =>
-    (g.giftFor||'').toLowerCase().includes(q) ||
-    (g.purchaser||'').toLowerCase().includes(q) ||
-    (g.code||'').toLowerCase().includes(q) ||
-    (g.soldBy||'').toLowerCase().includes(q)
-  ) : _gcList;
+  var status = document.getElementById('gc-status')?.value || '';
+  var filtered = _gcList.filter(function(g){
+    var matchQ = !q ||
+      (g.giftFor||'').toLowerCase().includes(q) ||
+      (g.purchaser||'').toLowerCase().includes(q) ||
+      (g.code||'').toLowerCase().includes(q) ||
+      (g.soldBy||'').toLowerCase().includes(q);
+    var matchStatus = !status || (status==='used' ? !!g.used : !g.used);
+    return matchQ && matchStatus;
+  });
   renderGCList(filtered);
+}
+
+var GC_MONTH_NAMES = ['一月 Jan','二月 Feb','三月 Mar','四月 Apr','五月 May','六月 Jun','七月 Jul','八月 Aug','九月 Sep','十月 Oct','十一月 Nov','十二月 Dec'];
+
+function gcMonthLabel(key) {
+  if (key === '_unknown') return '未知日期 Unknown Date';
+  var parts = key.split('-');
+  var y = parts[0], m = parseInt(parts[1], 10);
+  return y + ' ' + GC_MONTH_NAMES[m - 1];
+}
+
+function renderGCCard(g) {
+  var date = g.issuedAt ? new Date(g.issuedAt).toLocaleDateString('en-US') : '—';
+  var exp  = g.expireDate ? new Date(g.expireDate+'T12:00:00').toLocaleDateString('en-US') : '—';
+  var storeTag = g.store==='mv'
+    ? '<span style="color:#1656A0;font-weight:700;font-size:11px">MV</span>'
+    : '<span style="color:#5E35B1;font-weight:700;font-size:11px">SR</span>';
+  var usedTag = g.used
+    ? '<span style="background:#FEE;color:#C0392B;border-radius:6px;padding:2px 8px;font-size:11px;font-weight:600">Used 已使用</span>'
+    : '<span style="background:#EFB;color:#1A7A45;border-radius:6px;padding:2px 8px;font-size:11px;font-weight:600">Active 有效</span>';
+  var markBtn = g.used
+    ? '<button onclick="markGCUnused(\''+g.id+'\')" style="font-size:11px;padding:4px 10px;border:1px solid var(--border);border-radius:6px;background:var(--white);color:var(--sub);cursor:pointer;font-family:inherit">↩ 取消已使用 Undo</button>'
+    : '<button onclick="markGCUsed(\''+g.id+'\')" style="font-size:11px;padding:4px 10px;border:1px solid #C0392B;border-radius:6px;background:#FFF0EE;color:#C0392B;cursor:pointer;font-family:inherit;font-weight:600">✓ 標記已使用 Mark Used</button>';
+  var delBtn = '<button onclick="deleteGCRecord(\''+g.id+'\',\''+g.code+'\')" style="font-size:11px;padding:4px 10px;border:1px solid var(--border);border-radius:6px;background:var(--white);color:var(--sub);cursor:pointer;font-family:inherit;margin-left:6px">🗑 刪除 Delete</button>';
+  return '<div style="background:var(--white);border:1px solid var(--border);border-radius:12px;padding:16px 20px;margin-bottom:10px;box-shadow:0 1px 6px rgba(0,0,0,.05)'+(g.used?';opacity:0.6':'')+'\">'
+    +'<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:8px">'
+      +storeTag
+      +'<span style="font-family:monospace;font-weight:700;font-size:14px;color:#C0392B;letter-spacing:.05em">'+(g.code||'—')+'</span>'
+      +usedTag
+      +'<span style="margin-left:auto;font-size:18px;font-weight:700">$'+(g.amount||0).toFixed(2)+'</span>'
+    +'</div>'
+    +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;font-size:12px;color:var(--sub);margin-bottom:10px">'
+      +'<div><span style="font-weight:600">For 赠予:</span> '+(g.giftFor||'—')+'</div>'
+      +'<div><span style="font-weight:600">From 购买者:</span> '+(g.purchaser||'—')+'</div>'
+      +'<div><span style="font-weight:600">Issued 发行:</span> '+date+'</div>'
+      +'<div><span style="font-weight:600">Expires 到期:</span> '+exp+'</div>'
+      +'<div><span style="font-weight:600">Payment 付款:</span> '+(g.payMethod||'—')+'</div>'
+      +'<div><span style="font-weight:600">Sold By 售卡人:</span> '+(g.soldBy||'—')+'</div>'
+      +(g.usedAt?'<div style="grid-column:span 2"><span style="font-weight:600">Used On 使用日期:</span> '+new Date(g.usedAt).toLocaleDateString('en-US')+'</div>':'')
+      +(g.note?'<div style="grid-column:span 2"><span style="font-weight:600">Note 备注:</span> '+g.note+'</div>':'')
+    +'</div>'
+    +'<div style="display:flex;gap:0">'
+    +markBtn+delBtn
+    +'</div>'
+  +'</div>';
 }
 
 function renderGCList(list) {
   var el = document.getElementById('gc-list');
   if (!el) return;
   if (!list.length) { el.innerHTML = '<div style="text-align:center;padding:40px;color:var(--sub)">No records found 無記錄</div>'; return; }
-  el.innerHTML = list.map(function(g) {
-    var date = g.issuedAt ? new Date(g.issuedAt).toLocaleDateString('en-US') : '—';
-    var exp  = g.expireDate ? new Date(g.expireDate+'T12:00:00').toLocaleDateString('en-US') : '—';
-    var storeTag = g.store==='mv'
-      ? '<span style="color:#1656A0;font-weight:700;font-size:11px">MV</span>'
-      : '<span style="color:#5E35B1;font-weight:700;font-size:11px">SR</span>';
-    var usedTag = g.used
-      ? '<span style="background:#FEE;color:#C0392B;border-radius:6px;padding:2px 8px;font-size:11px;font-weight:600">Used 已使用</span>'
-      : '<span style="background:#EFB;color:#1A7A45;border-radius:6px;padding:2px 8px;font-size:11px;font-weight:600">Active 有效</span>';
-    var markBtn = g.used
-      ? '<button onclick="markGCUnused(\''+g.id+'\')" style="font-size:11px;padding:4px 10px;border:1px solid var(--border);border-radius:6px;background:var(--white);color:var(--sub);cursor:pointer;font-family:inherit">↩ 取消已使用 Undo</button>'
-      : '<button onclick="markGCUsed(\''+g.id+'\')" style="font-size:11px;padding:4px 10px;border:1px solid #C0392B;border-radius:6px;background:#FFF0EE;color:#C0392B;cursor:pointer;font-family:inherit;font-weight:600">✓ 標記已使用 Mark Used</button>';
-    var delBtn = '<button onclick="deleteGCRecord(\''+g.id+'\',\''+g.code+'\')" style="font-size:11px;padding:4px 10px;border:1px solid var(--border);border-radius:6px;background:var(--white);color:var(--sub);cursor:pointer;font-family:inherit;margin-left:6px">🗑 刪除 Delete</button>';
-    return '<div style="background:var(--white);border:1px solid var(--border);border-radius:12px;padding:16px 20px;margin-bottom:10px;box-shadow:0 1px 6px rgba(0,0,0,.05)'+(g.used?';opacity:0.6':'')+'\">'
-      +'<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:8px">'
-        +storeTag
-        +'<span style="font-family:monospace;font-weight:700;font-size:14px;color:#C0392B;letter-spacing:.05em">'+(g.code||'—')+'</span>'
-        +usedTag
-        +'<span style="margin-left:auto;font-size:18px;font-weight:700">$'+(g.amount||0).toFixed(2)+'</span>'
-      +'</div>'
-      +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;font-size:12px;color:var(--sub);margin-bottom:10px">'
-        +'<div><span style="font-weight:600">For 赠予:</span> '+(g.giftFor||'—')+'</div>'
-        +'<div><span style="font-weight:600">From 购买者:</span> '+(g.purchaser||'—')+'</div>'
-        +'<div><span style="font-weight:600">Issued 发行:</span> '+date+'</div>'
-        +'<div><span style="font-weight:600">Expires 到期:</span> '+exp+'</div>'
-        +'<div><span style="font-weight:600">Payment 付款:</span> '+(g.payMethod||'—')+'</div>'
-        +'<div><span style="font-weight:600">Sold By 售卡人:</span> '+(g.soldBy||'—')+'</div>'
-        +(g.usedAt?'<div style="grid-column:span 2"><span style="font-weight:600">Used On 使用日期:</span> '+new Date(g.usedAt).toLocaleDateString('en-US')+'</div>':'')
-        +(g.note?'<div style="grid-column:span 2"><span style="font-weight:600">Note 备注:</span> '+g.note+'</div>':'')
-      +'</div>'
-      +'<div style="display:flex;gap:0">'
-      +markBtn+delBtn
-      +'</div>'
-    +'</div>';
+
+  // 依發行月份分組 group by issued month
+  var groups = {}, order = [];
+  list.forEach(function(g) {
+    var key = g.issuedAt ? g.issuedAt.slice(0, 7) : '_unknown';
+    if (!groups[key]) { groups[key] = []; order.push(key); }
+    groups[key].push(g);
+  });
+  var monthKeys = order.sort(function(a, b) {
+    if (a === '_unknown') return 1;
+    if (b === '_unknown') return -1;
+    return a < b ? 1 : -1; // 新到舊 newest first
+  });
+
+  el.innerHTML = monthKeys.map(function(key, idx) {
+    var items = groups[key];
+    var activeCount = items.filter(function(g){ return !g.used; }).length;
+    var usedCount = items.length - activeCount;
+    return '<details class="gc-month"' + (idx === 0 ? ' open' : '') + '>'
+      + '<summary>'
+        + '<span>📅 ' + gcMonthLabel(key) + ' <span style="font-weight:400;color:var(--sub)">(' + items.length + ')</span></span>'
+        + '<span class="gc-month-counts">有效 Active ' + activeCount + ' · 已使用 Used ' + usedCount + '</span>'
+      + '</summary>'
+      + '<div class="gc-month-body">' + items.map(renderGCCard).join('') + '</div>'
+    + '</details>';
   }).join('');
 }
 async function deleteGCRecord(id, code) {
