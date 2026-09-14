@@ -1918,6 +1918,10 @@ input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-
       const snap = await getDocs(q);
       return snap.docs.map(d => ({id:d.id, ...d.data()}));
     },
+    loadAll: async function() {
+      const snap = await getDocs(collection(db, 'gift_certificates'));
+      return snap.docs.map(d => ({id:d.id, ...d.data()}));
+    },
     markUsed: async function(id) {
       await updateDoc(doc(db,'gift_certificates',id), {used:true, usedAt:new Date().toISOString()});
     }
@@ -2031,6 +2035,24 @@ input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-
     const el = document.getElementById('sync-status');
     if(el) el.style.opacity = '0';
   }, 4000);
+
+  // ── 背景載入所有「iPad 賣出」的禮品卡（gift_certificates），存成 window._gcFbAll 給月營業額計算用 ──
+  // 不管有沒有點開過「Gift Card」頁面都會抓，這樣一打開 app，月營業額就能立刻把 iPad 賣出的禮品卡算進去
+  (async function loadGcFbForRevenue(){
+    try{
+      const docs = await window._gcFb.loadAll();
+      window._gcFbAll = docs
+        .filter(function(g){ return g.type==='gift_certificate' && g.store && g.issuedAt; })
+        .map(function(g){
+          return {
+            id:g.id, store:g.store, amount:g.amount||0,
+            payMethod:g.payMethod||'', date:String(g.issuedAt).slice(0,10),
+            code:g.code||'', giftFor:g.giftFor||''
+          };
+        });
+      if (typeof renderAll === 'function') renderAll(); // 重新算一次，把剛載入的 iPad 禮品卡銷售額補進月營業額
+    }catch(e){ console.warn('載入 iPad 禮品卡銷售記錄失敗（月營業額可能少算 iPad 賣出的禮品卡）：', e); }
+  })();
 </script>
 
 <script>
@@ -2202,17 +2224,28 @@ function calcDay(s,d){
     }
   });
 
-  // 禮品卡「銷售」：售出當下才算進月營業額（依售出時選的付款方式歸入刷卡/現金），
+  // 禮品卡「銷售」：售出當下才算進月營業額（依售出時選的付款方式歸入刷卡/現金/Venmo），
   // 跟「兌換」(gcSvc/gcAmtUsed) 是完全分開的兩件事，避免同一筆錢被算兩次。
+  // 來源有兩種：店裡手動輸入的(_D.gc_cards) + iPad 賣出、存在 Firebase 的(window._gcFbAll)
   const dateStr=mk()+'-'+String(d).padStart(2,'0');
-  let gcSold=0,gcSoldCard=0,gcSoldCash=0;
+  let gcSold=0,gcSoldCard=0,gcSoldCash=0,gcSoldVenmo=0;
   (_D.gc_cards||[]).forEach(function(g){
     if(g.store!==s||g.date!==dateStr)return;
     gcSold+=(g.amt||0);
     if(g.pay==='cash')gcSoldCash+=(g.amt||0); else gcSoldCard+=(g.amt||0);
   });
+  (window._gcFbAll||[]).forEach(function(g){
+    if(g.store!==s||g.date!==dateStr)return;
+    gcSold+=(g.amount||0);
+    // iPad 付款方式比店裡手動輸入的多兩種：Venmo 直接算 Venmo；Zelle 目前系統沒有獨立的欄位，暫時併進 Venmo（都是電子轉帳，不是刷卡也不是現金）；
+    // 其他沒填或不認得的付款方式，為了不讓這筆錢憑空消失，預設當刷卡處理。
+    if(g.payMethod==='cash')gcSoldCash+=(g.amount||0);
+    else if(g.payMethod==='venmo'||g.payMethod==='zelle')gcSoldVenmo+=(g.amount||0);
+    else gcSoldCard+=(g.amount||0);
+  });
   cardSvc+=gcSoldCard;
   cashSvc+=gcSoldCash;
+  venmoSvc+=gcSoldVenmo;
 
   // GoDaddy 應收 = (刷卡服務費 - CP服務費 + 全部刷卡小費含CP小費) × 手續費率
   // CP服務費不算但CP的刷卡小費要算（GoDaddy還是會收那筆小費的手續費）
@@ -2235,7 +2268,7 @@ function calcDay(s,d){
 
   let sqDiff=null;
   const hasSq=sqOther||sqCash||sqTip||sqTotal||sqGC;
-  const hasClients=clients.length>0;
+  const hasClients=clients.length>0||gcSold>0; // 這天只有賣禮品卡、沒有服務客人時，也要照樣對帳（禮品卡刷卡一樣會進 Square 的當日結算）
   if(hasSq&&hasClients){
     sqDiff=sqTotal>0 ? sqTotal-calcTotal : (sqOther+sqCash+sqGC)-calcTotal;
   }
@@ -2848,15 +2881,22 @@ function renderCalDetail(){
   var dt=new Date(dateStr+'T12:00:00');
   var DOWH=['日','一','二','三','四','五','六'];
   var mvT=calcDay('mv',d), srT=calcDay('sr',d);
-  var gcToday=(_D.gc_cards||[]).filter(function(g){return g.date===dateStr;});
+  var gcTodayManual=(_D.gc_cards||[]).filter(function(g){return g.date===dateStr;}).map(function(g){
+    return {store:g.store, amt:g.amt||0, code:g.code||'—', note:g.note||'', source:'manual'};
+  });
+  var gcTodayFb=(window._gcFbAll||[]).filter(function(g){return g.date===dateStr;}).map(function(g){
+    return {store:g.store, amt:g.amount||0, code:g.code||'—', note:g.giftFor?('For: '+g.giftFor):'', source:'ipad'};
+  });
+  var gcToday=gcTodayManual.concat(gcTodayFb);
   var gcTotal=gcToday.reduce(function(s,g){return s+(g.amt||0);},0);
   var gcListHtml=gcToday.length===0
     ?'<div style="font-size:12px;color:var(--faint)">這天沒有賣出禮品卡</div>'
     :gcToday.map(function(g){
-      var safeNote=(g.note||'').replace(/</g,'&lt;');
+      var safeNote=(g.note||'').replace(/&/g,'&amp;').replace(/</g,'&lt;');
       return '<div style="display:flex;justify-content:space-between;align-items:center;font-size:12px;padding:6px 0;border-bottom:1px solid var(--border)">'
         +'<span><span class="gc-store-tag '+g.store+'" style="font-size:9px;padding:1px 6px;border-radius:4px;margin-right:6px;vertical-align:middle">'+(g.store==='mv'?'MV':'SR')+'</span>'
         +'<span style="font-family:monospace;font-weight:600">'+(g.code||'—')+'</span>'
+        +(g.source==='ipad'?' <span style="font-size:9px;color:var(--faint)">📱iPad</span>':'')
         +(safeNote?' <span style="color:var(--faint)">· '+safeNote+'</span>':'')+'</span>'
         +'<span style="font-weight:700;color:var(--gc)">$'+(g.amt||0).toFixed(2)+'</span>'
       +'</div>';
@@ -2877,7 +2917,7 @@ function renderCalDetail(){
     +'</div>'
     +'<div>'
       +'<div style="font-size:11px;font-weight:700;color:var(--sub);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px">📝 這天的備註</div>'
-      +'<textarea id="cal-note-input" placeholder="寫點什麼…（改完會自動儲存）" style="width:100%;min-height:72px;padding:10px;border:1px solid var(--border);border-radius:8px;font-size:13px;font-family:inherit;resize:vertical;box-sizing:border-box" onchange="saveCalNote(\''+dateStr+'\',this.value)">'+note.replace(/</g,'&lt;')+'</textarea>'
+      +'<textarea id="cal-note-input" placeholder="寫點什麼…（改完會自動儲存）" style="width:100%;min-height:72px;padding:10px;border:1px solid var(--border);border-radius:8px;font-size:13px;font-family:inherit;resize:vertical;box-sizing:border-box" onchange="saveCalNote(\''+dateStr+'\',this.value)">'+note.replace(/&/g,'&amp;').replace(/</g,'&lt;')+'</textarea>'
     +'</div>';
 }
 
@@ -9153,9 +9193,10 @@ function buildLeaveSection(name,esc,safeId){
   var q="'";
   var listHtml=leaves.length===0?'':leaves.map(function(l,idx){
     var label=l.start===l.end?l.start:(l.start+' ~ '+l.end);
+    var safeNote=(l.note||'').replace(/&/g,'&amp;').replace(/</g,'&lt;');
     return '<div style="display:flex;align-items:center;gap:8px;background:var(--white);border:1px solid var(--warn-bd);border-radius:7px;padding:6px 10px;font-size:12px">'+
       '<span style="font-weight:700;color:var(--warn)">🏖 '+label+'</span>'+
-      (l.note?'<span style="color:var(--sub)">'+l.note+'</span>':'')+
+      (safeNote?'<span style="color:var(--sub)">'+safeNote+'</span>':'')+
       '<button class="att-del" style="margin-left:auto" onclick="delLeave('+q+esc+q+','+idx+')">&#215;</button>'+
     '</div>';
   }).join('');
@@ -9998,6 +10039,14 @@ function renderCDStoreTbl(store,entries,selMonth){
     clients.forEach(function(c){
       if(c.pay==='cash'||c.pay==='現金') cashSvc+=gv(c.svc);
       if((c.pay==='cash'||c.pay==='現金')&&c.clientName) cashNames.push(c.clientName);
+    });
+    // 現金買禮品卡的錢，也是真的現金會進現金櫃，一併加進來（跟月營業額用的是同一套邏輯，避免現金櫃對不起來）
+    var dateStr0=selMonth+'-'+String(day).padStart(2,'0');
+    (_D.gc_cards||[]).forEach(function(g){
+      if(g.store===store&&g.date===dateStr0&&g.pay==='cash'){cashSvc+=(g.amt||0);cashNames.push('🎁禮品卡 '+(g.code||''));}
+    });
+    (window._gcFbAll||[]).forEach(function(g){
+      if(g.store===store&&g.date===dateStr0&&g.payMethod==='cash'){cashSvc+=(g.amount||0);cashNames.push('🎁禮品卡(iPad)');}
     });
     var total=Math.round(cashSvc*100)/100;
     if(total>0){
