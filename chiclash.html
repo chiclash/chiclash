@@ -2227,6 +2227,8 @@ function calcDay(s,d){
   // 禮品卡「銷售」：售出當下才算進月營業額（依售出時選的付款方式歸入刷卡/現金/Venmo），
   // 跟「兌換」(gcSvc/gcAmtUsed) 是完全分開的兩件事，避免同一筆錢被算兩次。
   // 來源有兩種：店裡手動輸入的(_D.gc_cards) + iPad 賣出、存在 Firebase 的(window._gcFbAll)
+  // 注意：gcSold 是獨立的第四個桶子（不併進 cardSvc/cashSvc/venmoSvc），因為下面 rev 公式是
+  // 「刷卡收入 + 現金收入 + Venmo收入 + 禮品卡銷售」四個桶分開加總——併進去的話 rev 會把這筆錢多算一次。
   const dateStr=mk()+'-'+String(d).padStart(2,'0');
   let gcSold=0,gcSoldCard=0,gcSoldCash=0,gcSoldVenmo=0;
   (_D.gc_cards||[]).forEach(function(g){
@@ -2243,13 +2245,11 @@ function calcDay(s,d){
     else if(g.payMethod==='venmo'||g.payMethod==='zelle')gcSoldVenmo+=(g.amount||0);
     else gcSoldCard+=(g.amount||0);
   });
-  cardSvc+=gcSoldCard;
-  cashSvc+=gcSoldCash;
-  venmoSvc+=gcSoldVenmo;
 
-  // GoDaddy 應收 = (刷卡服務費 - CP服務費 + 全部刷卡小費含CP小費) × 手續費率
-  // CP服務費不算但CP的刷卡小費要算（GoDaddy還是會收那筆小費的手續費）
-  const gdDue=((cardSvc-cpSvc)+cardTip)*GD_FEE;
+  // GoDaddy 應收 = (刷卡服務費 - CP服務費 + 全部刷卡小費含CP小費 + 刷卡買禮品卡) × 手續費率
+  // 刷卡買禮品卡這裡要單獨加回來：因為 GoDaddy 真的會針對那筆刷卡收手續費，
+  // 但又不能把 gcSoldCard 直接併進 cardSvc（那樣「刷卡收入」這個顯示欄位跟月營業額 rev 就會把禮品卡銷售重複算兩次)
+  const gdDue=((cardSvc+gcSoldCard-cpSvc)+cardTip)*GD_FEE;
   // Revenue（月營業額）＝ 純服務收入，不含小費（小費是要付給技師的錢，另外走「小費分配」頁面計算）
   // 禮品卡「兌換」(gcSvc) 不計入月營業額——因為賣卡當下已經算過一次了，這裡再算會重複計算；
   // 但兌換金額還是會另外分開統計（本月兌換人數/兌換總金額），也照樣算給技師的業績抽成（不受影響）。
@@ -2260,8 +2260,9 @@ function calcDay(s,d){
   const sqGC=gv(r.sqGC), sqTotal=gv(r.sqTotal);
   // What clients say Square should show:
   // topupCard/topupCash 現在已經併進 cardSvc/cashSvc 裡面了，這裡不能再加一次，否則會重複計算
-  const calcOther=cardSvc+cardTip+venmoSvc+venmoTip; // card+venmo payments
-  const calcCash=cashSvc+cashTip;                    // cash payments (including cash tips)
+  // 賣禮品卡收到的刷卡/現金/Venmo，也是真的會進 Square 當日結算的錢，要另外加回來（gcSoldCard/Cash/Venmo 沒有併進 cardSvc/cashSvc/venmoSvc 本身，避免跟月營業額重複計算）
+  const calcOther=cardSvc+gcSoldCard+cardTip+venmoSvc+gcSoldVenmo+venmoTip; // card+venmo payments
+  const calcCash=cashSvc+gcSoldCash+cashTip;                    // cash payments (including cash tips)
   const calcGC=gcAmtUsed;                                      // gift card payments
   const calcTip=cardTip+venmoTip;
   const calcTotal=calcOther+calcCash+calcGC;
