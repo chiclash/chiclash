@@ -885,7 +885,7 @@ input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-
   <!-- Square CSV 上傳區（預設隱藏） -->
   <div id="gd-sq-upload-area" style="display:none;background:var(--white);border:1px solid var(--border);border-radius:10px;padding:16px;margin-bottom:14px">
     <div style="font-size:13px;font-weight:600;color:var(--text);margin-bottom:4px">上傳 Square CSV 用於精準對帳（不影響每日記帳）</div>
-    <div style="font-size:11px;color:var(--sub);margin-bottom:12px">系統會計算每天兩店刷卡應收（× 0.977），再跟你填的 GoDaddy Payout 比對，差距超過 $5 標紅。</div>
+    <div style="font-size:11px;color:var(--sub);margin-bottom:12px">系統會計算每天兩店刷卡應收，再跟你填的 GoDaddy Payout 比對，差距超過 $5 標紅（實際撥款是全額到帳，不預扣手續費）。</div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px">
       <div id="gd-sq-drop-items" style="border:2px dashed var(--border);border-radius:8px;padding:16px;text-align:center;cursor:pointer;transition:all .15s"
         onclick="document.getElementById('gd-sq-file-items').click()"
@@ -2057,7 +2057,13 @@ input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-
 
 <script>
 const DAYS=['日','一','二','三','四','五','六'];
-const GD_FEE=0.977;
+// GD_FEE：GoDaddy/Square 撥款金額的調整係數。
+// 曾經以為每筆交易撥款前會先扣約 2.3% 手續費(0.977)，但用真正的 Square「Payout Payments」報表核對過後發現：
+// 這個帳戶的撥款是全額到帳(賣多少+小費多少，就撥多少)，逐筆完全沒有先扣手續費(Payout報表裡的
+// Amount in Payout 就是等於 Sale + Tip，Fees 欄位全部是 $0.00)。所以改成 1，不再假扣一筆不存在的手續費。
+// 如果之後 GoDaddy/Square 改了收費方式(變成逐筆扣手續費)，只要把這個數字改回實際的比例就好，
+// 其他用到 GD_FEE 的地方都不用動。
+const GD_FEE=1;
 let cur=new Date();cur.setDate(1);
 let activeStore='mv';
 
@@ -2086,7 +2092,15 @@ let activeStore='mv';
 // ── FIREBASE SAVE ──
 const saveOnly=()=>{
   _D._savedAt = Date.now();
-  localStorage.setItem('rev19',JSON.stringify(_D));
+  try{
+    localStorage.setItem('rev19',JSON.stringify(_D));
+  }catch(e){
+    // 本機儲存失敗最常見的原因是「裝置儲存空間已滿」。
+    // 如果不 catch 住，這個錯誤會往上炸掉整個呼叫鏈（例如 addStockOut → save → saveOnly），
+    // 導致後面「清空表單欄位、重新整理畫面」的程式碼完全不會執行——使用者點下「新增」會覺得畫面完全沒反應。
+    console.error('本機儲存失敗:', e);
+    alert('⚠️ 本機儲存失敗（'+(e&&e.name==='QuotaExceededError'?'裝置儲存空間已滿':(e&&e.message)||'未知錯誤')+'）\n\n剛剛的操作可能沒有真的存起來，畫面重新整理後可能會消失。\n建議先截圖記錄，並跟開發者反應這個訊息。');
+  }
   if(window._db){
     import('https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js').then(({doc,setDoc})=>{
       setDoc(doc(window._db,'chic lash','data'),JSON.parse(JSON.stringify(_D))).catch(e=>console.warn('Firebase save error:',e));
@@ -2132,6 +2146,16 @@ const save=()=>{
 };
 const mk=()=>`${cur.getFullYear()}-${String(cur.getMonth()+1).padStart(2,'0')}`;
 const gv=v=>v!==''&&v!==undefined&&v!==null?parseFloat(v)||0:0;
+// 禮品卡「兌換」金額：如果前台選了「禮品卡」付款，卻忘記填旁邊的「GC金額」欄位，
+// 但也沒有填補差額（topup），代表整筆服務費本來就是禮品卡付的，直接用服務金額當作兌換金額，
+// 避免因為忘記多填一次數字，導致兌換總金額被算成 $0。
+// 如果有填補差額但 GC 金額沒填，代表禮品卡只付了「一部分」但不確定確切金額，這種情況不亂猜，維持 0。
+function resolveGcAmt(c){
+  var explicit=gv(c.gcAmt);
+  if(explicit>0)return explicit;
+  if(gv(c.topup)<=0)return gv(c.svc);
+  return 0;
+}
 
 // 合併同天同技師同客人的多筆記錄：服務費加總，小費加總，任一筆有cashTipOk就標記
 function mergeClientTxns(clients){
@@ -2189,7 +2213,7 @@ function calcDay(s,d){
   let cardTip=0,cashTip=0,venmoTip=0,cpCardTip=0;
 
   clients.forEach(c=>{
-    const svc=gv(c.svc), tip=gv(c.tip), gcAmt=gv(c.gcAmt);
+    const svc=gv(c.svc), tip=gv(c.tip), gcAmt=resolveGcAmt(c);
     if(c.pay==='gc'){
       gcSvc+=svc;
       gcAmtUsed+=gcAmt;
@@ -2450,7 +2474,7 @@ function renderClientTable(d){
         <button class="tgl ${c.cp?'on-cp':''}" onclick="toggleCP(${d},${i},this)">${c.cp?'✓ CP':'CP'}</button>
       </td>
       <td style="min-width:80px;max-width:80px;overflow:hidden">
-        ${isGC?`<input type="text" inputmode="decimal" class='ti' placeholder="GC金額" min="0" step="0.01" value="${c.gcAmt||''}" oninput="updC(${d},${i},'gcAmt',this.value)" style="width:72px" title="Gift Card 使用金額">`:`<span style="color:var(--faint);font-size:11px">—</span>`}
+        ${isGC?`<input type="text" inputmode="decimal" class='ti' placeholder="GC金額" min="0" step="0.01" value="${c.gcAmt||''}" oninput="updC(${d},${i},'gcAmt',this.value)" style="width:72px" title="Gift Card 使用金額（整筆都是禮品卡付的話可以留空，系統會自動用服務金額計算；只有部分用禮品卡、部分補差額時才需要填實際扣了多少）">`:`<span style="color:var(--faint);font-size:11px">—</span>`}
       </td>
       <td style="min-width:140px;max-width:140px;overflow:hidden">
         ${isGC?`<div class='tgl-grp'><input type="text" inputmode="decimal" class='ti' placeholder="0.00" min="0" step="0.01" value="${c.topup||''}" oninput="updC(${d},${i},'topup',this.value)" style="width:55px" title="補差額"><button class='tgl ${c.topupPay==="card"?"on-card":""}' onclick="setTopup(${d},${i},'card',this)">刷卡</button><button class='tgl ${c.topupPay==="cash"?"on-cash":""}' onclick="setTopup(${d},${i},'cash',this)">現金</button></div>`
@@ -3096,6 +3120,10 @@ function mergeGDSqFiles(){
     byTxn[item.txnId].push(item);
   });
 
+  // 自動偵測「產品銷售」跟「庫存出庫」，跟「匯入中心」共用同一個函式，避免以後又只改一邊
+  var sqDetect=detectSqProductsAndStockOut(gdSqItemsRaw, gdSqTxnRaw);
+  var productsAdded=sqDetect.productsAdded, stockOutAdded=sqDetect.stockOutAdded;
+
   // Build per-datetime records: [{dateStr, timeStr, store, cardAmt, isCP}]
   var records=[];
   Object.keys(byTxn).forEach(function(txnId){
@@ -3136,7 +3164,10 @@ function mergeGDSqFiles(){
 
   var count=Object.keys(gdDayMap).length;
   var statusEl=document.getElementById('gd-sq-status');
-  if(statusEl)statusEl.textContent='✓ 已計算 '+count+' 天的 GoDaddy 應收';
+  var extraMsgs=[];
+  if(productsAdded>0)extraMsgs.push('產品銷售 '+productsAdded+' 筆');
+  if(stockOutAdded>0)extraMsgs.push('庫存出庫 '+stockOutAdded+' 筆');
+  if(statusEl)statusEl.textContent='✓ 已計算 '+count+' 天的 GoDaddy 應收'+(extraMsgs.length?'，另外自動抓到：'+extraMsgs.join('、'):'');
 
   // Close upload area and rebuild table
   document.getElementById('gd-sq-upload-area').style.display='none';
@@ -4061,7 +4092,7 @@ function gcRedemptionStatsForMonth(monthKey, store){
       day.clients.forEach(function(c){
         if(c.pay==='gc'){
           count++;
-          totalAmt+=gv(c.gcAmt);
+          totalAmt+=resolveGcAmt(c);
         }
       });
     }
@@ -4697,8 +4728,9 @@ function renderStockPage(){
       var staffOpts=staffList.map(function(s){return '<option value="'+s+'"'+(s===x.staff?' selected':'')+'>'+s+'</option>';}).join('');
       var safeItem=(x.item||'').replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;');
       var safeNote=(x.note||'').replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;');
+      var storeTag=x.store?('<span class="gc-store-tag '+x.store+'" style="font-size:9px;padding:1px 5px;border-radius:4px;margin-right:5px;vertical-align:middle">'+(x.store==='mv'?'MV':'SR')+'</span>'):'';
       return '<tr style="border-bottom:1px solid var(--border)">'
-        +'<td style="padding:8px 14px"><input type="text" value="'+safeItem+'" style="border:1px solid var(--border);border-radius:6px;padding:4px 6px;font-size:12px;font-family:inherit;width:100%" onchange="updateStockOut('+x.id+',\'item\',this.value)"></td>'
+        +'<td style="padding:8px 14px;white-space:nowrap">'+storeTag+'<input type="text" value="'+safeItem+'" style="border:1px solid var(--border);border-radius:6px;padding:4px 6px;font-size:12px;font-family:inherit;width:calc(100% - 34px);display:inline-block;vertical-align:middle" onchange="updateStockOut('+x.id+',\'item\',this.value)"></td>'
         +'<td style="padding:8px 14px;text-align:right"><input type="text" inputmode="decimal" value="'+x.qty+'" style="border:1px solid var(--border);border-radius:6px;padding:4px 6px;font-size:12px;font-family:inherit;width:60px;text-align:right" onchange="updateStockOut('+x.id+',\'qty\',this.value)"></td>'
         +'<td style="padding:8px 14px"><select style="border:1px solid var(--border);border-radius:6px;padding:4px 6px;font-size:12px;font-family:inherit" onchange="updateStockOut('+x.id+',\'staff\',this.value)">'+staffOpts+'</select></td>'
         +'<td style="padding:8px 14px"><input type="text" value="'+safeNote+'" style="border:1px solid var(--border);border-radius:6px;padding:4px 6px;font-size:12px;font-family:inherit;width:100%" onchange="updateStockOut('+x.id+',\'note\',this.value)"></td>'
@@ -7740,7 +7772,7 @@ function parseSqItemsCSV(text) {
       iEmp=fi(['Employee']), iDesc=fi(['Item']), iNet=fi(['Net Sales']),
       iGross=fi(['Gross Sales']), iDisc=fi(['Discounts']),
       iTxn=fi(['Transaction ID']), iStatus=fi(['Event Type']), iCust=fi(['Customer Name']),
-      iCat=fi(['Category']), iItemType=fi(['Itemization Type']);
+      iCat=fi(['Category']), iItemType=fi(['Itemization Type']), iQty=fi(['Qty']);
 
   var rows = [];
   for (var i = 1; i < lines.length; i++) {
@@ -7772,6 +7804,7 @@ function parseSqItemsCSV(text) {
       desc: iDesc >= 0 ? (cols[iDesc] || '').trim() : '',
       category: iCat >= 0 ? (cols[iCat] || '').trim() : '',
       itemType: iItemType >= 0 ? (cols[iItemType] || '').trim() : '',
+      qty: iQty >= 0 ? (parseFloat(cols[iQty]) || 1) : 1,
       net: svc,
       gross: gross,
       customer: iCust >= 0 ? (cols[iCust] || '').trim() : '',
@@ -8052,10 +8085,64 @@ function parseSqTxnCSV(text) {
   return map;
 }
 
+// ── 產品銷售 / 庫存出庫 自動偵測（共用邏輯，「匯入中心」跟「GoDaddy 對帳」兩個上傳入口都會呼叫這個） ──
+// 判斷依據：Itemization Type = Physical Good（或描述/分類看起來像零售商品）。
+// 有實際收錢(net>0) → 算「產品銷售」；$0(沒收錢，內部領用) → 算「庫存出庫」。
+// txnMap 是對應的交易資料(sqTxnRaw 或 gdSqTxnRaw)，用來查詢這筆交易實際的付款方式。
+function detectSqProductsAndStockOut(itemsRaw, txnMap) {
+  var productsAdded = 0, stockOutAdded = 0;
+  (itemsRaw || []).forEach(function(item) {
+    var cat = (item.category || '').toLowerCase();
+    var itemType = (item.itemType || '').toLowerCase();
+    var isProduct = itemType === 'physical good'
+      || (item.desc && item.desc.toLowerCase().startsWith('products,'))
+      || cat.includes('retail') || cat === 'products';
+    if (!isProduct) return;
+    var itemName = item.desc.replace(/^products,\s*/i, '').trim() || item.desc;
+    var payMethod = (txnMap && txnMap[item.txnId] && txnMap[item.txnId].pay) || 'card';
+
+    if (item.net > 0) {
+      // 產品銷售
+      if (!_D.products) _D.products = {};
+      var mo = item.date.slice(0, 7);
+      if (!_D.products[mo]) _D.products[mo] = [];
+      var dupKey = item.txnId + '|' + itemName;
+      var exists = _D.products[mo].some(function(p) { return p.sqKey === dupKey; });
+      if (!exists) {
+        _D.products[mo].push({
+          id: Date.now() + Math.random(), sqKey: dupKey, date: item.date, name: itemName,
+          amt: item.net, comm: Math.round(item.net * 0.15 * 100) / 100,
+          staff: item.tech || '', pay: payMethod, client: item.customer || ''
+        });
+        productsAdded++;
+      }
+    } else {
+      // 庫存出庫（$0，內部領用）
+      if (!_D.stockOut) _D.stockOut = [];
+      var dupKey2 = item.txnId + '|' + itemName + '|stockout';
+      var exists2 = _D.stockOut.some(function(x) { return x.sqKey === dupKey2; });
+      if (!exists2) {
+        _D.stockOut.push({
+          id: Date.now() + Math.random(), sqKey: dupKey2, date: item.date, item: itemName,
+          qty: item.qty || 1, staff: item.tech || '', note: '📱 Square 自動匯入', store: item.store
+        });
+        stockOutAdded++;
+      }
+    }
+  });
+  if (productsAdded > 0 || stockOutAdded > 0) saveOnly();
+  return { productsAdded: productsAdded, stockOutAdded: stockOutAdded };
+}
+
 // ── Merge Items + Transactions ──
 // For each Transaction, group its Items by tech, calculate each tech's tip proportion
 function mergeSqFiles() {
   if (!sqItemsRaw || !sqTxnRaw) { alert('請先上傳兩個 CSV'); return; }
+
+  // 產品銷售 / 庫存出庫 自動偵測（這裡是「匯入中心」實際會走的路徑，一定要跑這段，
+  // 不然只有 GoDaddy 對帳頁上傳才會抓到，匯入中心上傳的人永遠不會抓到）
+  var sqDetectResult = detectSqProductsAndStockOut(sqItemsRaw, sqTxnRaw);
+  window._lastSqDetectResult = sqDetectResult; // 給 impMerge() 顯示提示訊息用
 
   // Group items by Transaction ID
   var byTxn = {};
@@ -8101,39 +8188,15 @@ function mergeSqFiles() {
     var tipRate = totalNet > 0 ? tipTotal / totalNet : (tipTotal > 0 ? -1 : 0);
 
     items.forEach(function(item) {
-      // 判斷是否為產品：Itemization Type = Physical Good，或描述以 "products," 開頭，或 Category 含 retail/product
+      // 判斷是否為產品/庫存出庫：Itemization Type = Physical Good，或描述以 "products," 開頭，或 Category 含 retail/product
+      // 實際的新增/去重邏輯已經在上面 detectSqProductsAndStockOut() 跑過了，這裡只需要跳過、不要重複建立一筆服務列
       var cat=(item.category||'').toLowerCase();
       var itemType=(item.itemType||'').toLowerCase();
       var isProduct = itemType==='physical good'
         || (item.desc && item.desc.toLowerCase().startsWith('products,'))
         || cat.includes('retail') || cat==='products';
-      var productName = isProduct
-        ? (item.desc.replace(/^products,\s*/i,'').trim() || item.desc)
-        : '';
 
-      if(isProduct && item.net > 0) {
-        // 自動加入產品銷售記錄
-        if(!_D.products)_D.products={};
-        var mo=item.date.slice(0,7);
-        if(!_D.products[mo])_D.products[mo]=[];
-        // 避免重複（用 txnId + productName）
-        var dupKey=item.txnId+'|'+productName;
-        var exists=_D.products[mo].some(function(p){return p.sqKey===dupKey;});
-        if(!exists){
-          _D.products[mo].push({
-            id:Date.now()+Math.random(),
-            sqKey:dupKey,
-            date:item.date,
-            name:productName,
-            amt:item.net,
-            comm:Math.round(item.net*0.15*100)/100,
-            staff:item.tech||'',
-            pay:txn.pay||'card',
-            client:txn.customer||item.customer||''
-          });
-        }
-        return; // 不加入服務記錄
-      }
+      if(isProduct) return; // 不管是有收錢的產品銷售、還是$0的庫存出庫，都不建立服務列
 
       // Tip proportional to this item's net sales
       var itemTip = totalNet > 0 ? Math.round(item.net * tipRate * 100) / 100 : 0;
@@ -8619,11 +8682,11 @@ function exportReconReport(){
       +'</div></div>'
 
     +'<div class="formula-box"><div class="f-title">② GoDaddy 應收（銀行應該撥款給你的金額，不是營業額）</div>'
-      +'<code>每日 GoDaddy 應收 = (刷卡服務費 − ClassPass服務費 + 全部刷卡小費) × 0.977</code>'
+      +'<code>每日 GoDaddy 應收 = 刷卡服務費 − ClassPass服務費 + 全部刷卡小費</code>'
       +'<div style="margin-top:10px;font-size:12.5px;color:#555;line-height:1.8">'
       +'• 這是「現金流」概念，不是「營業額」概念——因為客人刷卡付的小費，銀行會跟服務費一起撥款給你，所以應收金額通常會比營業額高一截，這是正常現象，不是算錯。<br>'
       +'• ClassPass 的服務費不透過這台刷卡機收款，所以不計入應收；但 ClassPass 客人如果用卡付小費，那筆小費一樣會透過刷卡機撥款，所以仍計入。<br>'
-      +'• 0.977 是假設刷卡手續費約 2.3%，實際費率會依卡別/交易方式略有浮動，若每月都出現持續性的落差，建議檢查是否有漏記的刷卡交易（例如產品銷售、會員卡銷售、禮品卡補差額等）。'
+      +'• 撥款是全額到帳，不會逐筆先扣手續費（已用實際的 Square Payout Payments 報表核對過）。如果每月都出現持續性的落差，建議檢查是否有漏記的刷卡交易（例如產品銷售、會員卡銷售、禮品卡補差額等），或個別交易是否延遲到下一批撥款。'
       +'</div></div>'
 
     +'<div class="formula-box"><div class="f-title">③ GoDaddy 差異</div>'
@@ -8664,7 +8727,7 @@ function exportCSV(){
       const r=sDay(s,d);const t=calcDay(s,d);
       if(r.clients.length===0){csv+=`${y}-${pad(m+1)}-${pad(d)},,,,,,,,${t.gdDue.toFixed(2)},${t.rev.toFixed(2)}\n`;continue;}
       r.clients.forEach((c,i)=>{
-        csv+=`${y}-${pad(m+1)}-${pad(d)},${i+1},${gv(c.svc).toFixed(2)},${c.pay},${c.cp?'是':'否'},${gv(c.gcAmt).toFixed(2)},${gv(c.tip).toFixed(2)},${c.tipPay||'card'},${i===0?t.gdDue.toFixed(2):''},${i===0?t.rev.toFixed(2):''}\n`;
+        csv+=`${y}-${pad(m+1)}-${pad(d)},${i+1},${gv(c.svc).toFixed(2)},${c.pay},${c.cp?'是':'否'},${resolveGcAmt(c).toFixed(2)},${gv(c.tip).toFixed(2)},${c.tipPay||'card'},${i===0?t.gdDue.toFixed(2):''},${i===0?t.rev.toFixed(2):''}\n`;
       });
     }
   });
@@ -10512,7 +10575,7 @@ function impParseGDText(text) {
   } else if (Object.keys(txnsByDate).length > 0) {
     // No payout total found — fall back to sum of amounts (pre-fee)
     Object.keys(txnsByDate).forEach(function(d) {
-      byDate[d] = Math.round(txnsByDate[d].gross * 0.977 * 100) / 100; // apply ~2.3% fee estimate
+      byDate[d] = Math.round(txnsByDate[d].gross * GD_FEE * 100) / 100; // 撥款金額估計(現在GD_FEE=1，代表撥款全額到帳，不預扣手續費)
     });
   } else if (payoutTotal !== null && reportDates.length > 0) {
     // No per-txn detail — assign payout total to last date of period
@@ -10564,7 +10627,11 @@ function impMerge() {
     return;
   }
 
-  if (el) el.textContent = '✓ 整合完成，共 ' + impRows.length + ' 筆';
+  var detect=window._lastSqDetectResult||{productsAdded:0,stockOutAdded:0};
+  var extraMsgs=[];
+  if(detect.productsAdded>0)extraMsgs.push('產品銷售 '+detect.productsAdded+' 筆');
+  if(detect.stockOutAdded>0)extraMsgs.push('庫存出庫 '+detect.stockOutAdded+' 筆');
+  if (el) el.textContent = '✓ 整合完成，共 ' + impRows.length + ' 筆'+(extraMsgs.length?'，另外自動抓到：'+extraMsgs.join('、'):'');
   impBuildFilters();
   impRenderTable();
   impRenderGDRecon();
@@ -10758,7 +10825,10 @@ function impRenderGDRecon() {
     if (!txnsByDate[g.date]) txnsByDate[g.date] = [];
     txnsByDate[g.date].push(g);
     if (!sqByDate[g.date]) sqByDate[g.date] = 0;
-    sqByDate[g.date] += ((g.cp?0:g.gross) + g.tip) * 0.977;
+    // 這裡曾經寫死乘以 0.977(假設每筆會先扣約2.3%手續費)，跟首頁「GoDaddy對帳金額」曾經犯的是同一種錯誤，
+    // 但這是完全獨立的另一段程式碼，之前只改了 GD_FEE 那邊，沒改到這裡。
+    // 用真正的 Payout Payments 報表核對過：這個帳戶撥款是全額到帳，不會逐筆先扣手續費，所以改用 GD_FEE(=1)。
+    sqByDate[g.date] += ((g.cp?0:g.gross) + g.tip) * GD_FEE;
   });
 
   var allDates = Object.keys(Object.assign({}, impGDData, sqByDate)).sort();
@@ -10769,8 +10839,9 @@ function impRenderGDRecon() {
   // Fee explanation row (inside tbody later)
   var feeRow = '';
   if (fees.instant || fees.processing) {
+    var feePct = (fees.processing && fees.netSales) ? ' ('+(fees.processing/fees.netSales*100).toFixed(1)+'%)' : '';
     feeRow = '<tr style="background:#FFF8EE"><td colspan="5" style="padding:5px 12px;font-size:11px;color:#B45309">'
-      + '💳 手續費 -$'+(fees.processing||0).toFixed(2)+' (2.3%)'
+      + '💳 手續費 -$'+(fees.processing||0).toFixed(2)+feePct
       + (fees.instant>0?' ｜ ⚡ Instant Payout費 -$'+fees.instant.toFixed(2)+' (今日特別費用)':'')
       + ' ｜ 已在GoDaddy Payout中扣除，非帳目問題</td></tr>';
   }
@@ -11045,7 +11116,7 @@ function impRenderGDRecon() {
     + '<thead><tr style="background:var(--bg);border-bottom:1.5px solid var(--border)">'
     + '<th style="padding:6px 10px;text-align:left;font-size:10px;color:var(--sub);font-weight:600">日期（點擊展開）</th>'
     + '<th style="padding:6px 10px;text-align:left;font-size:10px;color:#B45309;font-weight:600">GoDaddy Payout</th>'
-    + '<th style="padding:6px 10px;text-align:left;font-size:10px;color:var(--ok);font-weight:600">Square 應收(×0.977)</th>'
+    + '<th style="padding:6px 10px;text-align:left;font-size:10px;color:var(--ok);font-weight:600">Square 應收</th>'
     + '<th style="padding:6px 10px;text-align:center;font-size:10px;color:var(--sub);font-weight:600">差距</th>'
     + '</tr></thead>'
     + '<tbody>'+feeRow+rows+'</tbody>'
