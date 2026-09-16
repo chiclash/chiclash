@@ -3259,13 +3259,15 @@ function buildGDTable(){
   noteEl.style.cssText='padding:8px 14px;background:var(--gold-bg);border-bottom:1px solid #EEE0BB;font-size:11px;color:var(--gold)';
   noteEl.innerHTML=hasCsvCalc
     ? '✓ GD應收以匯入中心逐筆記帳資料為準。已上傳的 Square CSV 精算結果僅作交叉核對，若某天差異較大會標示 ⚠ 提醒你檢查'
-    : '💡 GD應收以匯入中心逐筆記帳資料自動計算。點右上角可上傳 Square CSV 做額外交叉核對';
+    : '💡 GD應收以匯入中心逐筆記帳資料自動計算。點右上角可上傳 Square CSV 做額外交叉核對<br>'
+    + '⚠ <b>手動填「Payout」時要注意日期是「隔一天」的</b>：Square/GoDaddy 撥款清單上寫的日期，是撥款「入帳」的那天，通常對應的是「前一個營業日」的錢，不是當天的（例如撥款清單寫 9/2，裡面的錢其實是 9/1 做的生意）。填的時候要往前推一天，不要直接照撥款清單上的日期填在同一天的格子裡。<br>'
+    + '💡 如果覺得每天手動核對日期很容易搞混，建議直接上傳 Square 的 Payout Payments CSV（或 PDF），系統會直接讀每一筆交易本身的日期，不用自己推算，比較不會出錯。';
   tbl.appendChild(noteEl);
 
   // 表頭
   var hdr=document.createElement('div');
   hdr.style.cssText='display:grid;grid-template-columns:90px 1fr 1fr 90px;align-items:center;gap:8px;padding:7px 14px;background:var(--bg);border-bottom:1.5px solid var(--border);font-size:10px;text-transform:uppercase;letter-spacing:.07em;color:var(--sub);font-weight:600';
-  hdr.innerHTML='<span>日期</span><span style="color:var(--ok)">GD應收（匯入中心記帳）</span><span>你填入的 Payout</span><span style="text-align:center">差異</span>';
+  hdr.innerHTML='<span>日期</span><span style="color:var(--ok)">GD應收（匯入中心記帳）</span><span>你填入的 Payout（填「隔天」撥款清單上的金額）</span><span style="text-align:center">差異</span>';
   tbl.appendChild(hdr);
 
   var totalDue=0,totalAct=0,monthHasDiff=false;
@@ -3295,6 +3297,9 @@ function buildGDTable(){
     var warn=diff!==null&&Math.abs(diff)>=5;
     if(warn)monthHasDiff=true;
 
+    var payoutLookupDate=new Date(y,m,d+1);
+    var payoutLookupLabel=String(payoutLookupDate.getMonth()+1).padStart(2,'0')+'/'+String(payoutLookupDate.getDate()).padStart(2,'0');
+
     var row=document.createElement('div');
     row.style.cssText='display:grid;grid-template-columns:90px 1fr 1fr 90px;align-items:center;gap:8px;padding:8px 14px;border-bottom:1px solid var(--border);font-size:13px;background:'+(warn?'var(--warn-bg)':isWk?'#FAFAF8':'var(--white)');
     row.innerHTML=
@@ -3303,7 +3308,10 @@ function buildGDTable(){
       '<div><span style="color:var(--ok);font-weight:600">'+(due>0?$f(due):'—')+'</span>'+
         (csvMismatch?'<div style="font-size:10px;color:var(--warn);margin-top:2px">⚠ CSV精算 '+$f(csvDue)+'（差 '+(csvDiff>=0?'+':'')+$f(csvDiff)+'）</div>':'')+
       '</div>'+
+      '<div>'+
       '<input type="text" inputmode="decimal" style="width:120px;border:1px solid '+(warn?'var(--warn-bd)':'var(--border)')+';border-radius:5px;padding:5px 8px;font-size:13px;font-family:inherit;text-align:right;outline:none;background:var(--white)" placeholder="填入 Payout" min="0" step="0.01" value="'+(actVal!==null?Math.round(actVal*100)/100:'')+'" onchange="updGD('+d+',this.value)">'+
+      '<div style="font-size:9.5px;color:var(--faint);margin-top:2px">👉 去撥款清單找「'+payoutLookupLabel+'」那筆的金額</div>'+
+      '</div>'+
       '<div style="text-align:center;font-size:14px">'+
         (actVal===null?'<span style="color:var(--faint)">—</span>':
          ok?'<span style="color:var(--ok);font-size:18px">✓</span>':
@@ -8106,7 +8114,8 @@ function detectSqProductsAndStockOut(itemsRaw, txnMap) {
       if (!_D.products) _D.products = {};
       var mo = item.date.slice(0, 7);
       if (!_D.products[mo]) _D.products[mo] = [];
-      var dupKey = item.txnId + '|' + itemName;
+      // 去重key加上日期+時間，避免 Transaction ID 萬一是空的時候，把不同天/不同筆的東西誤判成重複而漏掉（靜默資料遺失）
+      var dupKey = (item.txnId || (item.date + '_' + item.time)) + '|' + itemName;
       var exists = _D.products[mo].some(function(p) { return p.sqKey === dupKey; });
       if (!exists) {
         _D.products[mo].push({
@@ -8119,7 +8128,7 @@ function detectSqProductsAndStockOut(itemsRaw, txnMap) {
     } else {
       // 庫存出庫（$0，內部領用）
       if (!_D.stockOut) _D.stockOut = [];
-      var dupKey2 = item.txnId + '|' + itemName + '|stockout';
+      var dupKey2 = (item.txnId || (item.date + '_' + item.time)) + '|' + itemName + '|stockout';
       var exists2 = _D.stockOut.some(function(x) { return x.sqKey === dupKey2; });
       if (!exists2) {
         _D.stockOut.push({
