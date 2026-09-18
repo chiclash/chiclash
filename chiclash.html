@@ -1148,6 +1148,13 @@ input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-
       <div style="font-size:13px;font-weight:600;color:var(--rose);margin-bottom:14px">＋ 新增銷售記錄</div>
       <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin-bottom:14px">
           <div>
+            <div style="font-size:11px;color:var(--sub);margin-bottom:4px">店家 *</div>
+            <select id="prod-store" class="ti" style="width:100%;text-align:left">
+              <option value="mv">Mill Valley</option>
+              <option value="sr">San Rafael</option>
+            </select>
+          </div>
+          <div>
             <div style="font-size:11px;color:var(--sub);margin-bottom:4px">日期 *</div>
             <input type="date" id="prod-date" class="ti" style="width:100%">
           </div>
@@ -2303,6 +2310,20 @@ function calcDay(s,d){
       else if(c.tipPay==='venmo')venmoTip+=tip;
       else cashTip+=tip;
     }
+  });
+
+  // 產品銷售：這筆錢客人是真的付了（透過刷卡機/現金/Venmo），本來就該算進月營業額跟GoDaddy應收，
+  // 但這個功能原本是獨立運作的，從來沒有接進這裡——導致產品銷售完全沒有反映在營業額數字上，這裡補上。
+  // 舊資料如果沒有 store 欄位（這個功能剛推出時還沒記錄店家），為了不讓那筆錢憑空從總營業額消失，預設算在 MV。
+  const dateStr0=mk()+'-'+String(d).padStart(2,'0');
+  ((_D.products&&_D.products[mk()])||[]).forEach(function(p){
+    if(p.date!==dateStr0)return;
+    var belongsHere=p.store?(p.store===s):(s==='mv');
+    if(!belongsHere)return;
+    var amt=gv(p.amt);
+    if(p.pay==='cash')cashSvc+=amt;
+    else if(p.pay==='venmo'||p.pay==='zelle')venmoSvc+=amt; // zelle 系統沒有獨立欄位，跟禮品卡銷售一樣的處理方式併入Venmo
+    else cardSvc+=amt; // card 或未填一律當刷卡處理
   });
 
   // 禮品卡「銷售」：售出當下才算進月營業額（依售出時選的付款方式歸入刷卡/現金/Venmo），
@@ -4628,9 +4649,10 @@ function addProduct(){
   var amt=parseFloat(document.getElementById('prod-amt').value)||0;
   var staff=document.getElementById('prod-staff').value;
   var pay=document.getElementById('prod-pay').value||'card';
+  var store=document.getElementById('prod-store').value||'mv';
   var client=(document.getElementById('prod-client').value||'').trim();
   if(!date||!name||amt<=0||!staff){alert('請填寫日期、產品名稱、金額和技師');return;}
-  prodData().push({id:Date.now(),date:date,name:name,amt:amt,staff:staff,pay:pay,client:client,comm:Math.round(amt*0.15*100)/100});
+  prodData().push({id:Date.now(),date:date,name:name,amt:amt,staff:staff,pay:pay,store:store,client:client,comm:Math.round(amt*0.15*100)/100});
   save();
   // Clear form
   ['prod-name','prod-amt','prod-client'].forEach(function(id){var el=document.getElementById(id);if(el)el.value='';});
@@ -4911,6 +4933,19 @@ function updateStockOut(id,field,val){
   save();renderStockPage();
 }
 
+// 依關鍵字自動把庫存出庫的品項分類，讓「本月各品項出庫統計」不會變成一長串雜亂無章的清單
+function categorizeStockItem(name){
+  var n=(name||'').toLowerCase();
+  if(/head spa|小樣|小样|naris|repair weekly|smooth weekly|reawaken/.test(n)) return '💆 Head Spa／護理小樣';
+  if(/snack|零食|喉糖|lozenge|ricola|trail mix/.test(n)) return '🍬 零食／員工用品';
+  if(/relief|眼藥水|眼药水|moisturizing/.test(n)) return '💊 保養／其他用品';
+  if(/棉棒|棉花棒|cotton|酒精|alcohol prep|disinfect|消毒|洗鑷|洗臉巾|洗脸巾|tweezer cleanser/.test(n)) return '🧽 清潔消毒用品';
+  if(/tissue|紙巾|纸巾|sleep eye mask/.test(n)) return '🧻 一次性耗材';
+  if(/睫毛|lash|膠水|胶水|glue|眼貼|眼贴|eye patch|膠帶|胶带|軟化|软化|染劑|染剂|refectocil|-c-0\./.test(n)) return '🧷 睫毛材料';
+  return '📦 其他';
+}
+var STOCK_CATEGORY_ORDER=['🧷 睫毛材料','🧽 清潔消毒用品','💆 Head Spa／護理小樣','🧻 一次性耗材','💊 保養／其他用品','🍬 零食／員工用品','📦 其他'];
+
 function renderStockPage(){
   initStkStaffFormSel();
   var di=document.getElementById('stkf-date');
@@ -4965,7 +5000,7 @@ function renderStockPage(){
       +'<div class="gc-stat"><div class="gc-stat-l">不同品項數</div><div class="gc-stat-v">'+distinctItems+'</div></div>';
   }
 
-  // 各品項小計（未指定品項時顯示，方便老闆看出哪個東西出最多）
+  // 各品項小計（未指定品項時顯示，方便老闆看出哪個東西出最多）——依類別分組，不再是一長串雜亂的清單
   var byBtnWrap=document.getElementById('stk-bybtn-wrap');
   var byItemEl=document.getElementById('stk-byitem');
   if(byBtnWrap&&byItemEl){
@@ -4975,11 +5010,25 @@ function renderStockPage(){
         if(!byItem[x.item])byItem[x.item]=0;
         byItem[x.item]+=(x.qty||0);
       });
-      var itemKeys=Object.keys(byItem).sort(function(a,b){return byItem[b]-byItem[a];});
-      byItemEl.innerHTML=itemKeys.map(function(n){
-        return '<div style="background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:8px 12px;font-size:12px">'
-          +'<span style="font-weight:600">'+n+'</span>'
-          +'<span style="color:var(--sub);margin-left:6px">× '+byItem[n]+'</span></div>';
+      var byCat={};
+      Object.keys(byItem).forEach(function(n){
+        var cat=categorizeStockItem(n);
+        if(!byCat[cat])byCat[cat]=[];
+        byCat[cat].push(n);
+      });
+      var catsInOrder=STOCK_CATEGORY_ORDER.filter(function(c){return byCat[c];});
+      byItemEl.innerHTML=catsInOrder.map(function(cat){
+        var names=byCat[cat].sort(function(a,b){return byItem[b]-byItem[a];});
+        var catTotal=names.reduce(function(s,n){return s+byItem[n];},0);
+        return '<div style="margin-bottom:14px">'
+          +'<div style="font-size:11px;font-weight:700;color:var(--sub);margin-bottom:6px">'+cat+'　<span style="font-weight:400;color:var(--faint)">（共 '+catTotal+' 件）</span></div>'
+          +'<div style="display:flex;flex-wrap:wrap;gap:8px">'
+          +names.map(function(n){
+            return '<div style="background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:8px 12px;font-size:12px">'
+              +'<span style="font-weight:600">'+n+'</span>'
+              +'<span style="color:var(--sub);margin-left:6px">× '+byItem[n]+'</span></div>';
+          }).join('')
+          +'</div></div>';
       }).join('');
       byBtnWrap.style.display='';
     } else {
@@ -8410,7 +8459,7 @@ function detectSqProductsAndStockOut(itemsRaw, txnMap) {
         _D.products[mo].push({
           id: Date.now() + Math.random(), sqKey: dupKey, date: item.date, name: itemName,
           amt: item.net, comm: Math.round(item.net * 0.15 * 100) / 100,
-          staff: item.tech || '', pay: payMethod, client: item.customer || ''
+          staff: item.tech || '', pay: payMethod, client: item.customer || '', store: item.store
         });
         productsAdded++;
       }
