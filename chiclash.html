@@ -727,14 +727,13 @@ input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-
   <div class="rev-card">
     <div class="rev-lbl">兩店合計月營業額</div>
     <div class="rev-val" id="ov-total">—</div>
-    <div class="rev-desc">刷卡收入 + 現金收入 + Venmo收入 + 禮品卡銷售（不含小費，小費另計入小費分配）</div>
+    <div class="rev-desc">刷卡收入 + 現金收入 + Venmo收入 + 禮品卡銷售 + ClassPass（不含小費，小費另計入小費分配）</div>
     <div class="rev-bks">
-      <div class="rev-bk"><div class="rev-bk-l">刷卡收入</div><div class="rev-bk-v" style="color:var(--ok)" id="ov-card">—</div>
-        <div style="font-size:9.5px;color:var(--faint);margin-top:3px">其中 ClassPass <span id="ov-cp">—</span>（已包含在刷卡收入內）</div>
-      </div>
+      <div class="rev-bk"><div class="rev-bk-l">刷卡收入</div><div class="rev-bk-v" style="color:var(--ok)" id="ov-card">—</div></div>
       <div class="rev-bk"><div class="rev-bk-l">現金收入</div><div class="rev-bk-v" style="color:var(--cash)" id="ov-cash">—</div></div>
       <div class="rev-bk"><div class="rev-bk-l">Venmo收入</div><div class="rev-bk-v" style="color:#3D5AFE" id="ov-venmo">—</div></div>
       <div class="rev-bk"><div class="rev-bk-l">禮品卡銷售</div><div class="rev-bk-v" style="color:var(--gc)" id="ov-gc">—</div></div>
+      <div class="rev-bk"><div class="rev-bk-l">ClassPass</div><div class="rev-bk-v" style="color:#8E5FD9" id="ov-cp">—</div></div>
     </div>
     <div style="font-size:10px;color:var(--faint);margin-top:8px;text-align:right" id="ov-checksum"></div>
     <div style="margin-top:12px;padding-top:10px;border-top:1px dashed var(--border)">
@@ -757,12 +756,11 @@ input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-
     <div class="sc mv">
       <div class="sc-l">Mill Valley</div><div class="sc-v" id="ov-mv">—</div><div class="sc-s">月營業額</div>
       <div class="sc-stats">
-        <div class="sc-st"><div class="sc-st-l">刷卡收入</div><div class="sc-st-v" style="color:var(--ok)" id="sc-mv-card">—</div>
-          <div style="font-size:8.5px;color:var(--faint);margin-top:2px">其中 ClassPass <span id="sc-mv-cp">—</span></div>
-        </div>
+        <div class="sc-st"><div class="sc-st-l">刷卡收入</div><div class="sc-st-v" style="color:var(--ok)" id="sc-mv-card">—</div></div>
         <div class="sc-st"><div class="sc-st-l">現金收入</div><div class="sc-st-v" style="color:var(--cash)" id="sc-mv-cash">—</div></div>
         <div class="sc-st"><div class="sc-st-l">Venmo收入</div><div class="sc-st-v" style="color:#3D5AFE" id="sc-mv-venmo">—</div></div>
         <div class="sc-st"><div class="sc-st-l">禮品卡銷售</div><div class="sc-st-v" style="color:var(--gc)" id="sc-mv-gc">—</div></div>
+        <div class="sc-st"><div class="sc-st-l">ClassPass</div><div class="sc-st-v" style="color:#8E5FD9" id="sc-mv-cp">—</div></div>
       </div>
       <div style="font-size:9.5px;color:var(--faint);margin-top:6px;text-align:right" id="sc-mv-checksum"></div>
       <div style="margin-top:10px;padding-top:10px;border-top:1px dashed rgba(0,0,0,0.1)">
@@ -795,12 +793,11 @@ input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-
     <div class="sc sr">
       <div class="sc-l">San Rafael</div><div class="sc-v" id="ov-sr">—</div><div class="sc-s">月營業額</div>
       <div class="sc-stats">
-        <div class="sc-st"><div class="sc-st-l">刷卡收入</div><div class="sc-st-v" style="color:var(--ok)" id="sc-sr-card">—</div>
-          <div style="font-size:8.5px;color:var(--faint);margin-top:2px">其中 ClassPass <span id="sc-sr-cp">—</span></div>
-        </div>
+        <div class="sc-st"><div class="sc-st-l">刷卡收入</div><div class="sc-st-v" style="color:var(--ok)" id="sc-sr-card">—</div></div>
         <div class="sc-st"><div class="sc-st-l">現金收入</div><div class="sc-st-v" style="color:var(--cash)" id="sc-sr-cash">—</div></div>
         <div class="sc-st"><div class="sc-st-l">Venmo收入</div><div class="sc-st-v" style="color:#3D5AFE" id="sc-sr-venmo">—</div></div>
         <div class="sc-st"><div class="sc-st-l">禮品卡銷售</div><div class="sc-st-v" style="color:var(--gc)" id="sc-sr-gc">—</div></div>
+        <div class="sc-st"><div class="sc-st-l">ClassPass</div><div class="sc-st-v" style="color:#8E5FD9" id="sc-sr-cp">—</div></div>
       </div>
       <div style="font-size:9.5px;color:var(--faint);margin-top:6px;text-align:right" id="sc-sr-checksum"></div>
       <div style="margin-top:10px;padding-top:10px;border-top:1px dashed rgba(0,0,0,0.1)">
@@ -2252,21 +2249,22 @@ function calcDay(s,d){
       else if(c.tipPay==='venmo')venmoTip+=tip;
       else cashTip+=tip;
     } else {
-      if(c.pay==='card')cardSvc+=svc;
-      else if(c.pay==='venmo')venmoSvc+=svc;
-      else cashSvc+=svc;
       if(c.cp){
+        // ClassPass 服務費：完全獨立一欄，不算進刷卡收入（因為這筆錢是 ClassPass 平台付的，不是客人在店裡刷卡）
         cpSvc+=svc;
-        // CP 客人的刷卡小費單獨記錄（服務費不算 GoDaddy 但小費算）
         if(c.tipPay==='card')cpCardTip+=tip;
         // ClassPass 加購：客人另外直接付的錢（不是ClassPass在付），要算進對應的刷卡/現金/Venmo收入，
-        // 才會同時流進「月營業額」跟「GoDaddy應收」——注意這裡不加進 cpSvc，因為加購這筆錢是真的透過刷卡機處理的
+        // 才會同時流進「月營業額」跟「GoDaddy應收」——這筆加購的錢是真的透過刷卡機處理的
         const cpTopup=gv(c.cpTopup);
         if(cpTopup>0){
           if(c.cpTopupPay==='card')cardSvc+=cpTopup;
           else if(c.cpTopupPay==='venmo')venmoSvc+=cpTopup;
           else cashSvc+=cpTopup;
         }
+      } else {
+        if(c.pay==='card')cardSvc+=svc;
+        else if(c.pay==='venmo')venmoSvc+=svc;
+        else cashSvc+=svc;
       }
       if(c.tipPay==='card')cardTip+=tip;
       else if(c.tipPay==='venmo')venmoTip+=tip;
@@ -2296,14 +2294,14 @@ function calcDay(s,d){
     else gcSoldCard+=(g.amount||0);
   });
 
-  // GoDaddy 應收 = (刷卡服務費 - CP服務費 + 全部刷卡小費含CP小費 + 刷卡買禮品卡) × 手續費率
-  // 刷卡買禮品卡這裡要單獨加回來：因為 GoDaddy 真的會針對那筆刷卡收手續費，
-  // 但又不能把 gcSoldCard 直接併進 cardSvc（那樣「刷卡收入」這個顯示欄位跟月營業額 rev 就會把禮品卡銷售重複算兩次)
-  const gdDue=((cardSvc+gcSoldCard-cpSvc)+cardTip)*GD_FEE;
+  // GoDaddy 應收 = (刷卡服務費 + 全部刷卡小費含CP小費 + 刷卡買禮品卡) × 手續費率
+  // ClassPass 服務費現在完全不算在 cardSvc 裡了，所以這裡不用再扣一次 cpSvc
+  const gdDue=((cardSvc+gcSoldCard)+cardTip)*GD_FEE;
   // Revenue（月營業額）＝ 純服務收入，不含小費（小費是要付給技師的錢，另外走「小費分配」頁面計算）
   // 禮品卡「兌換」(gcSvc) 不計入月營業額——因為賣卡當下已經算過一次了，這裡再算會重複計算；
   // 但兌換金額還是會另外分開統計（本月兌換人數/兌換總金額），也照樣算給技師的業績抽成（不受影響）。
-  const rev=cardSvc+cashSvc+venmoSvc+gcSold;
+  // ClassPass(cpSvc) 是獨立的第五個桶子，一樣算進月營業額，只是不歸在「刷卡收入」裡顯示。
+  const rev=cardSvc+cashSvc+venmoSvc+gcSold+cpSvc;
 
   // Square reconciliation
   const sqOther=gv(r.sqOther), sqCash=gv(r.sqCash), sqTip=gv(r.sqTip);
@@ -2336,7 +2334,7 @@ function calcMonth(s){
     cardSvc+=t.cardSvc; cashSvc+=t.cashSvc; venmoSvc+=t.venmoSvc; cpSvc+=t.cpSvc;
     gcSvc+=t.gcSvc; gcSold+=t.gcSold; cardTip+=t.cardTip; cashTip+=t.cashTip; venmoTip+=t.venmoTip; gdDue+=t.gdDue;
   }
-  const rev=cardSvc+cashSvc+venmoSvc+gcSold;
+  const rev=cardSvc+cashSvc+venmoSvc+gcSold+cpSvc;
   return{cardSvc,cashSvc,venmoSvc,cpSvc,gcSvc,gcSold,cardTip,cashTip,venmoTip,gdDue,rev};
 }
 
@@ -2779,7 +2777,7 @@ function updateAll(){
   s('home-sub',cur.toLocaleDateString('zh-TW',{year:'numeric',month:'long'}));
   s('gd-sub',cur.toLocaleDateString('zh-TW',{year:'numeric',month:'long'}));
   s('ov-total',tot?$n(tot):'—');
-  s('ov-cp',(mv.cpSvc+sr.cpSvc)?$n(mv.cpSvc+sr.cpSvc):'$0');
+  s('ov-cp',(mv.cpSvc+sr.cpSvc)?$n(mv.cpSvc+sr.cpSvc):'—');
   (function(){
     var combinedR=gcRedemptionStatsForMonth(mk());
     s('ov-gcredeem-count', combinedR.count||'—');
@@ -2796,7 +2794,7 @@ function updateAll(){
   s('ov-sr',srRevR?$n(srRevR):'—');
   // 加總檢查：用未四捨五入的精確值互相比對，不要跟上面顯示用的整數比，避免因為捨去產生假的差異警示
   const rawTot=mv.rev+sr.rev;
-  const checkSum=(mv.cardSvc+sr.cardSvc)+(mv.cashSvc+sr.cashSvc)+(mv.venmoSvc+sr.venmoSvc)+(mv.gcSold+sr.gcSold);
+  const checkSum=(mv.cardSvc+sr.cardSvc)+(mv.cashSvc+sr.cashSvc)+(mv.venmoSvc+sr.venmoSvc)+(mv.gcSold+sr.gcSold)+(mv.cpSvc+sr.cpSvc);
   const ckEl=document.getElementById('ov-checksum');
   if(ckEl){
     const roundedDiff=Math.round((checkSum-rawTot)*100)/100;
@@ -2821,13 +2819,13 @@ function updateAll(){
   (function(){
     var mvCk=document.getElementById('sc-mv-checksum');
     if(mvCk){
-      var mvSum=mv.cardSvc+mv.cashSvc+mv.venmoSvc+mv.gcSold;
+      var mvSum=mv.cardSvc+mv.cashSvc+mv.venmoSvc+mv.gcSold+mv.cpSvc;
       var mvDiff=Math.round((mvSum-mv.rev)*100)/100;
       mvCk.textContent=mvRevR?('明細加總 '+$f(mvSum)+'（與上方月營業額差 '+(Math.abs(mvDiff)<0.01?'$0.00（相符 ✓）':(mvDiff>=0?'+':'')+$f(mvDiff))+'）'):'';
     }
     var srCk=document.getElementById('sc-sr-checksum');
     if(srCk){
-      var srSum=sr.cardSvc+sr.cashSvc+sr.venmoSvc+sr.gcSold;
+      var srSum=sr.cardSvc+sr.cashSvc+sr.venmoSvc+sr.gcSold+sr.cpSvc;
       var srDiff=Math.round((srSum-sr.rev)*100)/100;
       srCk.textContent=srRevR?('明細加總 '+$f(srSum)+'（與上方月營業額差 '+(Math.abs(srDiff)<0.01?'$0.00（相符 ✓）':(srDiff>=0?'+':'')+$f(srDiff))+'）'):'';
     }
@@ -2962,11 +2960,14 @@ function renderCalDetail(){
 
   function buildDayBreakdown(t,label,colorVar,bgVar,allocatedFee,gcClients){
     var cardSvc=t.cardSvc, cardTip=t.cardTip, venmoSvc=t.venmoSvc, venmoTip=t.venmoTip,
-        cashSvc=t.cashSvc, cashTip=t.cashTip, gcSoldTotal=t.gcSold;
-    var grossWithTips=cardSvc+cardTip+venmoSvc+venmoTip+cashSvc+cashTip+gcSoldTotal;
-    var totalFee=allocatedFee||0; // 依兩店當天營業額比例，從「手續費(兩店合計)」分攤過來的金額
+        cashSvc=t.cashSvc, cashTip=t.cashTip, gcSoldTotal=t.gcSold, cpSvc=t.cpSvc;
+    // Square/GoDaddy 總額：不含 ClassPass（ClassPass 不會經過刷卡機，Square 完全看不到這筆錢）
+    var sqGross=cardSvc+cardTip+venmoSvc+venmoTip+cashSvc+cashTip+gcSoldTotal;
+    // 每日總銷售額（用於營業額）：含 ClassPass
+    var salesGross=sqGross+cpSvc;
+    var totalFee=allocatedFee||0; // 依兩店當天「Square總額」比例，從「手續費(兩店合計)」分攤過來的金額
     var totalTips=cardTip+venmoTip+cashTip;
-    var netRevenue=grossWithTips-totalTips-totalFee;
+    var netRevenue=salesGross-totalTips-totalFee;
     var gcListItems=(gcClients||[]).map(function(g){
       var safeName=(g.name||'').replace(/&/g,'&amp;').replace(/</g,'&lt;');
       return '<div style="display:flex;justify-content:space-between;align-items:center;font-size:12.5px;padding:4px 0">'
@@ -2975,7 +2976,7 @@ function renderCalDetail(){
       +'</div>';
     }).join('');
     return '<div style="margin-bottom:14px;background:'+bgVar+';border-radius:9px;padding:14px 16px">'
-      +'<div style="font-size:12px;font-weight:700;color:'+colorVar+';text-transform:uppercase;letter-spacing:.06em;margin-bottom:10px">'+label+'　🧾 每日總銷售額（含小費，＝ Square 當天顯示的總額）</div>'
+      +'<div style="font-size:12px;font-weight:700;color:'+colorVar+';text-transform:uppercase;letter-spacing:.06em;margin-bottom:10px">'+label+'　🧾 每日總銷售額（含小費）</div>'
       +'<div style="display:flex;justify-content:space-between;font-size:13px;padding:3px 0"><span>刷卡服務費</span><span style="font-weight:600">$'+cardSvc.toFixed(2)+'</span></div>'
       +'<div style="display:flex;justify-content:space-between;font-size:13px;padding:3px 0"><span>刷卡小費</span><span style="font-weight:600">$'+cardTip.toFixed(2)+'</span></div>'
       +'<div style="display:flex;justify-content:space-between;font-size:13px;padding:3px 0"><span>Venmo</span><span style="font-weight:600">$'+venmoSvc.toFixed(2)+'</span></div>'
@@ -2983,14 +2984,16 @@ function renderCalDetail(){
       +'<div style="display:flex;justify-content:space-between;font-size:13px;padding:3px 0"><span>現金</span><span style="font-weight:600">$'+cashSvc.toFixed(2)+'</span></div>'
       +'<div style="display:flex;justify-content:space-between;font-size:13px;padding:3px 0"><span>現金小費</span><span style="font-weight:600">$'+cashTip.toFixed(2)+'</span></div>'
       +'<div style="display:flex;justify-content:space-between;font-size:13px;padding:3px 0"><span>禮品卡銷售</span><span style="font-weight:600">$'+gcSoldTotal.toFixed(2)+'</span></div>'
-      +'<div style="display:flex;justify-content:space-between;font-size:13.5px;padding:6px 0 0;margin-top:4px;border-top:1.5px solid rgba(0,0,0,.08);font-weight:700"><span>每日總銷售額</span><span>$'+grossWithTips.toFixed(2)+'</span></div>'
+      +'<div style="display:flex;justify-content:space-between;font-size:13px;padding:3px 0"><span>ClassPass</span><span style="font-weight:600">$'+cpSvc.toFixed(2)+'</span></div>'
+      +'<div style="display:flex;justify-content:space-between;font-size:13.5px;padding:6px 0 0;margin-top:4px;border-top:1.5px solid rgba(0,0,0,.08);font-weight:700"><span>每日總銷售額</span><span>$'+salesGross.toFixed(2)+'</span></div>'
       +'<div style="margin-top:10px;padding-top:10px;border-top:1px dashed rgba(0,0,0,.1)">'
         +'<div style="font-size:10px;font-weight:700;color:var(--sub);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px">往下推算「當天收入」</div>'
-        +'<div style="display:flex;justify-content:space-between;font-size:12.5px;padding:2px 0"><span>GoDaddy 總額（不扣手續費）</span><span style="font-weight:600">$'+grossWithTips.toFixed(2)+'</span></div>'
+        +'<div style="display:flex;justify-content:space-between;font-size:12.5px;padding:2px 0"><span>GoDaddy／Square 總額（不含 ClassPass，不扣手續費）</span><span style="font-weight:600">$'+sqGross.toFixed(2)+'</span></div>'
+        +'<div style="display:flex;justify-content:space-between;font-size:12.5px;padding:2px 0;color:var(--sub)"><span>+ ClassPass</span><span>+$'+cpSvc.toFixed(2)+'</span></div>'
         +'<div style="display:flex;justify-content:space-between;font-size:12.5px;padding:2px 0;color:var(--sub)"><span>− 刷卡小費</span><span>-$'+cardTip.toFixed(2)+'</span></div>'
         +'<div style="display:flex;justify-content:space-between;font-size:12.5px;padding:2px 0;color:var(--sub)"><span>− Venmo小費</span><span>-$'+venmoTip.toFixed(2)+'</span></div>'
         +'<div style="display:flex;justify-content:space-between;font-size:12.5px;padding:2px 0;color:var(--sub)"><span>− 現金小費</span><span>-$'+cashTip.toFixed(2)+'</span></div>'
-        +'<div style="display:flex;justify-content:space-between;font-size:12.5px;padding:2px 0;color:var(--sub)"><span>− 手續費（依營收比例分攤）</span><span>-$'+totalFee.toFixed(2)+'</span></div>'
+        +'<div style="display:flex;justify-content:space-between;font-size:12.5px;padding:2px 0;color:var(--sub)"><span>− 手續費（依 Square 總額比例分攤）</span><span>-$'+totalFee.toFixed(2)+'</span></div>'
         +'<div style="display:flex;justify-content:space-between;font-size:14px;padding:6px 0 0;margin-top:4px;border-top:1.5px solid rgba(0,0,0,.08);font-weight:700;color:'+colorVar+'"><span>＝ 當天收入</span><span>$'+netRevenue.toFixed(2)+'</span></div>'
       +'</div>'
       +(t.gcSvc>0?(
@@ -3483,23 +3486,23 @@ function checkGDSuspiciousValues(){
 }
 window.checkGDSuspiciousValues=checkGDSuspiciousValues;
 function updGD(d,v){
-  if(v!==''){
-    var typed=parseFloat(v)||0;
-    var due=(function(){var mv=calcDay('mv',d),sr=calcDay('sr',d);return mv.gdDue+sr.gdDue;}());
-    // 合理性檢查：如果填的金額小於當天應收的 1/5，且應收本身有一定金額，很可能是打字打到一半、還沒打完就被存檔了
-    // （這個輸入框是打完離開欄位才存檔，中途意外跳出/點別的地方，殘缺的數字會被原樣存下來，之前沒有任何檢查）
-    if(due>=20&&typed>0&&typed<due*0.2){
-      if(!confirm('⚠ 你填的 Payout 金額是 $'+typed+'，但這天系統算出來應該有 $'+due.toFixed(2)+' 左右，差距很大。\n\n很可能是數字還沒打完就存檔了（例如手機切到別的畫面、或不小心點掉輸入框）。\n\n確定要存這個數字嗎？（不確定的話按「取消」，重新打一次完整金額）')){
-        buildGDTable(); // 使用者選取消：重新畫一次表格，把輸入框還原成存檔前的樣子，不採用這次殘缺的輸入
-        return;
-      }
-    }
-  }
+  // 不管有沒有覺得數字可疑，一律先把使用者打的存起來——絕對不能因為「覺得奇怪」就丟掉輸入
   if(!_D.gd)_D.gd={};if(!_D.gd[mk()])_D.gd[mk()]={};
   if(!_D.gd[mk()][d])_D.gd[mk()][d]={};
   _D.gd[mk()][d].act=v===''?'':Math.round((parseFloat(v)||0)*100)/100;
   saveOnly();
   updateAll();
+
+  // 合理性檢查只用來「提醒」，絕對不會擋掉或撤銷剛剛的存檔
+  if(v!==''){
+    var typed=parseFloat(v)||0;
+    var due=(function(){var mv=calcDay('mv',d),sr=calcDay('sr',d);return mv.gdDue+sr.gdDue;}());
+    if(due>=20&&typed>0&&typed<due*0.2){
+      setTimeout(function(){
+        alert('⚠ 提醒：你剛存的 Payout 是 $'+typed+'，但這天系統算出來應該有 $'+due.toFixed(2)+' 左右，差距很大，很可能打到一半就存了。\n\n已經先幫你存起來了，如果數字不對，麻煩重新打一次完整金額覆蓋過去。');
+      },50);
+    }
+  }
 }
 
 function updGDAdj(d,v){
@@ -7839,6 +7842,17 @@ function downloadAllPDFs(){
         +'<td style="color:'+(isB?'#1A7A45':'#B83010')+';font-weight:600">'+(isB?'+':'-')+'$'+Math.abs(p.amt).toFixed(2)+'</td></tr>';
     });
     var grandColor=d.grand>=0?'#1A7A45':'#B83010';
+    var isHourlyBased2=(d.cfg.payType==='hourly'||d.cfg.payType==='mixed');
+    var rate2=d.cfg.hourlyRate||0;
+    var payTypeLabel2=d.cfg.payType==='hourly'?'Hourly':d.cfg.payType==='mixed'?'Mixed (Commission + Hourly)':d.cfg.payType==='commission'?'Commission':'Fixed Salary';
+    // 依上半月(1-15)／下半月(16-月底) 拆出各自的工時跟時薪部分的錢，因為薪水是分兩次半月結算的
+    var firstHalfRecs=attRecs.filter(function(r){return r.date&&parseInt(r.date.slice(8),10)<=15;});
+    var secondHalfRecs=attRecs.filter(function(r){return r.date&&parseInt(r.date.slice(8),10)>15;});
+    function halfMins(list){return list.reduce(function(s,r){return s+netMins(r.rawMins,r.breakDeducted);},0);}
+    var h1Mins=halfMins(firstHalfRecs), h2Mins=halfMins(secondHalfRecs);
+    var h1Hrs=Math.round(h1Mins/60*100)/100, h2Hrs=Math.round(h2Mins/60*100)/100;
+    var h1Pay=isHourlyBased2?Math.round(h1Hrs*rate2*100)/100:null;
+    var h2Pay=isHourlyBased2?Math.round(h2Hrs*rate2*100)/100:null;
     return '<div class="pg">'
       +'<div class="hdr">'
         +'<div style="text-align:center;margin-bottom:10px">'
@@ -7846,12 +7860,17 @@ function downloadAllPDFs(){
         +'</div>'
         +'<div style="display:flex;justify-content:space-between;align-items:flex-end">'
           +'<div><div class="staff-name">'+d.name+'</div>'
-          +'<div class="mo-label">'+moLabel+' Payroll Report</div></div>'
+          +'<div class="mo-label">'+moLabel+' Payroll Report</div>'
+          +'<div style="font-size:11px;color:#7A746C;margin-top:2px">'+payTypeLabel2+(isHourlyBased2?' &middot; $'+rate2.toFixed(2)+'/hr':'')+'</div></div>'
           +'<div class="grand" style="color:'+grandColor+'">'+$f2(d.grand)+'</div>'
         +'</div>'
       +'</div>'
       +'<table>'
         +(d.totalNetMins>0?'<tr><td>Hours Worked</td><td>'+d.hoursStr+' ('+d.workDays+' days)</td></tr>':'')
+        +(isHourlyBased2&&d.totalNetMins>0?
+          '<tr><td style="padding-left:20px;font-size:11px;color:#888">&#8618; First Half (1-15)</td><td style="font-size:11px;color:#888">'+minsToHrs(h1Mins)+' &middot; $'+(h1Pay||0).toFixed(2)+'</td></tr>'
+          +'<tr><td style="padding-left:20px;font-size:11px;color:#888">&#8618; Second Half (16-end)</td><td style="font-size:11px;color:#888">'+minsToHrs(h2Mins)+' &middot; $'+(h2Pay||0).toFixed(2)+'</td></tr>'
+        :'')
         +'<tr><td>Service Fee</td><td>$'+d.totalSales.toFixed(2)+'</td></tr>'
         +'<tr><td>'+enBaseLabel(d.cfg,d.totalNetMins)+'</td><td style="color:#1656A0;font-weight:600">$'+d.basePay.toFixed(2)+'</td></tr>'
         +tipRow
@@ -8822,15 +8841,15 @@ function exportReconReport(){
     +'<div class="sub">'+moLabelZh+'　|　產生時間：'+printedAt+'</div>'
     +'<div class="sec-title">兩店合計月營業額</div>'
     +'<div class="big">$'+totRev.toLocaleString()+'</div>'
-    +'<div class="sub" style="margin:2px 0 10px">刷卡收入 + 現金收入 + Venmo收入 + 禮品卡銷售（不含小費，小費另計入小費分配）</div>'
+    +'<div class="sub" style="margin:2px 0 10px">刷卡收入 + 現金收入 + Venmo收入 + 禮品卡銷售 + ClassPass（不含小費，小費另計入小費分配）</div>'
     +'<div class="sum-grid">'
       +'<div class="sum-box"><div class="sum-l">刷卡收入</div><div class="sum-v">$'+(mvM.cardSvc+srM.cardSvc).toFixed(2)+'</div></div>'
       +'<div class="sum-box"><div class="sum-l">現金收入</div><div class="sum-v">$'+(mvM.cashSvc+srM.cashSvc).toFixed(2)+'</div></div>'
       +'<div class="sum-box"><div class="sum-l">Venmo收入</div><div class="sum-v">$'+(mvM.venmoSvc+srM.venmoSvc).toFixed(2)+'</div></div>'
       +'<div class="sum-box"><div class="sum-l">禮品卡銷售</div><div class="sum-v">$'+(mvM.gcSold+srM.gcSold).toFixed(2)+'</div></div>'
+      +'<div class="sum-box"><div class="sum-l">ClassPass</div><div class="sum-v">$'+(mvM.cpSvc+srM.cpSvc).toFixed(2)+'</div></div>'
     +'</div>'
     +'<div class="sum-grid">'
-      +'<div class="sum-box"><div class="sum-l">ClassPass（已含在刷卡收入內）</div><div class="sum-v" style="font-size:13px">$'+(mvM.cpSvc+srM.cpSvc).toFixed(2)+'</div></div>'
       +'<div class="sum-box"><div class="sum-l">刷卡 Tip（不計入營業額）</div><div class="sum-v" style="font-size:13px">$'+(mvM.cardTip+srM.cardTip).toFixed(2)+'</div></div>'
       +'<div class="sum-box"><div class="sum-l">現金小費（不計入營業額）</div><div class="sum-v" style="font-size:13px">$'+(mvM.cashTip+srM.cashTip).toFixed(2)+'</div></div>'
       +'<div class="sum-box"><div class="sum-l">Venmo Tip（不計入營業額）</div><div class="sum-v" style="font-size:13px">$'+(mvM.venmoTip+srM.venmoTip).toFixed(2)+'</div></div>'
@@ -8902,19 +8921,19 @@ function exportReconReport(){
     +'<div class="sub">'+moLabelZh+'　|　以下是每一項數字背後的公式與定義</div>'
 
     +'<div class="formula-box"><div class="f-title">① 月營業額（本店真正賺到的服務收入）</div>'
-      +'<code>月營業額 = 刷卡收入 + 現金收入 + Venmo收入 + 禮品卡銷售</code>'
+      +'<code>月營業額 = 刷卡收入 + 現金收入 + Venmo收入 + 禮品卡銷售 + ClassPass</code>'
       +'<div style="margin-top:10px;font-size:12.5px;color:#555;line-height:1.8">'
       +'• <b>不含任何小費</b>——小費是要付給技師的錢，不是店裡的收入，另外在「小費分配」頁面單獨計算、分給技師。<br>'
-      +'• ClassPass 客人的服務費算在「刷卡收入」裡面（不會重複相加），因為 ClassPass 是透過刷卡機請款的。<br>'
+      +'• <b>ClassPass 是獨立的一欄，不算在「刷卡收入」裡面</b>——因為 ClassPass 是平台付款給店裡，不是客人在店裡刷卡，所以跟真正過卡的刷卡收入分開列，但一樣算進月營業額（也一樣算給技師業績抽成）。<br>'
       +'• 客人用禮品卡付一部分、刷卡/現金補差額時，補差額的部分會算進對應的刷卡/現金收入。<br>'
       +'• <b>禮品卡銷售 = 這個月「賣出」禮品卡收到的錢</b>（依售出時登記的付款方式，已包含在上面刷卡/現金收入的加總邏輯裡單獨列出）。客人之後「拿禮品卡來兌換服務」時，兌換金額<b>不會再被算一次月營業額</b>（因為賣卡當下已經算過了），但兌換的服務金額依然會正常算進技師的業績抽成，不受影響。'
       +'</div></div>'
 
     +'<div class="formula-box"><div class="f-title">② GoDaddy 應收（銀行應該撥款給你的金額，不是營業額）</div>'
-      +'<code>每日 GoDaddy 應收 = 刷卡服務費 − ClassPass服務費 + 全部刷卡小費</code>'
+      +'<code>每日 GoDaddy 應收 = 刷卡服務費 + 全部刷卡小費</code>'
       +'<div style="margin-top:10px;font-size:12.5px;color:#555;line-height:1.8">'
       +'• 這是「現金流」概念，不是「營業額」概念——因為客人刷卡付的小費，銀行會跟服務費一起撥款給你，所以應收金額通常會比營業額高一截，這是正常現象，不是算錯。<br>'
-      +'• ClassPass 的服務費不透過這台刷卡機收款，所以不計入應收；但 ClassPass 客人如果用卡付小費，那筆小費一樣會透過刷卡機撥款，所以仍計入。<br>'
+      +'• ClassPass 的服務費完全不透過這台刷卡機收款，本來就不會出現在刷卡收入裡，所以這裡不用再扣一次；但 ClassPass 客人如果用卡付小費，那筆小費一樣會透過刷卡機撥款，所以仍計入。<br>'
       +'• 撥款是全額到帳，不會逐筆先扣手續費（已用實際的 Square Payout Payments 報表核對過）。如果每月都出現持續性的落差，建議檢查是否有漏記的刷卡交易（例如產品銷售、會員卡銷售、禮品卡補差額等），或個別交易是否延遲到下一批撥款。'
       +'</div></div>'
 
@@ -9807,6 +9826,10 @@ function exportAttPDF(){
     var c=color.hex;    // main accent
     var cbg=color.bg;   // light background
     var cbr=color.border; // border
+    var cfg=staffPayCfg(name);
+    var rate=cfg.hourlyRate||0;
+    var isHourlyBased=(cfg.payType==='hourly'||cfg.payType==='mixed');
+    var payTypeLabel=cfg.payType==='hourly'?'時薪制 Hourly':cfg.payType==='mixed'?'混合制（時薪+抽成）Mixed':cfg.payType==='commission'?'抽成制 Commission':'固定月薪 Salary';
 
     var recs=(d.records[name]||[]).slice().sort(function(a,b){return a.date<b.date?-1:1;});
     var totalNet=recs.reduce(function(s,r){return s+netMins(r.rawMins,r.breakDeducted);},0);
@@ -9815,20 +9838,43 @@ function exportAttPDF(){
     var deductTotal=myPens.filter(function(p){return p.type==='deduct';}).reduce(function(s,p){return s+Math.abs(p.amt);},0);
     var penNet=bonusTotal-deductTotal;
 
-    var attRows=recs.map(function(r){
-      var dt=new Date(r.date+'T12:00:00');
-      var dow=DAYS[dt.getDay()];
-      var isWk=dt.getDay()===0||dt.getDay()===6;
-      var rawH=r.rawMins?Math.round(r.rawMins/60*100)/100:0;
-      var nm=netMins(r.rawMins,r.breakDeducted);
-      return '<tr>'+
-        '<td style="color:'+(isWk?'#B83010':'inherit')+'">'+r.date.slice(5)+' ('+dow+')</td>'+
-        '<td style="text-align:right">'+rawH+' hr</td>'+
-        '<td style="text-align:center">'+(r.breakDeducted!==false?'&#9654; -30 min':'No deduction')+'</td>'+
-        '<td style="text-align:right;font-weight:700;color:'+c+'">'+minsToHrs(nm)+'</td>'+
-        '<td style="color:#7A746C">'+(r.note||'')+'</td>'+
-      '</tr>';
-    }).join('');
+    // 依「上半月(1-15)／下半月(16-月底)」分段，因為薪水是分兩次半月結算的
+    var firstHalf=recs.filter(function(r){return parseInt(r.date.slice(8),10)<=15;});
+    var secondHalf=recs.filter(function(r){return parseInt(r.date.slice(8),10)>15;});
+
+    function halfSummary(list){
+      var mins=list.reduce(function(s,r){return s+netMins(r.rawMins,r.breakDeducted);},0);
+      var hrs=Math.round(mins/60*100)/100;
+      var pay=isHourlyBased?Math.round(hrs*rate*100)/100:null;
+      return {mins:mins,hrs:hrs,pay:pay,days:list.length};
+    }
+    var h1=halfSummary(firstHalf), h2=halfSummary(secondHalf);
+    var totalHrs=Math.round(totalNet/60*100)/100;
+    var totalPay=isHourlyBased?Math.round(totalHrs*rate*100)/100:null;
+
+    function buildAttGroup(list,groupLabel,summary){
+      if(!list.length)return '';
+      var rowsHtml=list.map(function(r){
+        var dt=new Date(r.date+'T12:00:00');
+        var dow=DAYS[dt.getDay()];
+        var isWk=dt.getDay()===0||dt.getDay()===6;
+        var rawH=r.rawMins?Math.round(r.rawMins/60*100)/100:0;
+        var nm=netMins(r.rawMins,r.breakDeducted);
+        return '<tr>'+
+          '<td style="color:'+(isWk?'#B83010':'inherit')+'">'+r.date.slice(5)+' ('+dow+')</td>'+
+          '<td style="text-align:right">'+rawH+' hr</td>'+
+          '<td style="text-align:center">'+(r.breakDeducted!==false?'&#9654; -30 min':'No deduction')+'</td>'+
+          '<td style="text-align:right;font-weight:700;color:'+c+'">'+minsToHrs(nm)+'</td>'+
+          '<td style="color:#7A746C">'+(r.note||'')+'</td>'+
+        '</tr>';
+      }).join('');
+      return '<tr style="background:'+cbg+'"><td colspan="5" style="font-weight:700;font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:'+c+';border-color:'+cbr+'">'+groupLabel+'</td></tr>'+
+        rowsHtml+
+        '<tr style="background:#FAFAF8"><td colspan="3" style="font-weight:600;color:#7A746C;font-size:12px">'+groupLabel+' Subtotal（'+summary.days+' days）</td>'+
+        '<td style="text-align:right;font-weight:700;color:'+c+'">'+minsToHrs(summary.mins)+'</td>'+
+        '<td style="font-size:12px;color:#7A746C">'+(summary.pay!==null?'Est. Pay $'+summary.pay.toFixed(2):'')+'</td></tr>';
+    }
+    var attRows=buildAttGroup(firstHalf,'First Half (1-15)',h1)+buildAttGroup(secondHalf,'Second Half (16-'+new Date(y,m+1,0).getDate()+')',h2);
     if(!attRows)attRows='<tr><td colspan="5" style="text-align:center;color:#B0AAA2;padding:16px">No attendance records this month</td></tr>';
 
     var penRows=myPens.map(function(p){
@@ -9852,17 +9898,20 @@ function exportAttPDF(){
             '<div class="pm">'+moLabel+' Attendance Report</div>'+
           '</div>'+
         '</div>'+
-        '<div class="logo" style="color:'+c+'">Chic Lash</div>'+
+        '<div style="text-align:right">'+
+          '<div class="logo" style="color:'+c+'">Chic Lash</div>'+
+          '<div style="font-size:11px;color:#7A746C;margin-top:4px">'+payTypeLabel+(isHourlyBased?' &middot; $'+rate.toFixed(2)+'/hr':'')+'</div>'+
+        '</div>'+
       '</div>'+
 
-      '<div class="sec-title">&#128197; Attendance Details</div>'+
+      '<div class="sec-title">&#128197; Attendance Details（分上下半月，方便對應半月發薪）</div>'+
       '<table>'+
         '<thead><tr style="background:'+cbg+'"><th style="border-bottom-color:'+cbr+'">Date</th><th style="text-align:right;border-bottom-color:'+cbr+'">Hours Worked</th><th style="text-align:center;border-bottom-color:'+cbr+'">Break</th><th style="text-align:right;border-bottom-color:'+cbr+'">Actual Hours</th><th style="border-bottom-color:'+cbr+'">Note</th></tr></thead>'+
         '<tbody>'+attRows+'</tbody>'+
         '<tfoot><tr style="background:'+cbg+'">'+
           '<td colspan="3" style="font-weight:700;color:#7A746C;border-color:'+cbr+'">Monthly Total</td>'+
           '<td style="text-align:right;font-weight:700;font-size:15px;color:'+c+';border-color:'+cbr+'">'+minsToHrs(totalNet)+'</td>'+
-          '<td style="color:#7A746C;border-color:'+cbr+'">'+recs.length+' days total</td>'+
+          '<td style="color:#7A746C;border-color:'+cbr+'">'+recs.length+' days total'+(totalPay!==null?' &middot; Est. Pay $'+totalPay.toFixed(2):'')+'</td>'+
         '</tr></tfoot>'+
       '</table>'+
 
@@ -9880,12 +9929,18 @@ function exportAttPDF(){
       :'')+
 
       '<div class="sumbox" style="background:'+cbg+';border-color:'+cbr+'">'+
+        (isHourlyBased?'<div class="sumrow"><span>Hourly Rate</span><span class="sumval">$'+rate.toFixed(2)+' / hr</span></div>':'')+
         '<div class="sumrow"><span>Days Worked</span><span class="sumval">'+recs.length+' days</span></div>'+
         '<div class="sumrow"><span>Total Actual Hours</span><span class="sumval" style="color:'+c+'">'+minsToHrs(totalNet)+'</span></div>'+
-        '<div class="sumrow"><span>Bonus Total</span><span class="sumval" style="color:#1A7A45">+$'+bonusTotal.toFixed(2)+'</span></div>'+
+        (isHourlyBased?'<div class="sumrow" style="border-top:1px dashed '+cbr+';margin-top:4px;padding-top:4px"><span>First Half (1-15) Pay</span><span class="sumval">$'+(h1.pay||0).toFixed(2)+'</span></div>':'')+
+        (isHourlyBased?'<div class="sumrow"><span>Second Half Pay</span><span class="sumval">$'+(h2.pay||0).toFixed(2)+'</span></div>':'')+
+        (isHourlyBased?'<div class="sumrow" style="font-weight:700"><span>Total Est. Pay</span><span class="sumval" style="font-size:16px;color:'+c+'">$'+(totalPay||0).toFixed(2)+'</span></div>':'')+
+        '<div class="sumrow" style="border-top:1.5px solid '+cbr+';margin-top:6px;padding-top:6px"><span>Bonus Total</span><span class="sumval" style="color:#1A7A45">+$'+bonusTotal.toFixed(2)+'</span></div>'+
         '<div class="sumrow"><span>Deduction Total</span><span class="sumval" style="color:#B83010">-$'+deductTotal.toFixed(2)+'</span></div>'+
         '<div class="sumrow" style="border-top:1.5px solid '+cbr+';margin-top:6px;padding-top:6px;font-weight:700"><span>Net Bonus/Deduction</span><span class="sumval" style="font-size:16px;color:'+(penNet>=0?'#1A7A45':'#B83010')+'">'+(penNet>=0?'+':'')+penNet.toFixed(2)+'</span></div>'+
+        (isHourlyBased?'<div class="sumrow" style="border-top:1.5px solid '+cbr+';margin-top:6px;padding-top:6px;font-weight:700"><span>Est. Pay + Bonus/Deduction</span><span class="sumval" style="font-size:17px;color:'+c+'">$'+((totalPay||0)+penNet).toFixed(2)+'</span></div>':'')+
       '</div>'+
+      (isHourlyBased?'<div style="font-size:10px;color:#B0AAA2;margin-top:6px">* Est. Pay 僅為工時 × 時薪的估算金額，不含抽成／其他調整項目，正式薪資請以「月結報表」為準。</div>':'')+
 
       '<div class="ft">Chic Lash &nbsp;|&nbsp; '+moLabel+' &nbsp;|&nbsp; Printed: '+new Date().toLocaleDateString('en-US')+'</div>'+
     '</div>';
