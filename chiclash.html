@@ -1900,7 +1900,7 @@ input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-
 <!-- ══ Firebase 雲端同步 ══ -->
 <script type="module">
   import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
-  import { getFirestore, doc, getDoc, setDoc, collection, getDocs, query, where, updateDoc, addDoc } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
+  import { getFirestore, doc, getDoc, setDoc, onSnapshot, collection, getDocs, query, where, updateDoc, addDoc } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
 
   const firebaseConfig = {
     apiKey: "AIzaSyCbiJE0WiBy9oOPp0Vh0AdsEOcPjyNsVwk",
@@ -1943,45 +1943,61 @@ input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-
 
   setSyncStatus('⟳ 同步中…', '#7A746C');
 
+  // ── 逐天/逐筆安全合併：絕對不讓「贏的一方」整包蓋掉另一方已經填寫的每日資料 ──
+  // 適用於 mv/sr（每天客人紀錄）跟 gd（每天GoDaddy實收）這種 {月份:{日期:紀錄}} 結構
+  // 規則：以「這台裝置（本機）現在打的」為準，只有本機那天完全空白時才退而使用對方的版本補上。
+  // 不比較「誰的金額比較合理/誰有沒有紅字」——GoDaddy 對帳紅字是正常的差異提示，跟該用誰的版本是兩件事，不能混著判斷。
+  // 這組函式在「第一次載入時的合併」跟「之後即時監聽雲端變化」都會用到，所以放在外面共用。
+  function dayHasContent(rec, key){
+    if(!rec) return false;
+    if(key==='gd') return rec.act!==undefined && rec.act!=='';
+    return (rec.clients||[]).length>0; // mv/sr：有客人紀錄才算「本機已經填過」
+  }
+  function mergeDailyStore(localStore, cloudStore, key){
+    const result = {};
+    const allMonths = new Set([...Object.keys(localStore||{}), ...Object.keys(cloudStore||{})]);
+    allMonths.forEach(function(mo){
+      const localMonth = (localStore||{})[mo] || {};
+      const cloudMonth = (cloudStore||{})[mo] || {};
+      const allDays = new Set([...Object.keys(localMonth), ...Object.keys(cloudMonth)]);
+      result[mo] = {};
+      allDays.forEach(function(d){
+        const l = localMonth[d], c = cloudMonth[d];
+        if(l===undefined){ result[mo][d]=c; return; }
+        if(c===undefined){ result[mo][d]=l; return; }
+        // 兩邊都有這一天 → 只要本機那天有填過東西，就一律用本機的，不管雲端寫的是什麼
+        result[mo][d] = dayHasContent(l,key) ? l : c;
+      });
+    });
+    return result;
+  }
+  // 適用於 gc_cards 這種陣列結構：依 id 聯集，兩邊都有的紀錄都保留，不會互相蓋掉
+  function mergeArrayById(a,b){
+    const map={}, order=[];
+    (a||[]).forEach(function(x){ if(x&&x.id!==undefined&&!map[x.id]){map[x.id]=x;order.push(x.id);} });
+    (b||[]).forEach(function(x){ if(x&&x.id!==undefined&&!map[x.id]){map[x.id]=x;order.push(x.id);} });
+    return order.map(function(id){return map[id];});
+  }
+  // 合併兩份完整資料（本機正在用的 base 為主，other 補上 base 沒有的部分），回傳合併後的結果
+  function mergeFullData(base, other){
+    const merged = Object.assign({}, base);
+    merged.mv = mergeDailyStore(base.mv, other.mv, 'mv');
+    merged.sr = mergeDailyStore(base.sr, other.sr, 'sr');
+    merged.gd = mergeDailyStore(base.gd, other.gd, 'gd');
+    merged.gc_cards = mergeArrayById(base.gc_cards, other.gc_cards);
+    const safeKeys = ['staffPay','payroll','sqNameMap','tipConfirmed','tipSplitState','reviewSel','reviews','att','penalties','bnkBal','cdManual','tipSchedule','memberItems','members','memberSaleRewards','memberSaleRewardSel'];
+    safeKeys.forEach(function(key){
+      if(other[key] !== undefined && base[key] === undefined){
+        merged[key] = other[key];
+      }
+    });
+    return merged;
+  }
+
   try {
     const snap = await getDoc(doc(db, 'chic lash', 'data'));
     const local = JSON.parse(localStorage.getItem('rev19') || '{}');
     const hasLocalData = local.mv || local.sr; // 本機有實際資料
-
-    // ── 逐天/逐筆安全合併：絕對不讓「贏的一方」整包蓋掉另一方已經填寫的每日資料 ──
-    // 適用於 mv/sr（每天客人紀錄）跟 gd（每天GoDaddy實收）這種 {月份:{日期:紀錄}} 結構
-    // 規則：以「這台裝置（本機）現在打的」為準，只有本機那天完全空白時才退而使用對方的版本補上。
-    // 不比較「誰的金額比較合理/誰有沒有紅字」——GoDaddy 對帳紅字是正常的差異提示，跟該用誰的版本是兩件事，不能混著判斷。
-    function dayHasContent(rec, key){
-      if(!rec) return false;
-      if(key==='gd') return rec.act!==undefined && rec.act!=='';
-      return (rec.clients||[]).length>0; // mv/sr：有客人紀錄才算「本機已經填過」
-    }
-    function mergeDailyStore(localStore, cloudStore, key){
-      const result = {};
-      const allMonths = new Set([...Object.keys(localStore||{}), ...Object.keys(cloudStore||{})]);
-      allMonths.forEach(function(mo){
-        const localMonth = (localStore||{})[mo] || {};
-        const cloudMonth = (cloudStore||{})[mo] || {};
-        const allDays = new Set([...Object.keys(localMonth), ...Object.keys(cloudMonth)]);
-        result[mo] = {};
-        allDays.forEach(function(d){
-          const l = localMonth[d], c = cloudMonth[d];
-          if(l===undefined){ result[mo][d]=c; return; }
-          if(c===undefined){ result[mo][d]=l; return; }
-          // 兩邊都有這一天 → 只要本機那天有填過東西，就一律用本機的，不管雲端寫的是什麼
-          result[mo][d] = dayHasContent(l,key) ? l : c;
-        });
-      });
-      return result;
-    }
-    // 適用於 gc_cards 這種陣列結構：依 id 聯集，兩邊都有的紀錄都保留，不會互相蓋掉
-    function mergeArrayById(a,b){
-      const map={}, order=[];
-      (a||[]).forEach(function(x){ if(x&&x.id!==undefined&&!map[x.id]){map[x.id]=x;order.push(x.id);} });
-      (b||[]).forEach(function(x){ if(x&&x.id!==undefined&&!map[x.id]){map[x.id]=x;order.push(x.id);} });
-      return order.map(function(id){return map[id];});
-    }
 
     if (snap.exists()) {
       const cloudData = snap.data();
@@ -2004,21 +2020,7 @@ input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-
         other = local;
       }
 
-      const merged = Object.assign({}, base);
-
-      // 每日記帳類資料：不管哪邊「贏」，都逐天合併，絕不整包蓋掉已填寫的日子
-      merged.mv = mergeDailyStore(local.mv, cloudData.mv, 'mv');
-      merged.sr = mergeDailyStore(local.sr, cloudData.sr, 'sr');
-      merged.gd = mergeDailyStore(local.gd, cloudData.gd, 'gd');
-      merged.gc_cards = mergeArrayById(local.gc_cards, cloudData.gc_cards);
-
-      // 補上另一邊獨有的設定 key
-      const safeKeys = ['staffPay','payroll','sqNameMap','tipConfirmed','tipSplitState','reviewSel','reviews','att','penalties','bnkBal','cdManual','tipSchedule','memberItems','members','memberSaleRewards','memberSaleRewardSel'];
-      safeKeys.forEach(function(key){
-        if(other[key] !== undefined && base[key] === undefined){
-          merged[key] = other[key];
-        }
-      });
+      const merged = mergeFullData(base, other);
 
       // 合併完之後才真正把這份（已經保護過每日資料的）版本寫回本機跟雲端，取代掉直接無條件覆蓋的舊寫法
       window._D = merged;
@@ -2037,6 +2039,36 @@ input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-
   } catch(e) {
     console.warn('Firebase 連線失敗，使用本機資料：', e);
     setSyncStatus('⚠ 離線模式', '#B83010');
+  }
+
+  // ── 即時監聽：只要雲端資料被「別的裝置/分頁」改掉，就自動同步過來、重新畫面，不用手動重新整理 ──
+  // 用 _savedAt 這個時間戳記分辨「這是不是我自己剛剛存的」，避免自己存一次、又觸發自己重畫一次的無限迴圈。
+  if (window._db) {
+    try {
+      onSnapshot(doc(db, 'chic lash', 'data'), function(snap){
+        if (!snap.exists()) return;
+        var cloudData = snap.data();
+        var cloudTs = cloudData._savedAt || 0;
+        // 這筆更新如果就是我們自己剛剛寫出去的那一版（時間戳記一樣），不用理它，避免自己觸發自己重畫
+        if (cloudTs && cloudTs === window._lastWrittenSavedAt) return;
+        // 這筆更新如果比我們現在手上的資料還舊或一樣，也不用理它
+        var curTs = (window._D && window._D._savedAt) || 0;
+        if (cloudTs <= curTs) return;
+
+        // 真的是別的裝置/分頁新存的資料 → 用同一套「逐天安全合併」規則合併進來，
+        // 以本機現有的（可能才剛打、還沒被雲端看到的）資料為主，雲端資料補上本機沒有的部分，避免互相蓋掉
+        var merged = mergeFullData(window._D || {}, cloudData);
+        window._D = merged;
+        try { localStorage.setItem('rev19', JSON.stringify(merged)); } catch(e2) {}
+        if (typeof renderAll === 'function') renderAll();
+        setSyncStatus('✓ 已同步其他裝置的更新', '#1A7A45');
+        setTimeout(function(){ setSyncStatus('✓ 資料已同步', '#1A7A45'); }, 2500);
+      }, function(err){
+        console.warn('即時監聽失敗（不影響現有功能，只是不會自動收到別的裝置的更新）：', err);
+      });
+    } catch(e) {
+      console.warn('無法啟動即時監聽：', e);
+    }
   }
 
   setTimeout(()=>{
@@ -2100,6 +2132,7 @@ let activeStore='mv';
 // ── FIREBASE SAVE ──
 const saveOnly=()=>{
   _D._savedAt = Date.now();
+  window._lastWrittenSavedAt = _D._savedAt; // 記錄「這是我自己剛存的版本」，即時監聽看到同樣的時間戳記時會略過，不會自己觸發自己重畫
   try{
     localStorage.setItem('rev19',JSON.stringify(_D));
   }catch(e){
@@ -3365,6 +3398,30 @@ function buildGDTable(){
 
   // 每日對帳表
   var tbl=document.getElementById('gd-tbl');tbl.innerHTML='';
+
+  // 自動偵測可疑小額 Payout（不用等使用者自己想到要點「檢查異常小額」按鈕，每次打開這頁就自動掃一次）
+  (function(){
+    var suspicious=[];
+    for(var dd=1;dd<=days;dd++){
+      var gdR2=gdDay(dd);
+      var rAct2=gdR2.act;
+      if(rAct2===''||rAct2===undefined||rAct2===null)continue;
+      var actVal2=parseFloat(rAct2);
+      var due2=(function(){var mv2=calcDay('mv',dd),sr2=calcDay('sr',dd);return mv2.gdDue+sr2.gdDue;}());
+      if(due2>=20&&actVal2>0&&actVal2<due2*0.2){
+        suspicious.push({d:dd,act:actVal2,due:due2,dateStr:String(m+1).padStart(2,'0')+'/'+String(dd).padStart(2,'0')});
+      }
+    }
+    if(suspicious.length>0){
+      var warnBanner=document.createElement('div');
+      warnBanner.style.cssText='padding:12px 16px;background:#FDEAEA;border:2px solid #E0A0A0;border-radius:8px;margin:10px 14px;font-size:12.5px;color:#A03030';
+      var listStr=suspicious.map(function(s){return s.dateStr+'（填了 $'+s.act+'，應收約 $'+s.due.toFixed(2)+'）';}).join('、');
+      warnBanner.innerHTML='<div style="font-weight:700;margin-bottom:6px">⚠ 偵測到 '+suspicious.length+' 天的 Payout 金額明顯太小，很可能是之前打字打到一半就存檔了：</div>'
+        +'<div style="margin-bottom:8px">'+listStr+'</div>'
+        +'<button onclick="checkGDSuspiciousValues()" style="padding:6px 14px;background:#A03030;color:#fff;border:none;border-radius:6px;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit">一鍵清空這些異常值，重新填入正確金額</button>';
+      tbl.appendChild(warnBanner);
+    }
+  })();
 
   // 說明列
   var noteEl=document.createElement('div');
