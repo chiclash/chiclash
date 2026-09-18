@@ -533,7 +533,7 @@ input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-
   <div class="s-sec">每日記帳</div>
   <button class="ni" id="ni-mv" onclick="showPage('mv');switchStore('mv')"><span class="ni-ic">📍</span>Mill Valley</button>
   <button class="ni" id="ni-sr" onclick="showPage('mv');switchStore('sr')"><span class="ni-ic">📍</span>San Rafael</button>
-  <div class="s-bot"><div id="sync-status" style="font-size:10px;text-align:center;margin-bottom:6px;transition:opacity 1s;color:#7A746C">正在連線…</div><button class="exp-btn" onclick="exportCSV()">↓ 匯出 CSV</button></div>
+  <div class="s-bot"><div id="sync-status" style="font-size:10px;text-align:center;margin-bottom:6px;transition:opacity 1s;color:#7A746C">正在連線…</div><button class="exp-btn" onclick="exportCSV()" title="下載本月每日記帳完整資料（含姓名/技師），可直接拿去跟Square真實交易比對">↓ 下載本月完整記帳 CSV</button></div>
 </div>
 
 <div class="main">
@@ -9027,18 +9027,23 @@ function exportCSV(){
   const pad=n=>String(n).padStart(2,'0');
   let csv='';
   ['mv','sr'].forEach(s=>{
-    csv+=`\n${s==='mv'?'Mill Valley':'San Rafael'}\n日期,客人,服務費,付款方式,ClassPass,GC使用金額,Tip,Tip方式,GoDaddy應收,當日營業額\n`;
+    csv+=`\n${s==='mv'?'Mill Valley':'San Rafael'}\n日期,店,客人姓名,技師,服務費,付款方式,ClassPass,GC使用金額,Tip,Tip方式,GoDaddy應收,當日營業額\n`;
     for(let d=1;d<=days;d++){
       const r=sDay(s,d);const t=calcDay(s,d);
-      if(r.clients.length===0){csv+=`${y}-${pad(m+1)}-${pad(d)},,,,,,,,${t.gdDue.toFixed(2)},${t.rev.toFixed(2)}\n`;continue;}
+      const storeLabel=s==='mv'?'Mill Valley':'San Rafael';
+      if(r.clients.length===0){csv+=`${y}-${pad(m+1)}-${pad(d)},${storeLabel},,,,,,,,,${t.gdDue.toFixed(2)},${t.rev.toFixed(2)}\n`;continue;}
       r.clients.forEach((c,i)=>{
-        csv+=`${y}-${pad(m+1)}-${pad(d)},${i+1},${gv(c.svc).toFixed(2)},${c.pay},${c.cp?'是':'否'},${resolveGcAmt(c).toFixed(2)},${gv(c.tip).toFixed(2)},${c.tipPay||'card'},${i===0?t.gdDue.toFixed(2):''},${i===0?t.rev.toFixed(2):''}\n`;
+        const techName=Array.isArray(c.staff)&&c.staff.length>0?c.staff[0]:(c.tech||'');
+        const clientName=(c.clientName||'').trim();
+        // 姓名/技師裡如果有逗號，用雙引號包起來，避免把CSV欄位拆錯
+        const csvSafe=v=>v.indexOf(',')>=0||v.indexOf('"')>=0?'"'+v.replace(/"/g,'""')+'"':v;
+        csv+=`${y}-${pad(m+1)}-${pad(d)},${storeLabel},${csvSafe(clientName)},${csvSafe(techName)},${gv(c.svc).toFixed(2)},${c.pay},${c.cp?'是':'否'},${resolveGcAmt(c).toFixed(2)},${gv(c.tip).toFixed(2)},${c.tipPay||'card'},${i===0?t.gdDue.toFixed(2):''},${i===0?t.rev.toFixed(2):''}\n`;
       });
     }
   });
   const a=document.createElement('a');
   a.href=URL.createObjectURL(new Blob(['\uFEFF'+csv],{type:'text/csv;charset=utf-8'}));
-  a.download=`營業額_${mk()}.csv`;a.click();
+  a.download=`每日記帳_完整版_${mk()}.csv`;a.click();
 }
 
 // ── ATTENDANCE ──
