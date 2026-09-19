@@ -3287,7 +3287,9 @@ function mergeGDSqFiles(){
     if(txn.pay==='cash')return; // 現金不算 GoDaddy
     var totalNet=items.reduce(function(s,it){return s+it.net;},0);
     var tip=txn.tip||0;
-    var gdAmt=(totalNet+tip)*GD_FEE;
+    // ClassPass：服務費不算 GoDaddy（因為錢是平台付的，不會過這台刷卡機），但小費算——
+    // 如果客人用卡付小費，那筆小費還是真的會透過刷卡機撥款，這裡不能跟服務費一起跳過。
+    var gdAmt=((txn.isCP?0:totalNet)+tip)*GD_FEE;
     records.push({
       dateStr:txn.date,
       timeStr:txn.time||'12:00:00',
@@ -3301,7 +3303,8 @@ function mergeGDSqFiles(){
   var gdDayMap={}; // { 'YYYY-MM-DD': totalAmt }
 
   records.forEach(function(r){
-    if(r.isCP)return; // ClassPass 不算 GoDaddy
+    // 注意：這裡不能再用 if(r.isCP)return 整筆跳過——ClassPass 客人的服務費已經在
+    // 上面算 gdAmt 時被排除了，但小費還在 gdAmt 裡面，這裡應該要繼續累加進去，不能整筆丟掉。
     gdDayMap[r.dateStr]=(gdDayMap[r.dateStr]||0)+r.gdAmt;
   });
 
