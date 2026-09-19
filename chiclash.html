@@ -3264,6 +3264,140 @@ function checkGDSqReady(){
   btn.style.opacity=ready?'1':'.4';
 }
 
+// ── 自動抓出「可能有疑慮」的交易 ──
+// 拿每日記帳的客人紀錄，跟 Square 真實交易用「姓名+時間最接近」配對，找出：
+// (1) 付款方式不符 (2) 金額對不上 (3) 記帳裡完全找不到這筆。存進 _D.gdReview[mo][day]，
+// 並保留使用者之前填過的備註/狀態(用id比對)，重新整理不會把已經確認過的東西清掉。
+function detectGdReviewItems(mo, itemsRaw, txnMap){
+  var txnInfo={};
+  (itemsRaw||[]).forEach(function(it){
+    var key=it.date+'|'+it.txnId;
+    if(!txnInfo[key])txnInfo[key]={name:it.customer||'',time:it.time||'',store:it.store,net:0};
+    txnInfo[key].net+=it.net;
+  });
+  var realByDS={};
+  Object.keys(txnInfo).forEach(function(key){
+    var parts=key.split('|'),date=parts[0],tid=parts[1];
+    var info=txnInfo[key];
+    var t=txnMap[tid]||{};
+    var tip=t.tip||0,cash=t.cash||0,isCP=t.isCP||false;
+    var store=(info.store==='sr')?'sr':'mv';
+    var dsKey=date+'|'+store;
+    if(!realByDS[dsKey])realByDS[dsKey]=[];
+    realByDS[dsKey].push({name:info.name,time:info.time,net:info.net,tip:tip,total:info.net+tip,isCash:cash>0,isCP:isCP,used:false});
+  });
+
+  function timeToMin(t){
+    if(!t)return null;
+    var p=t.split(':').map(Number);
+    return p[0]*60+p[1]+(p[2]||0)/60;
+  }
+
+  if(!_D.gdReview)_D.gdReview={};
+  var prevReview=_D.gdReview[mo]||{};
+  var newReview={};
+  var totalCount=0;
+
+  var y=parseInt(mo.slice(0,4),10),m=parseInt(mo.slice(5,7),10)-1;
+  var days=new Date(y,m+1,0).getDate();
+
+  for(var d=1;d<=days;d++){
+    var dateStr=mo+'-'+String(d).padStart(2,'0');
+    var dayItems=[];
+    ['mv','sr'].forEach(function(store){
+      var dayData=(_D[store]&&_D[store][mo]&&_D[store][mo][d])||{clients:[]};
+      var realRows=(realByDS[dateStr+'|'+store]||[]).slice();
+      (dayData.clients||[]).forEach(function(c){
+        if(!c.clientName||c.clientName==='Ashley zhang')return;
+        var cTimeMin=timeToMin(c.time);
+        var candidates=realRows.filter(function(r){return !r.used;});
+        if(cTimeMin!==null){
+          candidates=candidates.map(function(r){return Object.assign({},r,{timeDiff:Math.abs(timeToMin(r.time)-cTimeMin)});})
+            .sort(function(a,b){return a.timeDiff-b.timeDiff;});
+        }
+        if(candidates.length===0)return;
+        var best=candidates[0];
+        if(best.timeDiff!==undefined&&best.timeDiff>15)return;
+        for(var ri=0;ri<realRows.length;ri++){
+          if(realRows[ri]===best||(realRows[ri].name===best.name&&realRows[ri].time===best.time&&!realRows[ri].used)){realRows[ri].used=true;break;}
+        }
+        var svc=parseFloat(c.svc)||0,tip=parseFloat(c.tip)||0,topup=parseFloat(c.topup)||0;
+        var appRelevant=(c.cp?0:svc)+topup+tip;
+        var appIsCash=c.pay==='cash';
+        var itemId=store+'_'+d+'_'+(c.clientName||'')+'_'+(c.time||'');
+
+        if(appIsCash!==best.isCash){
+          dayItems.push({id:itemId,store:store,clientName:c.clientName,tech:c.tech||'',time:c.time||'',
+            issueType:'付款方式不符',detail:'記帳='+(c.pay==='cash'?'現金':'刷卡')+'，Square顯示'+(best.isCash?'現金':'刷卡'),
+            diffAmt:Math.round((best.isCash?-best.total:best.total)*100)/100});
+        } else if(!appIsCash&&!best.isCash){
+          var realRelevant=best.isCP?best.tip:best.total;
+          if(Math.abs(appRelevant-realRelevant)>3){
+            dayItems.push({id:itemId,store:store,clientName:c.clientName,tech:c.tech||'',time:c.time||'',
+              issueType:'金額不符',detail:'記帳$'+appRelevant.toFixed(2)+'，Square$'+realRelevant.toFixed(2),
+              diffAmt:Math.round((realRelevant-appRelevant)*100)/100});
+          }
+        }
+      });
+      realRows.forEach(function(r){
+        if(!r.used&&!r.isCash){
+          var relevant=r.isCP?r.tip:r.total;
+          if(relevant>3){
+            var itemId2=store+'_'+d+'_found_'+(r.name||'')+'_'+(r.time||'');
+            dayItems.push({id:itemId2,store:store,clientName:r.name||'(未知)',tech:'?',time:r.time||'',
+              issueType:'記帳找不到',detail:'Square真實金額 $'+r.total.toFixed(2),diffAmt:Math.round(relevant*100)/100});
+          }
+        }
+      });
+    });
+    if(dayItems.length>0){
+      var prevDayItems=prevReview[d]||[];
+      dayItems.forEach(function(item){
+        var old=null;
+        for(var pi=0;pi<prevDayItems.length;pi++){if(prevDayItems[pi].id===item.id){old=prevDayItems[pi];break;}}
+        item.status=old?(old.status||''):'';
+        item.note=old?(old.note||''):'';
+      });
+      newReview[d]=dayItems;
+      totalCount+=dayItems.length;
+    }
+  }
+  _D.gdReview[mo]=newReview;
+  saveOnly();
+  return totalCount;
+}
+
+function setGdReviewStatus(mo,d,itemId,status){
+  if(!_D.gdReview||!_D.gdReview[mo]||!_D.gdReview[mo][d])return;
+  var items=_D.gdReview[mo][d];
+  for(var i=0;i<items.length;i++){
+    if(items[i].id===itemId){items[i].status=status;break;}
+  }
+  saveOnly();
+  buildGDTable();
+}
+window.setGdReviewStatus=setGdReviewStatus;
+
+function setGdReviewNote(mo,d,itemId,note){
+  if(!_D.gdReview||!_D.gdReview[mo]||!_D.gdReview[mo][d])return;
+  var items=_D.gdReview[mo][d];
+  for(var i=0;i<items.length;i++){
+    if(items[i].id===itemId){items[i].note=note;break;}
+  }
+  saveOnly();
+}
+window.setGdReviewNote=setGdReviewNote;
+
+function toggleGdReviewPanel(d){
+  var el=document.getElementById('gd-review-panel-'+d);
+  var btn=document.getElementById('gd-review-btn-'+d);
+  if(!el)return;
+  var isOpen=el.style.display!=='none';
+  el.style.display=isOpen?'none':'block';
+  if(btn)btn.textContent=(isOpen?'▸':'▾')+' '+btn.dataset.label;
+}
+window.toggleGdReviewPanel=toggleGdReviewPanel;
+
 function mergeGDSqFiles(){
   if(!gdSqItemsRaw||!gdSqTxnRaw){alert('請先上傳兩個 CSV');return;}
 
@@ -3336,6 +3470,12 @@ function mergeGDSqFiles(){
   var extraMsgs=[];
   if(productsAdded>0)extraMsgs.push('產品銷售 '+productsAdded+' 筆');
   if(stockOutAdded>0)extraMsgs.push('庫存出庫 '+stockOutAdded+' 筆');
+
+  // 自動抓出「可能有疑慮」的交易：拿每日記帳的客人紀錄，跟 Square 真實交易用「時間最接近」配對，
+  // 找出付款方式不符、金額對不上、或記帳裡完全找不到的部分，存進 _D.gdReview 讓使用者在表格上逐筆確認/加備註。
+  var reviewCount=detectGdReviewItems(mo, gdSqItemsRaw, gdSqTxnRaw);
+  if(reviewCount>0)extraMsgs.push('⚠ '+reviewCount+' 筆可能有疑慮待確認');
+
   if(statusEl)statusEl.textContent='✓ 已計算 '+count+' 天的 GoDaddy 應收'+(extraMsgs.length?'，另外自動抓到：'+extraMsgs.join('、'):'');
 
   // Close upload area and rebuild table
@@ -3529,6 +3669,46 @@ function buildGDTable(){
          '<div><span style="color:var(--warn);font-weight:700">'+(diff>=0?'+':'')+$f(diff)+'</span></div>')+
       '</div>';
     tbl.appendChild(row);
+
+    // 「可能有疑慮」可收合面板：上傳過 Square CSV 對帳之後，自動比對出來的疑慮交易會顯示在這裡
+    var reviewItems=(_D.gdReview&&_D.gdReview[mo]&&_D.gdReview[mo][d])||[];
+    if(reviewItems.length>0){
+      var pendingCount=reviewItems.filter(function(it){return !it.status;}).length;
+      var toggleWrap=document.createElement('div');
+      toggleWrap.style.cssText='padding:0 14px;background:'+(warn?'var(--warn-bg)':isWk?'#FAFAF8':'var(--white)')+';border-bottom:1px solid var(--border)';
+      var btnLabel=reviewItems.length+' 筆可能有疑慮'+(pendingCount<reviewItems.length?'（'+pendingCount+' 筆待確認）':'');
+      toggleWrap.innerHTML='<button id="gd-review-btn-'+d+'" data-label="'+btnLabel+'" onclick="toggleGdReviewPanel('+d+')" style="background:none;border:none;color:var(--warn);font-size:11px;font-weight:600;cursor:pointer;padding:6px 0;font-family:inherit">▸ '+btnLabel+'</button>'
+        +'<div id="gd-review-panel-'+d+'" style="display:none;padding:4px 0 12px">'
+        +reviewItems.map(function(it){
+          var escHtml=function(v){return (v||'').toString().replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');};
+          var escJs=function(v){return (v||'').toString().replace(/\\/g,'\\\\').replace(/'/g,"\\'");}; // 給onclick裡的單引號字串用，避免姓名有撇號(例如O'Dea)把JS弄壞
+          var safeNote=escHtml(it.note);
+          var safeName=escHtml(it.clientName);
+          var safeTech=escHtml(it.tech);
+          var safeDetail=escHtml(it.detail);
+          var safeIdJs=escJs(it.id);
+          var safeMoJs=escJs(mo);
+          var statusColors={'記錯帳':'#B83010','已確認沒問題':'#1A7A45','其他':'#7A746C'};
+          return '<div style="background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:10px 12px;margin-bottom:8px">'
+            +'<div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:6px">'
+            +'<div style="font-size:12px"><b>'+(it.store==='mv'?'MV':'SR')+' '+safeName+'</b>'
+              +(it.tech&&it.tech!=='?'?'（'+safeTech+(it.time?'，'+it.time:'')+'）':(it.time?'（'+it.time+'）':''))
+              +'<div style="color:var(--warn);margin-top:2px">'+it.issueType+'：'+safeDetail+'</div></div>'
+            +'<span style="font-size:12px;font-weight:700;color:'+(it.diffAmt>=0?'#1A7A45':'#B83010')+'">'+(it.diffAmt>=0?'+':'')+'$'+it.diffAmt.toFixed(2)+'</span>'
+            +'</div>'
+            +'<div style="margin-top:8px;display:flex;gap:6px;flex-wrap:wrap">'
+            +['記錯帳','已確認沒問題','其他'].map(function(s){
+              var isOn=it.status===s;
+              var c=statusColors[s];
+              return '<button onclick="setGdReviewStatus(\''+safeMoJs+'\','+d+',\''+safeIdJs+'\',\''+(isOn?'':s)+'\')" style="padding:4px 10px;border-radius:12px;font-size:10.5px;font-weight:600;cursor:pointer;font-family:inherit;border:1px solid '+c+';background:'+(isOn?c:'transparent')+';color:'+(isOn?'#fff':c)+'">'+s+'</button>';
+            }).join('')
+            +'</div>'
+            +'<textarea placeholder="備註…" onchange="setGdReviewNote(\''+safeMoJs+'\','+d+',\''+safeIdJs+'\',this.value)" style="width:100%;margin-top:6px;padding:6px 8px;border:1px solid var(--border);border-radius:6px;font-size:11px;font-family:inherit;resize:vertical;min-height:34px;box-sizing:border-box">'+safeNote+'</textarea>'
+            +'</div>';
+        }).join('')
+        +'</div>';
+      tbl.appendChild(toggleWrap);
+    }
   }
 
   // 月合計
