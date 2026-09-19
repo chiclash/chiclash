@@ -533,7 +533,7 @@ input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-
   <div class="s-sec">每日記帳</div>
   <button class="ni" id="ni-mv" onclick="showPage('mv');switchStore('mv')"><span class="ni-ic">📍</span>Mill Valley</button>
   <button class="ni" id="ni-sr" onclick="showPage('mv');switchStore('sr')"><span class="ni-ic">📍</span>San Rafael</button>
-  <div class="s-bot"><div id="sync-status" style="font-size:10px;text-align:center;margin-bottom:6px;transition:opacity 1s;color:#7A746C">正在連線…</div><button class="exp-btn" onclick="exportCSV()" title="下載本月每日記帳完整資料（含姓名/技師），可直接拿去跟Square真實交易比對">↓ 下載本月完整記帳 CSV</button></div>
+  <div class="s-bot"><div id="sync-status" style="font-size:10px;text-align:center;margin-bottom:6px;transition:opacity 1s;color:#7A746C">正在連線…</div><button class="exp-btn" onclick="exportCSV()" title="下載本月每日記帳完整資料（含姓名/技師），可直接拿去跟Square真實交易比對">↓ 下載本月完整記帳 CSV</button><button class="exp-btn" onclick="exportFullBackupJSON()" style="margin-top:6px" title="下載完整的資料庫備份（所有月份、所有頁面的資料），可以拿去給人核對或做完整還原用">↓ 下載完整備份 JSON</button></div>
 </div>
 
 <div class="main">
@@ -3456,8 +3456,8 @@ function buildGDTable(){
 
   // 表頭
   var hdr=document.createElement('div');
-  hdr.style.cssText='display:grid;grid-template-columns:90px 1fr 1fr 90px;align-items:center;gap:8px;padding:7px 14px;background:var(--bg);border-bottom:1.5px solid var(--border);font-size:10px;text-transform:uppercase;letter-spacing:.07em;color:var(--sub);font-weight:600';
-  hdr.innerHTML='<span>日期</span><span style="color:var(--ok)">GD應收（匯入中心記帳）</span><span>你填入的 Payout（填「隔天」撥款清單上的金額）</span><span style="text-align:center">差異</span>';
+  hdr.style.cssText='display:grid;grid-template-columns:80px 1fr 1fr 1fr 90px;align-items:center;gap:8px;padding:7px 14px;background:var(--bg);border-bottom:1.5px solid var(--border);font-size:10px;text-transform:uppercase;letter-spacing:.07em;color:var(--sub);font-weight:600';
+  hdr.innerHTML='<span>日期</span><span style="color:var(--ok)">Square應收<br><span style="text-transform:none;font-weight:400;font-size:9px">（依刷卡相關記帳算出）</span></span><span style="color:#1656A0">每日記帳總金額<br><span style="text-transform:none;font-weight:400;font-size:9px">刷卡＋現金＋Venmo＋禮品卡售出</span></span><span>GoDaddy實收<br><span style="text-transform:none;font-weight:400;font-size:9px">（填「隔天」撥款清單金額，未扣手續費）</span></span><span style="text-align:center">差異</span>';
   tbl.appendChild(hdr);
 
   var totalDue=0,totalAct=0,monthHasDiff=false;
@@ -3467,9 +3467,16 @@ function buildGDTable(){
     var isWk=dt2.getDay()===0||dt2.getDay()===6;
     var dateStr=y+'-'+String(m+1).padStart(2,'0')+'-'+String(d).padStart(2,'0');
 
-    // 主要應收數字：永遠用匯入中心（每日記帳）自然日計算
-    var due=(function(){var mv=calcDay('mv',d),sr=calcDay('sr',d);return mv.gdDue+sr.gdDue;}());
+    // 主要應收數字：永遠用匯入中心（每日記帳）自然日計算——這是「Square應收」，只算真正會過卡的部分
+    var mvT=calcDay('mv',d),srT=calcDay('sr',d);
+    var due=mvT.gdDue+srT.gdDue;
     totalDue+=due;
+
+    // 每日記帳總金額：刷卡＋現金＋Venmo＋禮品卡售出＋ClassPass（就是 t.rev 的兩店合計，這才是完整的每日記帳總數，包含現金）
+    var bookTotal=mvT.rev+srT.rev;
+    var cashTotal=(mvT.cashSvc+mvT.gcSoldCash)+(srT.cashSvc+srT.gcSoldCash);
+    var bookMinusCash=Math.round((bookTotal-cashTotal)*100)/100;
+    var bookCheckOk=Math.abs(bookMinusCash-due)<1;
 
     // Square CSV 精算（若有上傳）——僅作交叉核對提醒，不覆蓋 due
     var csvDue=hasCsvCalc&&gdSqCalc[dateStr]!==undefined?gdSqCalc[dateStr]:null;
@@ -3490,21 +3497,27 @@ function buildGDTable(){
     var payoutLookupDate=new Date(y,m,d+1);
     var payoutLookupLabel=String(payoutLookupDate.getMonth()+1).padStart(2,'0')+'/'+String(payoutLookupDate.getDate()).padStart(2,'0');
     var feeVal=getGDFee(d);
+    var feeNum=parseFloat(feeVal)||0;
+    var actAfterFee=actVal!==null?Math.round((actVal-feeNum)*100)/100:null;
 
     var row=document.createElement('div');
-    row.style.cssText='display:grid;grid-template-columns:90px 1fr 1fr 90px;align-items:center;gap:8px;padding:8px 14px;border-bottom:1px solid var(--border);font-size:13px;background:'+(warn?'var(--warn-bg)':isWk?'#FAFAF8':'var(--white)');
+    row.style.cssText='display:grid;grid-template-columns:80px 1fr 1fr 1fr 90px;align-items:center;gap:8px;padding:8px 14px;border-bottom:1px solid var(--border);font-size:13px;background:'+(warn?'var(--warn-bg)':isWk?'#FAFAF8':'var(--white)');
     row.innerHTML=
       '<div><div style="font-weight:600;font-size:12px">'+String(m+1).padStart(2,'0')+'/'+String(d).padStart(2,'0')+'</div>'+
         '<div style="font-size:10px;color:'+(isWk?'var(--warn)':'var(--sub)')+'">'+DAYS[dt2.getDay()]+'</div></div>'+
       '<div><span style="color:var(--ok);font-weight:600">'+(due>0?$f(due):'—')+'</span>'+
         (csvMismatch?'<div style="font-size:10px;color:var(--warn);margin-top:2px">⚠ CSV精算 '+$f(csvDue)+'（差 '+(csvDiff>=0?'+':'')+$f(csvDiff)+'）</div>':'')+
       '</div>'+
+      '<div><span style="color:#1656A0;font-weight:600">'+(bookTotal>0?$f(bookTotal):'—')+'</span>'+
+        (bookTotal>0?'<div style="font-size:10px;color:'+(bookCheckOk?'var(--ok)':'var(--warn)')+';margin-top:2px">'+(bookCheckOk?'✓':'⚠')+' －現金 '+$f(cashTotal)+' ＝ '+$f(bookMinusCash)+(bookCheckOk?'（與左邊Square應收相符）':'（與左邊Square應收對不起來，差 '+$f(bookMinusCash-due)+'）')+'</div>':'')+
+      '</div>'+
       '<div>'+
       '<input type="text" inputmode="decimal" style="width:120px;border:1px solid '+(warn?'var(--warn-bd)':'var(--border)')+';border-radius:5px;padding:5px 8px;font-size:13px;font-family:inherit;text-align:right;outline:none;background:var(--white)" placeholder="填入 Payout" min="0" step="0.01" value="'+(actVal!==null?Math.round(actVal*100)/100:'')+'" onchange="updGD('+d+',this.value)">'+
       '<div style="font-size:9.5px;color:var(--faint);margin-top:2px">👉 去撥款清單找「'+payoutLookupLabel+'」那筆的金額</div>'+
       '<div style="margin-top:5px;display:flex;align-items:center;gap:5px">'+
-        '<span style="font-size:9.5px;color:var(--sub)">手續費(兩店合計)</span>'+
+        '<span style="font-size:9.5px;color:var(--sub)">－手續費</span>'+
         '<input type="text" inputmode="decimal" style="width:70px;border:1px solid var(--border);border-radius:5px;padding:3px 6px;font-size:11px;font-family:inherit;text-align:right;outline:none;background:var(--white)" placeholder="$0" min="0" step="0.01" value="'+feeVal+'" onchange="setGDFee('+d+',this.value)">'+
+        (actAfterFee!==null?'<span style="font-size:9.5px;color:var(--sub)">＝ '+$f(actAfterFee)+'</span>':'')+
       '</div>'+
       '</div>'+
       '<div style="text-align:center;font-size:14px">'+
@@ -9068,6 +9081,19 @@ function renderAll(){
   buildDayList();buildGDTable();updateAll();renderGCPage();
   if(document.getElementById('page-tips')?.classList.contains('on'))renderTipsPage();
   if(document.getElementById('page-cal')?.classList.contains('on')){_calSelDay=null;renderCalPage();}
+}
+
+// 下載完整備份 JSON（整個 _D 物件，所有月份、所有頁面的資料都在裡面）
+// 用途：給別人核對資料、或萬一要完整還原用。跟「下載本月完整記帳 CSV」不一樣，
+// CSV 只有這個月的每日記帳，這個是全部月份 + 全部功能（禮品卡、產品銷售、員工設定...）的完整快照。
+function exportFullBackupJSON(){
+  var json=JSON.stringify(_D,null,2);
+  var today=new Date();
+  var dateLabel=today.getFullYear()+'-'+String(today.getMonth()+1).padStart(2,'0')+'-'+String(today.getDate()).padStart(2,'0');
+  var a=document.createElement('a');
+  a.href=URL.createObjectURL(new Blob([json],{type:'application/json;charset=utf-8'}));
+  a.download='chiclash-backup-'+dateLabel+'.json';
+  a.click();
 }
 
 function exportCSV(){
