@@ -3283,11 +3283,19 @@ function detectGdReviewItems(mo, itemsRaw, txnMap){
     var cat=(it.category||'').toLowerCase();
     return itemType==='physical good' || desc.indexOf('products,')===0 || cat.indexOf('retail')>=0;
   }
+  function isNoShowItem(it){
+    var desc=(it.desc||'').toLowerCase();
+    return /no.?show|no.?call|late cancel|cancellation fee|取消費|爽約/.test(desc);
+  }
   var txnInfo={};
   (itemsRaw||[]).forEach(function(it){
     var key=it.date+'|'+it.txnId;
-    if(!txnInfo[key])txnInfo[key]={name:it.customer||'',time:it.time||'',store:it.store,serviceNet:0,productNet:0,productNames:[]};
-    if(isProductItem(it)){
+    if(!txnInfo[key])txnInfo[key]={name:it.customer||'',time:it.time||'',store:it.store,serviceNet:0,productNet:0,productNames:[],isNoShow:false,noShowNames:[]};
+    if(isNoShowItem(it)){
+      txnInfo[key].isNoShow=true;
+      txnInfo[key].serviceNet+=it.net; // No-show費用本質上還是服務類收費，算進serviceNet讓它照樣能跟記帳比對
+      if(it.net>0)txnInfo[key].noShowNames.push(it.desc+'($'+it.net.toFixed(2)+')');
+    } else if(isProductItem(it)){
       txnInfo[key].productNet+=it.net;
       if(it.net>0)txnInfo[key].productNames.push(it.desc+'($'+it.net.toFixed(2)+')');
     } else {
@@ -3305,7 +3313,7 @@ function detectGdReviewItems(mo, itemsRaw, txnMap){
     if(!realByDS[dsKey])realByDS[dsKey]=[];
     // 只有「服務」的部分拿來跟記帳比對，商品的部分分開處理（因為記帳裡本來就不會有商品，商品要去查「產品銷售」頁面有沒有記錄）
     realByDS[dsKey].push({name:info.name,time:info.time,net:info.serviceNet,tip:tip,total:info.serviceNet+tip,
-      productNet:info.productNet,productNames:info.productNames,isCash:cash>0,isCP:isCP,used:false});
+      productNet:info.productNet,productNames:info.productNames,isNoShow:info.isNoShow,noShowNames:info.noShowNames,isCash:cash>0,isCP:isCP,used:false});
   });
 
   function timeToMin(t){
@@ -3376,8 +3384,14 @@ function detectGdReviewItems(mo, itemsRaw, txnMap){
           var relevant=r.isCP?r.tip:r.total;
           if(relevant>3){
             var itemId2=store+'_'+d+'_found_'+(r.name||'')+'_'+(r.time||'');
-            dayItems.push({id:itemId2,store:store,clientName:r.name||'(未知)',tech:'?',time:r.time||'',
-              issueType:'記帳找不到',detail:'Square真實金額 $'+r.total.toFixed(2),diffAmt:Math.round(relevant*100)/100});
+            if(r.isNoShow){
+              dayItems.push({id:itemId2,store:store,clientName:r.name||'(未知)',tech:'?',time:r.time||'',
+                issueType:'No-show費用未記錄',detail:'Square真實金額 $'+r.total.toFixed(2)+'（'+(r.noShowNames||[]).join('、')+'），這筆是No-show/取消費用，沒有真的服務客人所以記帳容易漏掉，補一筆進「每日記帳」（付款方式選刷卡、服務項目可以寫No-show）就會反映進營業額',
+                diffAmt:Math.round(relevant*100)/100});
+            } else {
+              dayItems.push({id:itemId2,store:store,clientName:r.name||'(未知)',tech:'?',time:r.time||'',
+                issueType:'記帳找不到',detail:'Square真實金額 $'+r.total.toFixed(2),diffAmt:Math.round(relevant*100)/100});
+            }
           }
         }
       });
@@ -3660,11 +3674,21 @@ function buildGDTable(){
     var due=mvT.gdDue+srT.gdDue;
     totalDue+=due;
 
-    // 每日記帳總金額：刷卡＋現金＋Venmo＋禮品卡售出＋ClassPass（就是 t.rev 的兩店合計，這才是完整的每日記帳總數，包含現金）
+    // 每日記帳總金額：刷卡＋現金＋Venmo＋禮品卡售出＋ClassPass＋產品銷售（就是 t.rev 的兩店合計）
     var bookTotal=mvT.rev+srT.rev;
     var cashTotal=(mvT.cashSvc+mvT.gcSoldCash+mvT.prodSoldCash)+(srT.cashSvc+srT.gcSoldCash+srT.prodSoldCash);
     var bookMinusCash=Math.round((bookTotal-cashTotal)*100)/100;
-    var bookCheckOk=Math.abs(bookMinusCash-due)<1;
+    // 「每日記帳總金額（扣現金）」跟「Square應收」本來就是兩種不同定義的數字，不會、也不該完全相等：
+    // 前者有 Venmo、ClassPass，但不含小費；後者有刷卡小費，但不含 Venmo、ClassPass。
+    // 與其顯示一個天天都會跳、沒有實際意義的「對不起來」警告，不如直接把這個「正常會有的差距」拆解清楚是哪幾項組成的。
+    var venmoPart=mvT.venmoSvc+srT.venmoSvc;
+    var cpPart=mvT.cpSvc+srT.cpSvc;
+    var gcVenmoPart=(mvT.gcSold-mvT.gcSoldCard-mvT.gcSoldCash)+(srT.gcSold-srT.gcSoldCard-srT.gcSoldCash);
+    var prodVenmoPart=mvT.prodSoldVenmo+srT.prodSoldVenmo;
+    var cardTipPart=mvT.cardTip+srT.cardTip;
+    var explainedGap=Math.round((venmoPart+cpPart+gcVenmoPart+prodVenmoPart-cardTipPart)*100)/100;
+    var actualGap=Math.round((bookMinusCash-due)*100)/100;
+    var breakdownMatches=Math.abs(explainedGap-actualGap)<1;
 
     // Square CSV 精算（若有上傳）——僅作交叉核對提醒，不覆蓋 due
     var csvDue=hasCsvCalc&&gdSqCalc[dateStr]!==undefined?gdSqCalc[dateStr]:null;
@@ -3697,7 +3721,8 @@ function buildGDTable(){
         (csvMismatch?'<div style="font-size:10px;color:var(--warn);margin-top:2px">⚠ CSV精算 '+$f(csvDue)+'（差 '+(csvDiff>=0?'+':'')+$f(csvDiff)+'）</div>':'')+
       '</div>'+
       '<div><span style="color:#1656A0;font-weight:600">'+(bookTotal>0?$f(bookTotal):'—')+'</span>'+
-        (bookTotal>0?'<div style="font-size:10px;color:'+(bookCheckOk?'var(--ok)':'var(--warn)')+';margin-top:2px">'+(bookCheckOk?'✓':'⚠')+' －現金 '+$f(cashTotal)+' ＝ '+$f(bookMinusCash)+(bookCheckOk?'（與左邊Square應收相符）':'（與左邊Square應收對不起來，差 '+$f(bookMinusCash-due)+'）')+'</div>':'')+
+        (bookTotal>0?'<div style="font-size:10px;color:var(--sub);margin-top:2px">－現金 '+$f(cashTotal)+' ＝ '+$f(bookMinusCash)+'</div>':'')+
+        (bookTotal>0&&Math.abs(actualGap)>=1?'<div style="font-size:9.5px;color:'+(breakdownMatches?'var(--faint)':'var(--warn)')+';margin-top:2px">Ⓘ 與Square應收差 '+(actualGap>=0?'+':'')+$f(actualGap)+'：Venmo $'+venmoPart.toFixed(2)+' + ClassPass $'+cpPart.toFixed(2)+(Math.abs(gcVenmoPart)>=1?' + 禮品卡(Venmo) $'+gcVenmoPart.toFixed(2):'')+(Math.abs(prodVenmoPart)>=1?' + 產品(Venmo) $'+prodVenmoPart.toFixed(2):'')+' － 刷卡小費 $'+cardTipPart.toFixed(2)+(breakdownMatches?'（正常，不是記帳錯誤）':'（⚠ 這樣算還有兜不攏的部分，可能真的有問題）')+'</div>':'')+
       '</div>'+
       '<div>'+
       '<input type="text" inputmode="decimal" style="width:120px;border:1px solid '+(warn?'var(--warn-bd)':'var(--border)')+';border-radius:5px;padding:5px 8px;font-size:13px;font-family:inherit;text-align:right;outline:none;background:var(--white)" placeholder="填入 Payout" min="0" step="0.01" value="'+(actVal!==null?Math.round(actVal*100)/100:'')+'" onchange="updGD('+d+',this.value)">'+
