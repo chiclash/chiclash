@@ -727,13 +727,14 @@ input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-
   <div class="rev-card">
     <div class="rev-lbl">兩店合計月營業額</div>
     <div class="rev-val" id="ov-total">—</div>
-    <div class="rev-desc">刷卡收入 + 現金收入 + Venmo收入 + 禮品卡銷售 + ClassPass（不含小費，小費另計入小費分配）</div>
+    <div class="rev-desc">刷卡收入 + 現金收入 + Venmo收入 + 禮品卡銷售 + ClassPass + 產品銷售（不含小費，小費另計入小費分配）</div>
     <div class="rev-bks">
       <div class="rev-bk"><div class="rev-bk-l">刷卡收入</div><div class="rev-bk-v" style="color:var(--ok)" id="ov-card">—</div></div>
       <div class="rev-bk"><div class="rev-bk-l">現金收入</div><div class="rev-bk-v" style="color:var(--cash)" id="ov-cash">—</div></div>
       <div class="rev-bk"><div class="rev-bk-l">Venmo收入</div><div class="rev-bk-v" style="color:#3D5AFE" id="ov-venmo">—</div></div>
       <div class="rev-bk"><div class="rev-bk-l">禮品卡銷售</div><div class="rev-bk-v" style="color:var(--gc)" id="ov-gc">—</div></div>
       <div class="rev-bk"><div class="rev-bk-l">ClassPass</div><div class="rev-bk-v" style="color:#8E5FD9" id="ov-cp">—</div></div>
+      <div class="rev-bk"><div class="rev-bk-l">產品銷售</div><div class="rev-bk-v" style="color:#C77D2E" id="ov-prod">—</div></div>
     </div>
     <div style="font-size:10px;color:var(--faint);margin-top:8px;text-align:right" id="ov-checksum"></div>
     <div style="margin-top:12px;padding-top:10px;border-top:1px dashed var(--border)">
@@ -761,6 +762,7 @@ input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-
         <div class="sc-st"><div class="sc-st-l">Venmo收入</div><div class="sc-st-v" style="color:#3D5AFE" id="sc-mv-venmo">—</div></div>
         <div class="sc-st"><div class="sc-st-l">禮品卡銷售</div><div class="sc-st-v" style="color:var(--gc)" id="sc-mv-gc">—</div></div>
         <div class="sc-st"><div class="sc-st-l">ClassPass</div><div class="sc-st-v" style="color:#8E5FD9" id="sc-mv-cp">—</div></div>
+        <div class="sc-st"><div class="sc-st-l">產品銷售</div><div class="sc-st-v" style="color:#C77D2E" id="sc-mv-prod">—</div></div>
       </div>
       <div style="font-size:9.5px;color:var(--faint);margin-top:6px;text-align:right" id="sc-mv-checksum"></div>
       <div style="margin-top:10px;padding-top:10px;border-top:1px dashed rgba(0,0,0,0.1)">
@@ -798,6 +800,7 @@ input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-
         <div class="sc-st"><div class="sc-st-l">Venmo收入</div><div class="sc-st-v" style="color:#3D5AFE" id="sc-sr-venmo">—</div></div>
         <div class="sc-st"><div class="sc-st-l">禮品卡銷售</div><div class="sc-st-v" style="color:var(--gc)" id="sc-sr-gc">—</div></div>
         <div class="sc-st"><div class="sc-st-l">ClassPass</div><div class="sc-st-v" style="color:#8E5FD9" id="sc-sr-cp">—</div></div>
+        <div class="sc-st"><div class="sc-st-l">產品銷售</div><div class="sc-st-v" style="color:#C77D2E" id="sc-sr-prod">—</div></div>
       </div>
       <div style="font-size:9.5px;color:var(--faint);margin-top:6px;text-align:right" id="sc-sr-checksum"></div>
       <div style="margin-top:10px;padding-top:10px;border-top:1px dashed rgba(0,0,0,0.1)">
@@ -2312,18 +2315,21 @@ function calcDay(s,d){
     }
   });
 
-  // 產品銷售：這筆錢客人是真的付了（透過刷卡機/現金/Venmo），本來就該算進月營業額跟GoDaddy應收，
-  // 但這個功能原本是獨立運作的，從來沒有接進這裡——導致產品銷售完全沒有反映在營業額數字上，這裡補上。
+  // 產品銷售：這筆錢客人是真的付了（透過刷卡機/現金/Venmo），本來就該算進月營業額跟GoDaddy應收。
+  // 跟禮品卡銷售一樣，獨立成自己的桶子（不併進 cardSvc/cashSvc/venmoSvc），這樣「刷卡收入」才會乾淨地
+  // 只代表「服務」的刷卡收入，產品銷售額另外可以單獨看到多少，不會被悄悄藏進刷卡收入裡看不見。
   // 舊資料如果沒有 store 欄位（這個功能剛推出時還沒記錄店家），為了不讓那筆錢憑空從總營業額消失，預設算在 MV。
   const dateStr0=mk()+'-'+String(d).padStart(2,'0');
+  let prodSold=0,prodSoldCard=0,prodSoldCash=0,prodSoldVenmo=0;
   ((_D.products&&_D.products[mk()])||[]).forEach(function(p){
     if(p.date!==dateStr0)return;
     var belongsHere=p.store?(p.store===s):(s==='mv');
     if(!belongsHere)return;
     var amt=gv(p.amt);
-    if(p.pay==='cash')cashSvc+=amt;
-    else if(p.pay==='venmo'||p.pay==='zelle')venmoSvc+=amt; // zelle 系統沒有獨立欄位，跟禮品卡銷售一樣的處理方式併入Venmo
-    else cardSvc+=amt; // card 或未填一律當刷卡處理
+    prodSold+=amt;
+    if(p.pay==='cash')prodSoldCash+=amt;
+    else if(p.pay==='venmo'||p.pay==='zelle')prodSoldVenmo+=amt; // zelle 系統沒有獨立欄位，跟禮品卡銷售一樣的處理方式併入Venmo
+    else prodSoldCard+=amt; // card 或未填一律當刷卡處理
   });
 
   // 禮品卡「銷售」：售出當下才算進月營業額（依售出時選的付款方式歸入刷卡/現金/Venmo），
@@ -2348,14 +2354,14 @@ function calcDay(s,d){
     else gcSoldCard+=(g.amount||0);
   });
 
-  // GoDaddy 應收 = (刷卡服務費 + 全部刷卡小費含CP小費 + 刷卡買禮品卡) × 手續費率
+  // GoDaddy 應收 = (刷卡服務費 + 刷卡買禮品卡 + 刷卡產品銷售 + 全部刷卡小費含CP小費) × 手續費率
   // ClassPass 服務費現在完全不算在 cardSvc 裡了，所以這裡不用再扣一次 cpSvc
-  const gdDue=((cardSvc+gcSoldCard)+cardTip)*GD_FEE;
+  const gdDue=((cardSvc+gcSoldCard+prodSoldCard)+cardTip)*GD_FEE;
   // Revenue（月營業額）＝ 純服務收入，不含小費（小費是要付給技師的錢，另外走「小費分配」頁面計算）
   // 禮品卡「兌換」(gcSvc) 不計入月營業額——因為賣卡當下已經算過一次了，這裡再算會重複計算；
   // 但兌換金額還是會另外分開統計（本月兌換人數/兌換總金額），也照樣算給技師的業績抽成（不受影響）。
-  // ClassPass(cpSvc) 是獨立的第五個桶子，一樣算進月營業額，只是不歸在「刷卡收入」裡顯示。
-  const rev=cardSvc+cashSvc+venmoSvc+gcSold+cpSvc;
+  // ClassPass(cpSvc) 跟 產品銷售(prodSold) 都是獨立桶子，一樣算進月營業額，只是不歸在「刷卡收入」裡顯示。
+  const rev=cardSvc+cashSvc+venmoSvc+gcSold+cpSvc+prodSold;
 
   // Square reconciliation
   const sqOther=gv(r.sqOther), sqCash=gv(r.sqCash), sqTip=gv(r.sqTip);
@@ -2363,33 +2369,33 @@ function calcDay(s,d){
   // What clients say Square should show:
   // topupCard/topupCash 現在已經併進 cardSvc/cashSvc 裡面了，這裡不能再加一次，否則會重複計算
   // 賣禮品卡收到的刷卡/現金/Venmo，也是真的會進 Square 當日結算的錢，要另外加回來（gcSoldCard/Cash/Venmo 沒有併進 cardSvc/cashSvc/venmoSvc 本身，避免跟月營業額重複計算）
-  const calcOther=cardSvc+gcSoldCard+cardTip+venmoSvc+gcSoldVenmo+venmoTip; // card+venmo payments
-  const calcCash=cashSvc+gcSoldCash+cashTip;                    // cash payments (including cash tips)
+  const calcOther=cardSvc+gcSoldCard+prodSoldCard+cardTip+venmoSvc+gcSoldVenmo+prodSoldVenmo+venmoTip; // card+venmo payments
+  const calcCash=cashSvc+gcSoldCash+prodSoldCash+cashTip;                    // cash payments (including cash tips)
   const calcGC=gcAmtUsed;                                      // gift card payments
   const calcTip=cardTip+venmoTip;
   const calcTotal=calcOther+calcCash+calcGC;
 
   let sqDiff=null;
   const hasSq=sqOther||sqCash||sqTip||sqTotal||sqGC;
-  const hasClients=clients.length>0||gcSold>0; // 這天只有賣禮品卡、沒有服務客人時，也要照樣對帳（禮品卡刷卡一樣會進 Square 的當日結算）
+  const hasClients=clients.length>0||gcSold>0||prodSold>0; // 這天只有賣禮品卡/產品、沒有服務客人時，也要照樣對帳（刷卡一樣會進 Square 的當日結算）
   if(hasSq&&hasClients){
     sqDiff=sqTotal>0 ? sqTotal-calcTotal : (sqOther+sqCash+sqGC)-calcTotal;
   }
 
-  return{cardSvc,cashSvc,venmoSvc,cpSvc,gcSvc,gcAmtUsed,gcSold,gcSoldCard,gcSoldCash,cardTip,cashTip,venmoTip,gdDue,rev,
+  return{cardSvc,cashSvc,venmoSvc,cpSvc,gcSvc,gcAmtUsed,gcSold,gcSoldCard,gcSoldCash,prodSold,prodSoldCard,prodSoldCash,prodSoldVenmo,cardTip,cashTip,venmoTip,gdDue,rev,
     calcOther,calcCash,calcGC,calcTip,calcTotal,sqDiff,hasSq,hasClients};
 }
 
 function calcMonth(s){
   const days=new Date(cur.getFullYear(),cur.getMonth()+1,0).getDate();
-  let cardSvc=0,cashSvc=0,venmoSvc=0,cpSvc=0,gcSvc=0,gcSold=0,cardTip=0,cashTip=0,venmoTip=0,gdDue=0;
+  let cardSvc=0,cashSvc=0,venmoSvc=0,cpSvc=0,gcSvc=0,gcSold=0,prodSold=0,cardTip=0,cashTip=0,venmoTip=0,gdDue=0;
   for(let d=1;d<=days;d++){
     const t=calcDay(s,d);
     cardSvc+=t.cardSvc; cashSvc+=t.cashSvc; venmoSvc+=t.venmoSvc; cpSvc+=t.cpSvc;
-    gcSvc+=t.gcSvc; gcSold+=t.gcSold; cardTip+=t.cardTip; cashTip+=t.cashTip; venmoTip+=t.venmoTip; gdDue+=t.gdDue;
+    gcSvc+=t.gcSvc; gcSold+=t.gcSold; prodSold+=t.prodSold; cardTip+=t.cardTip; cashTip+=t.cashTip; venmoTip+=t.venmoTip; gdDue+=t.gdDue;
   }
-  const rev=cardSvc+cashSvc+venmoSvc+gcSold+cpSvc;
-  return{cardSvc,cashSvc,venmoSvc,cpSvc,gcSvc,gcSold,cardTip,cashTip,venmoTip,gdDue,rev};
+  const rev=cardSvc+cashSvc+venmoSvc+gcSold+cpSvc+prodSold;
+  return{cardSvc,cashSvc,venmoSvc,cpSvc,gcSvc,gcSold,prodSold,cardTip,cashTip,venmoTip,gdDue,rev};
 }
 
 // ── GODADDY 計算（自然日，與 Square 同步）──
@@ -2832,6 +2838,7 @@ function updateAll(){
   s('gd-sub',cur.toLocaleDateString('zh-TW',{year:'numeric',month:'long'}));
   s('ov-total',tot?$n(tot):'—');
   s('ov-cp',(mv.cpSvc+sr.cpSvc)?$n(mv.cpSvc+sr.cpSvc):'—');
+  s('ov-prod',(mv.prodSold+sr.prodSold)?$n(mv.prodSold+sr.prodSold):'—');
   (function(){
     var combinedR=gcRedemptionStatsForMonth(mk());
     s('ov-gcredeem-count', combinedR.count||'—');
@@ -2848,14 +2855,14 @@ function updateAll(){
   s('ov-sr',srRevR?$n(srRevR):'—');
   // 加總檢查：用未四捨五入的精確值互相比對，不要跟上面顯示用的整數比，避免因為捨去產生假的差異警示
   const rawTot=mv.rev+sr.rev;
-  const checkSum=(mv.cardSvc+sr.cardSvc)+(mv.cashSvc+sr.cashSvc)+(mv.venmoSvc+sr.venmoSvc)+(mv.gcSold+sr.gcSold)+(mv.cpSvc+sr.cpSvc);
+  const checkSum=(mv.cardSvc+sr.cardSvc)+(mv.cashSvc+sr.cashSvc)+(mv.venmoSvc+sr.venmoSvc)+(mv.gcSold+sr.gcSold)+(mv.cpSvc+sr.cpSvc)+(mv.prodSold+sr.prodSold);
   const ckEl=document.getElementById('ov-checksum');
   if(ckEl){
     const roundedDiff=Math.round((checkSum-rawTot)*100)/100;
     ckEl.textContent=tot?('明細加總 '+$f(checkSum)+'（與總營業額差 '+(Math.abs(roundedDiff)<0.01?'$0.00（相符 ✓）':(roundedDiff>=0?'+':'')+$f(roundedDiff))+'）'):'';
   }
-  s('sc-mv-cp',mv.cpSvc?$n(mv.cpSvc):'—');s('sc-mv-ctip',mv.cardTip?$n(mv.cardTip):'—');s('sc-mv-tk',mv.cashTip?$n(mv.cashTip):'—');s('sc-mv-gd',mv.gdDue?$n(mv.gdDue):'—');
-  s('sc-sr-cp',sr.cpSvc?$n(sr.cpSvc):'—');s('sc-sr-ctip',sr.cardTip?$n(sr.cardTip):'—');s('sc-sr-tk',sr.cashTip?$n(sr.cashTip):'—');s('sc-sr-gd',sr.gdDue?$n(sr.gdDue):'—');
+  s('sc-mv-cp',mv.cpSvc?$n(mv.cpSvc):'—');s('sc-mv-prod',mv.prodSold?$n(mv.prodSold):'—');s('sc-mv-ctip',mv.cardTip?$n(mv.cardTip):'—');s('sc-mv-tk',mv.cashTip?$n(mv.cashTip):'—');s('sc-mv-gd',mv.gdDue?$n(mv.gdDue):'—');
+  s('sc-sr-cp',sr.cpSvc?$n(sr.cpSvc):'—');s('sc-sr-prod',sr.prodSold?$n(sr.prodSold):'—');s('sc-sr-ctip',sr.cardTip?$n(sr.cardTip):'—');s('sc-sr-tk',sr.cashTip?$n(sr.cashTip):'—');s('sc-sr-gd',sr.gdDue?$n(sr.gdDue):'—');
   // 分店卡片：跟總覽卡片一樣，列出組成月營業額的四項收入，並自動核對加總是否等於上面的月營業額整數
   s('sc-mv-card',mv.cardSvc?$n(mv.cardSvc):'—'); s('sc-mv-cash',mv.cashSvc?$n(mv.cashSvc):'—');
   s('sc-mv-venmo',mv.venmoSvc?$n(mv.venmoSvc):'—'); s('sc-mv-gc',mv.gcSold?$n(mv.gcSold):'—');
@@ -2873,13 +2880,13 @@ function updateAll(){
   (function(){
     var mvCk=document.getElementById('sc-mv-checksum');
     if(mvCk){
-      var mvSum=mv.cardSvc+mv.cashSvc+mv.venmoSvc+mv.gcSold+mv.cpSvc;
+      var mvSum=mv.cardSvc+mv.cashSvc+mv.venmoSvc+mv.gcSold+mv.cpSvc+mv.prodSold;
       var mvDiff=Math.round((mvSum-mv.rev)*100)/100;
       mvCk.textContent=mvRevR?('明細加總 '+$f(mvSum)+'（與上方月營業額差 '+(Math.abs(mvDiff)<0.01?'$0.00（相符 ✓）':(mvDiff>=0?'+':'')+$f(mvDiff))+'）'):'';
     }
     var srCk=document.getElementById('sc-sr-checksum');
     if(srCk){
-      var srSum=sr.cardSvc+sr.cashSvc+sr.venmoSvc+sr.gcSold+sr.cpSvc;
+      var srSum=sr.cardSvc+sr.cashSvc+sr.venmoSvc+sr.gcSold+sr.cpSvc+sr.prodSold;
       var srDiff=Math.round((srSum-sr.rev)*100)/100;
       srCk.textContent=srRevR?('明細加總 '+$f(srSum)+'（與上方月營業額差 '+(Math.abs(srDiff)<0.01?'$0.00（相符 ✓）':(srDiff>=0?'+':'')+$f(srDiff))+'）'):'';
     }
@@ -3014,9 +3021,9 @@ function renderCalDetail(){
 
   function buildDayBreakdown(t,label,colorVar,bgVar,allocatedFee,gcClients){
     var cardSvc=t.cardSvc, cardTip=t.cardTip, venmoSvc=t.venmoSvc, venmoTip=t.venmoTip,
-        cashSvc=t.cashSvc, cashTip=t.cashTip, gcSoldTotal=t.gcSold, cpSvc=t.cpSvc;
-    // Square/GoDaddy 總額：不含 ClassPass（ClassPass 不會經過刷卡機，Square 完全看不到這筆錢）
-    var sqGross=cardSvc+cardTip+venmoSvc+venmoTip+cashSvc+cashTip+gcSoldTotal;
+        cashSvc=t.cashSvc, cashTip=t.cashTip, gcSoldTotal=t.gcSold, cpSvc=t.cpSvc, prodSold=t.prodSold;
+    // Square/GoDaddy 總額：含產品銷售（產品銷售真的會過刷卡機），不含 ClassPass（ClassPass 不會經過刷卡機，Square 完全看不到這筆錢）
+    var sqGross=cardSvc+cardTip+venmoSvc+venmoTip+cashSvc+cashTip+gcSoldTotal+prodSold;
     // 每日總銷售額（用於營業額）：含 ClassPass
     var salesGross=sqGross+cpSvc;
     var totalFee=allocatedFee||0; // 依兩店當天「Square總額」比例，從「手續費(兩店合計)」分攤過來的金額
@@ -3038,6 +3045,7 @@ function renderCalDetail(){
       +'<div style="display:flex;justify-content:space-between;font-size:13px;padding:3px 0"><span>現金</span><span style="font-weight:600">$'+cashSvc.toFixed(2)+'</span></div>'
       +'<div style="display:flex;justify-content:space-between;font-size:13px;padding:3px 0"><span>現金小費</span><span style="font-weight:600">$'+cashTip.toFixed(2)+'</span></div>'
       +'<div style="display:flex;justify-content:space-between;font-size:13px;padding:3px 0"><span>禮品卡銷售</span><span style="font-weight:600">$'+gcSoldTotal.toFixed(2)+'</span></div>'
+      +'<div style="display:flex;justify-content:space-between;font-size:13px;padding:3px 0"><span>產品銷售</span><span style="font-weight:600">$'+prodSold.toFixed(2)+'</span></div>'
       +'<div style="display:flex;justify-content:space-between;font-size:13px;padding:3px 0"><span>ClassPass</span><span style="font-weight:600">$'+cpSvc.toFixed(2)+'</span></div>'
       +'<div style="display:flex;justify-content:space-between;font-size:13.5px;padding:6px 0 0;margin-top:4px;border-top:1.5px solid rgba(0,0,0,.08);font-weight:700"><span>每日總銷售額</span><span>$'+salesGross.toFixed(2)+'</span></div>'
       +'<div style="margin-top:10px;padding-top:10px;border-top:1px dashed rgba(0,0,0,.1)">'
@@ -3073,8 +3081,8 @@ function renderCalDetail(){
 
   // 手續費（兩店合計）依當天兩店的營業額比例分攤
   var combinedFee=parseFloat(getGDFee(d))||0;
-  var mvGross=mvT.cardSvc+mvT.cardTip+mvT.venmoSvc+mvT.venmoTip+mvT.cashSvc+mvT.cashTip+mvT.gcSold;
-  var srGross=srT.cardSvc+srT.cardTip+srT.venmoSvc+srT.venmoTip+srT.cashSvc+srT.cashTip+srT.gcSold;
+  var mvGross=mvT.cardSvc+mvT.cardTip+mvT.venmoSvc+mvT.venmoTip+mvT.cashSvc+mvT.cashTip+mvT.gcSold+mvT.prodSold;
+  var srGross=srT.cardSvc+srT.cardTip+srT.venmoSvc+srT.venmoTip+srT.cashSvc+srT.cashTip+srT.gcSold+srT.prodSold;
   var totalGrossForFee=mvGross+srGross;
   var mvFee=totalGrossForFee>0?Math.round(combinedFee*(mvGross/totalGrossForFee)*100)/100:0;
   var srFee=Math.round((combinedFee-mvFee)*100)/100; // 剩下的都算SR，確保兩邊加起來剛好等於合計手續費，不會因四捨五入兜不攏
@@ -3269,11 +3277,22 @@ function checkGDSqReady(){
 // (1) 付款方式不符 (2) 金額對不上 (3) 記帳裡完全找不到這筆。存進 _D.gdReview[mo][day]，
 // 並保留使用者之前填過的備註/狀態(用id比對)，重新整理不會把已經確認過的東西清掉。
 function detectGdReviewItems(mo, itemsRaw, txnMap){
+  function isProductItem(it){
+    var itemType=(it.itemType||'').toLowerCase();
+    var desc=(it.desc||'').toLowerCase();
+    var cat=(it.category||'').toLowerCase();
+    return itemType==='physical good' || desc.indexOf('products,')===0 || cat.indexOf('retail')>=0;
+  }
   var txnInfo={};
   (itemsRaw||[]).forEach(function(it){
     var key=it.date+'|'+it.txnId;
-    if(!txnInfo[key])txnInfo[key]={name:it.customer||'',time:it.time||'',store:it.store,net:0};
-    txnInfo[key].net+=it.net;
+    if(!txnInfo[key])txnInfo[key]={name:it.customer||'',time:it.time||'',store:it.store,serviceNet:0,productNet:0,productNames:[]};
+    if(isProductItem(it)){
+      txnInfo[key].productNet+=it.net;
+      if(it.net>0)txnInfo[key].productNames.push(it.desc+'($'+it.net.toFixed(2)+')');
+    } else {
+      txnInfo[key].serviceNet+=it.net;
+    }
   });
   var realByDS={};
   Object.keys(txnInfo).forEach(function(key){
@@ -3284,7 +3303,9 @@ function detectGdReviewItems(mo, itemsRaw, txnMap){
     var store=(info.store==='sr')?'sr':'mv';
     var dsKey=date+'|'+store;
     if(!realByDS[dsKey])realByDS[dsKey]=[];
-    realByDS[dsKey].push({name:info.name,time:info.time,net:info.net,tip:tip,total:info.net+tip,isCash:cash>0,isCP:isCP,used:false});
+    // 只有「服務」的部分拿來跟記帳比對，商品的部分分開處理（因為記帳裡本來就不會有商品，商品要去查「產品銷售」頁面有沒有記錄）
+    realByDS[dsKey].push({name:info.name,time:info.time,net:info.serviceNet,tip:tip,total:info.serviceNet+tip,
+      productNet:info.productNet,productNames:info.productNames,isCash:cash>0,isCP:isCP,used:false});
   });
 
   function timeToMin(t){
@@ -3292,6 +3313,13 @@ function detectGdReviewItems(mo, itemsRaw, txnMap){
     var p=t.split(':').map(Number);
     return p[0]*60+p[1]+(p[2]||0)/60;
   }
+
+  // 這個月已經記錄在「產品銷售」頁面裡的金額，依日期分組加總，用來核對哪些商品銷售已經記過、不用再標成疑慮
+  var recordedProductsByDate={};
+  ((_D.products&&_D.products[mo])||[]).forEach(function(p){
+    if(!recordedProductsByDate[p.date])recordedProductsByDate[p.date]=0;
+    recordedProductsByDate[p.date]+=(p.amt||0);
+  });
 
   if(!_D.gdReview)_D.gdReview={};
   var prevReview=_D.gdReview[mo]||{};
@@ -3304,9 +3332,13 @@ function detectGdReviewItems(mo, itemsRaw, txnMap){
   for(var d=1;d<=days;d++){
     var dateStr=mo+'-'+String(d).padStart(2,'0');
     var dayItems=[];
+    var dayProductNet=0, dayProductNames=[];
     ['mv','sr'].forEach(function(store){
       var dayData=(_D[store]&&_D[store][mo]&&_D[store][mo][d])||{clients:[]};
       var realRows=(realByDS[dateStr+'|'+store]||[]).slice();
+      realRows.forEach(function(r){
+        if(r.productNet>0&&!r.isCash){dayProductNet+=r.productNet;dayProductNames=dayProductNames.concat(r.productNames||[]);}
+      });
       (dayData.clients||[]).forEach(function(c){
         if(!c.clientName||c.clientName==='Ashley zhang')return;
         var cTimeMin=timeToMin(c.time);
@@ -3350,6 +3382,19 @@ function detectGdReviewItems(mo, itemsRaw, txnMap){
         }
       });
     });
+
+    // 商品銷售缺口檢查：Square 真實交易裡有商品(像Lash Shampoo這種加購)，但「產品銷售」頁面裡這天記錄的金額不夠涵蓋，代表有商品銷售沒有被記到
+    if(dayProductNet>3){
+      var recorded=recordedProductsByDate[dateStr]||0;
+      var gap=Math.round((dayProductNet-recorded)*100)/100;
+      if(gap>3){
+        dayItems.push({id:'product_'+d,store:'',clientName:'（商品銷售）',tech:'',time:'',
+          issueType:'商品銷售可能未記錄',
+          detail:'Square當天商品銷售約$'+dayProductNet.toFixed(2)+'（'+dayProductNames.slice(0,3).join('、')+(dayProductNames.length>3?'等':'')+'），「產品銷售」頁面只記了$'+recorded.toFixed(2)+'，去該頁面補上就會反映進營業額',
+          diffAmt:gap});
+      }
+    }
+
     if(dayItems.length>0){
       var prevDayItems=prevReview[d]||[];
       dayItems.forEach(function(item){
@@ -3600,7 +3645,7 @@ function buildGDTable(){
   // 表頭
   var hdr=document.createElement('div');
   hdr.style.cssText='display:grid;grid-template-columns:80px 1fr 1fr 1fr 90px;align-items:center;gap:8px;padding:7px 14px;background:var(--bg);border-bottom:1.5px solid var(--border);font-size:10px;text-transform:uppercase;letter-spacing:.07em;color:var(--sub);font-weight:600';
-  hdr.innerHTML='<span>日期</span><span style="color:var(--ok)">Square應收<br><span style="text-transform:none;font-weight:400;font-size:9px">（依刷卡相關記帳算出）</span></span><span style="color:#1656A0">每日記帳總金額<br><span style="text-transform:none;font-weight:400;font-size:9px">刷卡＋現金＋Venmo＋禮品卡售出</span></span><span>GoDaddy實收<br><span style="text-transform:none;font-weight:400;font-size:9px">（填「隔天」撥款清單金額，未扣手續費）</span></span><span style="text-align:center">差異</span>';
+  hdr.innerHTML='<span>日期</span><span style="color:var(--ok)">Square應收<br><span style="text-transform:none;font-weight:400;font-size:9px">（依刷卡相關記帳算出）</span></span><span style="color:#1656A0">每日記帳總金額<br><span style="text-transform:none;font-weight:400;font-size:9px">刷卡＋現金＋Venmo＋禮品卡售出＋產品銷售</span></span><span>GoDaddy實收<br><span style="text-transform:none;font-weight:400;font-size:9px">（填「隔天」撥款清單金額，未扣手續費）</span></span><span style="text-align:center">差異</span>';
   tbl.appendChild(hdr);
 
   var totalDue=0,totalAct=0,monthHasDiff=false;
@@ -3617,7 +3662,7 @@ function buildGDTable(){
 
     // 每日記帳總金額：刷卡＋現金＋Venmo＋禮品卡售出＋ClassPass（就是 t.rev 的兩店合計，這才是完整的每日記帳總數，包含現金）
     var bookTotal=mvT.rev+srT.rev;
-    var cashTotal=(mvT.cashSvc+mvT.gcSoldCash)+(srT.cashSvc+srT.gcSoldCash);
+    var cashTotal=(mvT.cashSvc+mvT.gcSoldCash+mvT.prodSoldCash)+(srT.cashSvc+srT.gcSoldCash+srT.prodSoldCash);
     var bookMinusCash=Math.round((bookTotal-cashTotal)*100)/100;
     var bookCheckOk=Math.abs(bookMinusCash-due)<1;
 
@@ -3691,7 +3736,7 @@ function buildGDTable(){
           var statusColors={'記錯帳':'#B83010','已確認沒問題':'#1A7A45','其他':'#7A746C'};
           return '<div style="background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:10px 12px;margin-bottom:8px">'
             +'<div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:6px">'
-            +'<div style="font-size:12px"><b>'+(it.store==='mv'?'MV':'SR')+' '+safeName+'</b>'
+            +'<div style="font-size:12px"><b>'+(it.store==='mv'?'MV ':it.store==='sr'?'SR ':'')+safeName+'</b>'
               +(it.tech&&it.tech!=='?'?'（'+safeTech+(it.time?'，'+it.time:'')+'）':(it.time?'（'+it.time+'）':''))
               +'<div style="color:var(--warn);margin-top:2px">'+it.issueType+'：'+safeDetail+'</div></div>'
             +'<span style="font-size:12px;font-weight:700;color:'+(it.diffAmt>=0?'#1A7A45':'#B83010')+'">'+(it.diffAmt>=0?'+':'')+'$'+it.diffAmt.toFixed(2)+'</span>'
@@ -9143,13 +9188,14 @@ function exportReconReport(){
     +'<div class="sub">'+moLabelZh+'　|　產生時間：'+printedAt+'</div>'
     +'<div class="sec-title">兩店合計月營業額</div>'
     +'<div class="big">$'+totRev.toLocaleString()+'</div>'
-    +'<div class="sub" style="margin:2px 0 10px">刷卡收入 + 現金收入 + Venmo收入 + 禮品卡銷售 + ClassPass（不含小費，小費另計入小費分配）</div>'
+    +'<div class="sub" style="margin:2px 0 10px">刷卡收入 + 現金收入 + Venmo收入 + 禮品卡銷售 + ClassPass + 產品銷售（不含小費，小費另計入小費分配）</div>'
     +'<div class="sum-grid">'
       +'<div class="sum-box"><div class="sum-l">刷卡收入</div><div class="sum-v">$'+(mvM.cardSvc+srM.cardSvc).toFixed(2)+'</div></div>'
       +'<div class="sum-box"><div class="sum-l">現金收入</div><div class="sum-v">$'+(mvM.cashSvc+srM.cashSvc).toFixed(2)+'</div></div>'
       +'<div class="sum-box"><div class="sum-l">Venmo收入</div><div class="sum-v">$'+(mvM.venmoSvc+srM.venmoSvc).toFixed(2)+'</div></div>'
       +'<div class="sum-box"><div class="sum-l">禮品卡銷售</div><div class="sum-v">$'+(mvM.gcSold+srM.gcSold).toFixed(2)+'</div></div>'
       +'<div class="sum-box"><div class="sum-l">ClassPass</div><div class="sum-v">$'+(mvM.cpSvc+srM.cpSvc).toFixed(2)+'</div></div>'
+      +'<div class="sum-box"><div class="sum-l">產品銷售</div><div class="sum-v">$'+(mvM.prodSold+srM.prodSold).toFixed(2)+'</div></div>'
     +'</div>'
     +'<div class="sum-grid">'
       +'<div class="sum-box"><div class="sum-l">刷卡 Tip（不計入營業額）</div><div class="sum-v" style="font-size:13px">$'+(mvM.cardTip+srM.cardTip).toFixed(2)+'</div></div>'
@@ -9223,7 +9269,7 @@ function exportReconReport(){
     +'<div class="sub">'+moLabelZh+'　|　以下是每一項數字背後的公式與定義</div>'
 
     +'<div class="formula-box"><div class="f-title">① 月營業額（本店真正賺到的服務收入）</div>'
-      +'<code>月營業額 = 刷卡收入 + 現金收入 + Venmo收入 + 禮品卡銷售 + ClassPass</code>'
+      +'<code>月營業額 = 刷卡收入 + 現金收入 + Venmo收入 + 禮品卡銷售 + ClassPass + 產品銷售</code>'
       +'<div style="margin-top:10px;font-size:12.5px;color:#555;line-height:1.8">'
       +'• <b>不含任何小費</b>——小費是要付給技師的錢，不是店裡的收入，另外在「小費分配」頁面單獨計算、分給技師。<br>'
       +'• <b>ClassPass 是獨立的一欄，不算在「刷卡收入」裡面</b>——因為 ClassPass 是平台付款給店裡，不是客人在店裡刷卡，所以跟真正過卡的刷卡收入分開列，但一樣算進月營業額（也一樣算給技師業績抽成）。<br>'
