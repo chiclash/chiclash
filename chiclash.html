@@ -3362,7 +3362,8 @@ function detectGdReviewItems(mo, itemsRaw, txnMap){
           if(realRows[ri]===best||(realRows[ri].name===best.name&&realRows[ri].time===best.time&&!realRows[ri].used)){realRows[ri].used=true;break;}
         }
         var svc=parseFloat(c.svc)||0,tip=parseFloat(c.tip)||0,topup=parseFloat(c.topup)||0;
-        var appRelevant=(c.cp?0:svc)+topup+tip;
+        var tipCountsAsCard=c.tipPay==='card'||(c.tipPay===undefined&&c.pay==='card'); // 沒特別填tipPay時，預設跟著服務付款方式走
+        var appRelevant=(c.cp?0:svc)+topup+(tipCountsAsCard?tip:0);
         var appIsCash=c.pay==='cash';
         var itemId=store+'_'+d+'_'+(c.clientName||'')+'_'+(c.time||'');
 
@@ -3372,10 +3373,17 @@ function detectGdReviewItems(mo, itemsRaw, txnMap){
             diffAmt:Math.round((best.isCash?-best.total:best.total)*100)/100});
         } else if(!appIsCash&&!best.isCash){
           var realRelevant=best.isCP?best.tip:best.total;
-          if(Math.abs(appRelevant-realRelevant)>3){
+          var diffHere=Math.round((realRelevant-appRelevant)*100)/100;
+          // 服務的付款方式對得上，但金額還是差了差不多等於這筆小費的金額 → 很可能是「小費」自己的付款方式寫錯了
+          // （比如服務刷卡沒錯，但小費記帳寫現金，其實Square顯示小費也是跟著同一筆刷卡刷掉的）
+          if(!tipCountsAsCard&&tip>0&&Math.abs(diffHere-tip)<3){
+            dayItems.push({id:itemId,store:store,clientName:c.clientName,tech:c.tech||'',time:c.time||'',
+              issueType:'小費付款方式不符',detail:'服務費刷卡沒錯，但小費記帳寫'+(c.tipPay==='cash'?'現金':c.tipPay||'未填')+'。Square顯示這筆小費$'+tip.toFixed(2)+'實際上是跟服務一起刷卡處理的——如果這是您刻意讓技師直接領現金小費的安排，這筆可以標「已確認沒問題」；但要注意：只要這樣標，GoDaddy實際撥款金額就會比「Square應收」多出這筆小費，屬於正常現象，不用再去找原因',
+              diffAmt:diffHere});
+          } else if(Math.abs(diffHere)>3){
             dayItems.push({id:itemId,store:store,clientName:c.clientName,tech:c.tech||'',time:c.time||'',
               issueType:'金額不符',detail:'記帳$'+appRelevant.toFixed(2)+'，Square$'+realRelevant.toFixed(2),
-              diffAmt:Math.round((realRelevant-appRelevant)*100)/100});
+              diffAmt:diffHere});
           }
         }
       });
@@ -5968,6 +5976,7 @@ function handleGDCsvFile(file) {
     var iDate = headers.indexOf('Date');
     var iSale = headers.indexOf('Sale amount');
     var iTip  = headers.indexOf('Tip amount');
+    var iPayout = headers.indexOf('Amount in Payout'); // 這欄才是真正撥款的金額(已經含小費)，優先用這欄
     var iType = headers.indexOf('Type');
     if (iDate < 0 || iSale < 0) { alert('找不到 Date 或 Sale amount 欄位，請確認是 GoDaddy Payout CSV'); return; }
 
@@ -5981,12 +5990,21 @@ function handleGDCsvFile(file) {
       var dateRaw = (cols[iDate]||'').trim(); // 07/08/2026 18:58
       var dateParts = dateRaw.split(' ')[0].split('/'); // [07, 08, 2026]
       if (dateParts.length < 3) continue;
-      var mo = dateParts[2] + '-' + dateParts[0]; // 2026-07
+      var mo = dateParts[2] + '-' + String(dateParts[0]).padStart(2,'0'); // 2026-07（補零，避免跟mk()格式對不起來）
       var day = parseInt(dateParts[1], 10);         // 8
-      var sale = parseFloat((cols[iSale]||'').replace(/[$,]/g,''))||0;
+      // 優先用「Amount in Payout」（真正撥款金額，已經含小費）；沒有這欄才退而用 Sale+Tip 加總，
+      // 絕對不能只用 Sale amount——那樣會漏掉全部的小費，讓撥款金額系統性偏低
+      var amt;
+      if (iPayout >= 0 && cols[iPayout]) {
+        amt = parseFloat((cols[iPayout]||'').replace(/[$,]/g,''))||0;
+      } else {
+        var sale = parseFloat((cols[iSale]||'').replace(/[$,]/g,''))||0;
+        var tip = iTip>=0 ? (parseFloat((cols[iTip]||'').replace(/[$,]/g,''))||0) : 0;
+        amt = sale + tip;
+      }
       if (!byDate[mo]) byDate[mo] = {};
       if (!byDate[mo][day]) byDate[mo][day] = 0;
-      byDate[mo][day] += sale;
+      byDate[mo][day] += amt;
     }
 
     // Write into _D.gd
@@ -6003,9 +6021,9 @@ function handleGDCsvFile(file) {
 
     save();
     var statusEl = document.getElementById('gd-csv-status');
-    if (statusEl) statusEl.textContent = '✅ 已匯入 ' + count + ' 天的 GoDaddy 實收';
+    if (statusEl) statusEl.textContent = '✅ 已匯入 ' + count + ' 天的 GoDaddy 實收（含小費）';
     document.getElementById('gd-csv-upload-area').style.display = 'none';
-    renderGDPage();
+    buildGDTable(); // 舊的 renderGDPage() 已經不存在了，呼叫它會直接報錯、整個上傳流程中斷，改叫正確的 buildGDTable()
   };
   reader.readAsText(file);
 }
@@ -9020,13 +9038,14 @@ function renderSqTable(){
   }
 }
 
-function commitSqToSystem(){
-  var unassigned=sqRows.filter(function(r){return !r.tech;});
+function commitSqToSystem(rowsToCommit){
+  var rows=rowsToCommit||sqRows;
+  var unassigned=rows.filter(function(r){return !r.tech;});
   if(unassigned.length>0){
     if(!confirm(unassigned.length+' 筆未指定技師，確定還是要寫入嗎？'))return;
   }
   var changed={};
-  sqRows.forEach(function(r){
+  rows.forEach(function(r){
     var month=r.date.slice(0,7);
     var key=r.store+'_'+month+'_'+r.day;
     if(!changed[key])changed[key]={store:r.store,day:r.day,month:month,entries:[]};
@@ -9047,6 +9066,7 @@ function commitSqToSystem(){
     if(doReplace)dayData.clients=[];
     g.entries.forEach(function(t){
       dayData.clients.push({
+        clientName:t.customer||'', // 之前這裡漏寫姓名，導致自動建立的客人紀錄全部是空白，這次補上
         svc:t.gross,
         pay:t.pay,cp:t.cp||false,gcAmt:'',topup:'',topupPay:'card',
         tip:t.tip>0?t.tip:'',tipPay:t.pay==='cash'?'cash':'card',
@@ -9057,15 +9077,21 @@ function commitSqToSystem(){
   });
   save();
   // ── 自動寫入 Lucy & Luter 薪資 ──
-  var payrollMo = sqRows.length > 0 ? sqRows[0].date.slice(0,7) : mk();
+  var payrollMo = rows.length > 0 ? rows[0].date.slice(0,7) : mk();
   var prResult = prExtractFromSqRows(payrollMo);
   if (prResult) {
     alert('寫入完成！已更新 '+dayCount+' 天的記錄\n\n💜 同時已自動更新 Lucy & Luter 薪資頁（'+payrollMo+'）');
   } else {
     alert('寫入完成！已更新 '+dayCount+' 天的記錄\n\n（此批 CSV 無 Lucy / Luter 的資料）');
   }
-  resetSqPage();
+  if(rowsToCommit){ // 從匯入中心呼叫的話，重新整理相關頁面，不要動舊版Square匯入頁的狀態
+    updateAll();
+    if(document.getElementById('gd-tbl'))buildGDTable();
+  } else {
+    resetSqPage();
+  }
 }
+window.commitSqToSystem=commitSqToSystem;
 
 function resetSqPage(){
   sqRows=[];sqItemsRaw=null;sqTxnRaw=null;
