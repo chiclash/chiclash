@@ -3682,6 +3682,19 @@ function buildGDTable(){
     var due=mvT.gdDue+srT.gdDue;
     totalDue+=due;
 
+    // 已知的「現金小費調整」金額：服務是刷卡付的，但小費故意記成現金/Venmo（老闆習慣性讓某些技師直接領現金小費）。
+    // 這種情況下，GoDaddy 真正撥款一定會比 Square應收多出這些小費，是必然、可預期的差距，不是記帳錯誤。
+    // 直接算出這個金額，讓「差異」欄位能清楚拆成「已知會有的調整」跟「真的沒辦法解釋的部分」。
+    var knownCashTipAdj=0;
+    ['mv','sr'].forEach(function(store){
+      (sDay(store,d).clients||[]).forEach(function(c){
+        if(c.cp)return; // ClassPass 已經在gdDue公式裡處理過，這裡不重複算
+        var tip=gv(c.tip);
+        if(c.pay==='card'&&c.tipPay!=='card'&&tip>0)knownCashTipAdj+=tip;
+      });
+    });
+    knownCashTipAdj=Math.round(knownCashTipAdj*100)/100;
+
     // 每日記帳總金額：刷卡＋現金＋Venmo＋禮品卡售出＋ClassPass＋產品銷售（就是 t.rev 的兩店合計）
     var bookTotal=mvT.rev+srT.rev;
     var cashTotal=(mvT.cashSvc+mvT.gcSoldCash+mvT.prodSoldCash)+(srT.cashSvc+srT.gcSoldCash+srT.prodSoldCash);
@@ -3710,8 +3723,10 @@ function buildGDTable(){
     if(actVal!==null)totalAct+=actVal;
 
     var diff=actVal!==null?Math.round((actVal-due)*100)/100:null;
-    var ok=diff!==null&&Math.abs(diff)<5;
-    var warn=diff!==null&&Math.abs(diff)>=5;
+    // 真正需要注意的，是扣掉「已知現金小費調整」之後還剩下多少——這才是真的沒辦法解釋的部分
+    var unexplainedDiff=diff!==null?Math.round((diff-knownCashTipAdj)*100)/100:null;
+    var ok=unexplainedDiff!==null&&Math.abs(unexplainedDiff)<5;
+    var warn=unexplainedDiff!==null&&Math.abs(unexplainedDiff)>=5;
     if(warn)monthHasDiff=true;
 
     var payoutLookupDate=new Date(y,m,d+1);
@@ -3743,8 +3758,10 @@ function buildGDTable(){
       '</div>'+
       '<div style="text-align:center;font-size:14px">'+
         (actVal===null?'<span style="color:var(--faint)">—</span>':
-         ok?'<span style="color:var(--ok);font-size:18px">✓</span>':
-         '<div><span style="color:var(--warn);font-weight:700">'+(diff>=0?'+':'')+$f(diff)+'</span></div>')+
+         ok?'<span style="color:var(--ok);font-size:18px">✓</span>'+(knownCashTipAdj>0?'<div style="font-size:8.5px;color:var(--faint);margin-top:2px">已扣現金小費調整$'+knownCashTipAdj.toFixed(2)+'</div>':''):
+         '<div><span style="color:var(--warn);font-weight:700">'+(unexplainedDiff>=0?'+':'')+$f(unexplainedDiff)+'</span>'+
+           (knownCashTipAdj>0?'<div style="font-size:8.5px;color:var(--faint);margin-top:2px">總差'+(diff>=0?'+':'')+$f(diff)+'－已知現金小費調整$'+knownCashTipAdj.toFixed(2)+'</div>':'')+
+         '</div>')+
       '</div>';
     tbl.appendChild(row);
 
@@ -9382,17 +9399,17 @@ function exportCSV(){
   const pad=n=>String(n).padStart(2,'0');
   let csv='';
   ['mv','sr'].forEach(s=>{
-    csv+=`\n${s==='mv'?'Mill Valley':'San Rafael'}\n日期,店,客人姓名,技師,服務費,付款方式,ClassPass,GC使用金額,Tip,Tip方式,GoDaddy應收,當日營業額\n`;
+    csv+=`\n${s==='mv'?'Mill Valley':'San Rafael'}\n日期,店,客人姓名,時間,技師,服務費,付款方式,ClassPass,GC使用金額,Tip,Tip方式,GoDaddy應收,當日營業額\n`;
     for(let d=1;d<=days;d++){
       const r=sDay(s,d);const t=calcDay(s,d);
       const storeLabel=s==='mv'?'Mill Valley':'San Rafael';
-      if(r.clients.length===0){csv+=`${y}-${pad(m+1)}-${pad(d)},${storeLabel},,,,,,,,,${t.gdDue.toFixed(2)},${t.rev.toFixed(2)}\n`;continue;}
+      if(r.clients.length===0){csv+=`${y}-${pad(m+1)}-${pad(d)},${storeLabel},,,,,,,,,,${t.gdDue.toFixed(2)},${t.rev.toFixed(2)}\n`;continue;}
       r.clients.forEach((c,i)=>{
         const techName=Array.isArray(c.staff)&&c.staff.length>0?c.staff[0]:(c.tech||'');
         const clientName=(c.clientName||'').trim();
         // 姓名/技師裡如果有逗號，用雙引號包起來，避免把CSV欄位拆錯
         const csvSafe=v=>v.indexOf(',')>=0||v.indexOf('"')>=0?'"'+v.replace(/"/g,'""')+'"':v;
-        csv+=`${y}-${pad(m+1)}-${pad(d)},${storeLabel},${csvSafe(clientName)},${csvSafe(techName)},${gv(c.svc).toFixed(2)},${c.pay},${c.cp?'是':'否'},${resolveGcAmt(c).toFixed(2)},${gv(c.tip).toFixed(2)},${c.tipPay||'card'},${i===0?t.gdDue.toFixed(2):''},${i===0?t.rev.toFixed(2):''}\n`;
+        csv+=`${y}-${pad(m+1)}-${pad(d)},${storeLabel},${csvSafe(clientName)},${c.time||''},${csvSafe(techName)},${gv(c.svc).toFixed(2)},${c.pay},${c.cp?'是':'否'},${resolveGcAmt(c).toFixed(2)},${gv(c.tip).toFixed(2)},${c.tipPay||'card'},${i===0?t.gdDue.toFixed(2):''},${i===0?t.rev.toFixed(2):''}\n`;
       });
     }
   });
