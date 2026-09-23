@@ -717,7 +717,9 @@ input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-
   </div>
   <div class="gd-banner neutral" id="gd-banner">
     <div class="gdb-icon" id="gdb-icon">💳</div>
-    <div class="gdb-body"><div class="gdb-title" id="gdb-title">GoDaddy 對帳狀況</div><div class="gdb-desc" id="gdb-desc">填入每日 GoDaddy 實收後自動對帳</div></div>
+    <div class="gdb-body"><div class="gdb-title" id="gdb-title">GoDaddy 對帳狀況</div><div class="gdb-desc" id="gdb-desc">填入每日 GoDaddy 實收後自動對帳</div>
+      <div style="margin-top:4px;font-size:11px;color:var(--faint)">手續費請到下方「GoDaddy 對帳」頁面的逐日表格填（每次撥款各自扣一筆，不是月底一次扣）</div>
+    </div>
     <div class="gdb-nums">
       <div class="gdn"><div class="gdn-l">應收</div><div class="gdn-v" id="gdb-due">—</div></div>
       <div class="gdn"><div class="gdn-l">實收</div><div class="gdn-v" id="gdb-act">—</div></div>
@@ -2241,6 +2243,30 @@ function sDay(s,d){
   if(r.sqGC===undefined)r.sqGC='';
   return r;
 }
+// Square 自報數字（每日快速核對用）：直接把 Square 後台當天顯示的刷卡/現金營收打進來，
+// 不用上傳 CSV，系統會自動比對「Square自報」跟「每日記帳＋禮品卡售出」跟「GoDaddy（未扣手續費）」這三個是否一致。
+function sqManualDay(d){
+  if(!_D.sqManual)_D.sqManual={};
+  if(!_D.sqManual[mk()])_D.sqManual[mk()]={};
+  if(!_D.sqManual[mk()][d])_D.sqManual[mk()][d]={mvCard:'',mvCash:'',srCard:'',srCash:'',note:''};
+  if(_D.sqManual[mk()][d].note===undefined)_D.sqManual[mk()][d].note=''; // 舊資料補上note欄位
+  return _D.sqManual[mk()][d];
+}
+function setSqManual(d,field,v){
+  var r=sqManualDay(d);
+  r[field]=v===''?'':Math.round((parseFloat(v)||0)*100)/100;
+  saveOnly();
+  if(document.getElementById('gd-tbl'))buildGDTable();
+}
+window.setSqManual=setSqManual;
+
+function setSqManualNote(d,v){
+  var r=sqManualDay(d);
+  r.note=v;
+  saveOnly();
+}
+window.setSqManualNote=setSqManualNote;
+
 function gdDay(d){
   if(!_D.gd)_D.gd={};
   if(!_D.gd[mk()])_D.gd[mk()]={};
@@ -2260,8 +2286,25 @@ function setGDFee(d,v){
   saveOnly();
   updateAll();
   if(document.getElementById('page-cal')&&document.getElementById('page-cal').classList.contains('on'))renderCalDetail();
+  if(document.getElementById('gd-tbl'))buildGDTable(); // 立即重畫表格，填完手續費馬上看到差異更新，不用切頁再回來
 }
 window.setGDFee=setGDFee;
+
+// 整批週期性手續費（兩店合計）：GoDaddy不是逐筆交易扣手續費，而是整批撥款週期性另外扣一筆（實測約2.3%）。
+// 這筆錢不會出現在「Payout Payments」逐筆明細CSV裡，只會顯示在GoDaddy後台的「Processing Fees」分頁，
+// 所以沒辦法自動抓，需要使用者自己去GoDaddy後台查、手動填一次（通常一個月看一次就好，不用每天填）。
+function getGDPeriodFee(){
+  if(!_D.gdPeriodFee||_D.gdPeriodFee[mk()]===undefined)return '';
+  return _D.gdPeriodFee[mk()];
+}
+function setGDPeriodFee(v){
+  if(!_D.gdPeriodFee)_D.gdPeriodFee={};
+  _D.gdPeriodFee[mk()]=v===''?'':Math.round((parseFloat(v)||0)*100)/100;
+  saveOnly();
+  updateAll();
+}
+window.getGDPeriodFee=getGDPeriodFee;
+window.setGDPeriodFee=setGDPeriodFee;
 
 // ── CALC ──
 // Client structure: {svc, pay:'card'|'cash'|'gc', cp:bool, gcAmt, topupPay:'card'|'cash', tip, tipPay:'card'|'cash'}
@@ -2896,7 +2939,10 @@ function updateAll(){
   let act=0;for(let d=1;d<=days;d++)act+=gv(gdDay(d).act);
   // include manual adjustments in monthly diff
   let totalAdj=0;for(let d=1;d<=days;d++)totalAdj+=parseFloat(gdDay(d).adj)||0;
-  const rawDiff=act>0?act-exp:null;
+  // 每日手續費加總：GoDaddy 每次撥款各自扣一筆手續費（不是月底統一扣一次），
+  // 跟「GoDaddy 對帳」逐日表格用同一套邏輯，把每天填的手續費加起來，才是這個月總共被扣了多少。
+  let totalFee=0;for(let d=1;d<=days;d++)totalFee+=gv(getGDFee(d));
+  const rawDiff=act>0?act-totalFee-exp:null;
   const diff=rawDiff!==null?rawDiff+totalAdj:null;
 
   s('gdb-due',exp?$f(exp):'—');s('gdb-act',act?$f(act):'—');
@@ -2904,9 +2950,10 @@ function updateAll(){
   if(bdEl){bdEl.textContent=diff!==null?(diff>=0?'+':'')+$f(diff):'—';bdEl.style.color=diff===null?'var(--text)':Math.abs(diff)<5?'var(--ok)':Math.abs(diff)<20?'var(--tip)':'var(--warn)';}
   const banner=document.getElementById('gd-banner');
   const badge=document.getElementById('gd-badge');
+  var periodFeeNote=totalFee>0?`（已扣本月手續費合計 $${totalFee.toFixed(2)}）`:'';
   if(diff===null){banner.className='gd-banner neutral';document.getElementById('gdb-icon').textContent='💳';document.getElementById('gdb-title').textContent='GoDaddy 對帳狀況';document.getElementById('gdb-desc').textContent='填入每日 GoDaddy 實收後自動對帳';if(badge)badge.style.display='none';}
-  else if(Math.abs(diff)<5){banner.className='gd-banner ok';document.getElementById('gdb-icon').textContent='✅';document.getElementById('gdb-title').textContent='GoDaddy 對帳正常';document.getElementById('gdb-desc').textContent=`差異 ${(diff>=0?'+':'')+$f(diff)}，在 $5 以內`;if(badge)badge.style.display='none';}
-  else{banner.className='gd-banner warn';document.getElementById('gdb-icon').textContent='⚠️';document.getElementById('gdb-title').textContent=`GoDaddy 差異 ${(diff>=0?'+':'')+$f(diff)}`;document.getElementById('gdb-desc').textContent=diff<0?'GoDaddy 少給了，請至對帳頁核對':'GoDaddy 多給了，可能有跨天結算';if(badge)badge.style.display='';}
+  else if(Math.abs(diff)<5){banner.className='gd-banner ok';document.getElementById('gdb-icon').textContent='✅';document.getElementById('gdb-title').textContent='GoDaddy 對帳正常';document.getElementById('gdb-desc').textContent=`差異 ${(diff>=0?'+':'')+$f(diff)}，在 $5 以內${periodFeeNote}`;if(badge)badge.style.display='none';}
+  else{banner.className='gd-banner warn';document.getElementById('gdb-icon').textContent='⚠️';document.getElementById('gdb-title').textContent=`GoDaddy 差異 ${(diff>=0?'+':'')+$f(diff)}`;document.getElementById('gdb-desc').textContent=(diff<0?'GoDaddy 少給了，請至對帳頁核對':'GoDaddy 多給了，可能有跨天結算')+periodFeeNote;if(badge)badge.style.display='';}
 
   // ── 當月各店支出（從收支記帳讀取）──
   const mk2str = mk2();
@@ -3465,6 +3512,16 @@ function toggleGdReviewPanel(d){
 }
 window.toggleGdReviewPanel=toggleGdReviewPanel;
 
+function toggleSqManualPanel(d){
+  var el=document.getElementById('sq-manual-panel-'+d);
+  var btn=document.getElementById('sq-manual-btn-'+d);
+  if(!el)return;
+  var isOpen=el.style.display!=='none';
+  el.style.display=isOpen?'none':'block';
+  if(btn)btn.textContent=(isOpen?'▸':'▾')+' '+btn.dataset.label;
+}
+window.toggleSqManualPanel=toggleSqManualPanel;
+
 function mergeGDSqFiles(){
   if(!gdSqItemsRaw||!gdSqTxnRaw){alert('請先上傳兩個 CSV');return;}
 
@@ -3722,7 +3779,14 @@ function buildGDTable(){
     var actVal=rAct!==''&&rAct!==undefined?parseFloat(rAct):null;
     if(actVal!==null)totalAct+=actVal;
 
-    var diff=actVal!==null?Math.round((actVal-due)*100)/100:null;
+    // 每日手續費：GoDaddy 每次撥款會各自扣一筆手續費（不是月底統一扣一次），這裡要先讀出來，
+    // 拿「填入的Payout」減掉這筆手續費之後，才是真正能拿去跟「Square應收」比較的數字——
+    // 之前這個欄位雖然有得填、也有顯示扣完之後多少錢，但「差異」欄位其實從來沒有真的用到它，這裡修正。
+    var feeVal=getGDFee(d);
+    var feeNum=parseFloat(feeVal)||0;
+    var actAfterFee=actVal!==null?Math.round((actVal-feeNum)*100)/100:null;
+
+    var diff=actAfterFee!==null?Math.round((actAfterFee-due)*100)/100:null;
     // 真正需要注意的，是扣掉「已知現金小費調整」之後還剩下多少——這才是真的沒辦法解釋的部分
     var unexplainedDiff=diff!==null?Math.round((diff-knownCashTipAdj)*100)/100:null;
     var ok=unexplainedDiff!==null&&Math.abs(unexplainedDiff)<5;
@@ -3731,9 +3795,6 @@ function buildGDTable(){
 
     var payoutLookupDate=new Date(y,m,d+1);
     var payoutLookupLabel=String(payoutLookupDate.getMonth()+1).padStart(2,'0')+'/'+String(payoutLookupDate.getDate()).padStart(2,'0');
-    var feeVal=getGDFee(d);
-    var feeNum=parseFloat(feeVal)||0;
-    var actAfterFee=actVal!==null?Math.round((actVal-feeNum)*100)/100:null;
 
     var row=document.createElement('div');
     row.style.cssText='display:grid;grid-template-columns:80px 1fr 1fr 1fr 90px;align-items:center;gap:8px;padding:8px 14px;border-bottom:1px solid var(--border);font-size:13px;background:'+(warn?'var(--warn-bg)':isWk?'#FAFAF8':'var(--white)');
@@ -3751,7 +3812,7 @@ function buildGDTable(){
       '<input type="text" inputmode="decimal" style="width:120px;border:1px solid '+(warn?'var(--warn-bd)':'var(--border)')+';border-radius:5px;padding:5px 8px;font-size:13px;font-family:inherit;text-align:right;outline:none;background:var(--white)" placeholder="填入 Payout" min="0" step="0.01" value="'+(actVal!==null?Math.round(actVal*100)/100:'')+'" onchange="updGD('+d+',this.value)">'+
       '<div style="font-size:9.5px;color:var(--faint);margin-top:2px">👉 去撥款清單找「'+payoutLookupLabel+'」那筆的金額</div>'+
       '<div style="margin-top:5px;display:flex;align-items:center;gap:5px">'+
-        '<span style="font-size:9.5px;color:var(--sub)">－手續費</span>'+
+        '<span style="font-size:9.5px;color:var(--sub)">－手續費（去GoDaddy後台「Payouts by Day」查當天Fees，約2.3%）</span>'+
         '<input type="text" inputmode="decimal" style="width:70px;border:1px solid var(--border);border-radius:5px;padding:3px 6px;font-size:11px;font-family:inherit;text-align:right;outline:none;background:var(--white)" placeholder="$0" min="0" step="0.01" value="'+feeVal+'" onchange="setGDFee('+d+',this.value)">'+
         (actAfterFee!==null?'<span style="font-size:9.5px;color:var(--sub)">＝ '+$f(actAfterFee)+'</span>':'')+
       '</div>'+
@@ -3764,6 +3825,53 @@ function buildGDTable(){
          '</div>')+
       '</div>';
     tbl.appendChild(row);
+
+    // 「Square自報快速核對」：不用上傳CSV，直接把Square後台當天顯示的刷卡/現金營收打進來，
+    // 系統自動算「Square自報 vs 每日記帳＋禮品卡售出 vs GoDaddy(未扣手續費)」三方是否一致。
+    // 一定要完全對到 $0（容許極小的四捨五入誤差）才算相符，只要有差就要求填備註說明原因，方便老闆一眼看懂。
+    (function(){
+      var sqM=sqManualDay(d);
+      var mvCard=gv(sqM.mvCard),mvCash=gv(sqM.mvCash),srCard=gv(sqM.srCard),srCash=gv(sqM.srCash);
+      var hasSqInput=sqM.mvCard!==''||sqM.mvCash!==''||sqM.srCard!==''||sqM.srCash!=='';
+      var sqManualTotal=mvCard+mvCash+srCard+srCash;
+      var gcSoldTotal=mvT.gcSold+srT.gcSold;
+      var bookNonGC=(mvT.cardSvc+mvT.cashSvc+mvT.venmoSvc+mvT.prodSold)+(srT.cardSvc+srT.cashSvc+srT.venmoSvc+srT.prodSold);
+      var expectedSqTotal=Math.round((bookNonGC+gcSoldTotal)*100)/100;
+      var diffVsBook=hasSqInput?Math.round((sqManualTotal-expectedSqTotal)*100)/100:null;
+      var diffVsGD=(hasSqInput&&actVal!==null)?Math.round((sqManualTotal-actVal)*100)/100:null;
+      var sqMismatch=diffVsBook!==null&&Math.abs(diffVsBook)>0.01;
+      // 註：「跟GoDaddy」那個比對(diffVsGD)不拿來判斷紅綠燈——因為GoDaddy撥款本來就含小費、
+      // 「每日記帳」這裡刻意不含小費，這兩個天生就不會對到$0，只當作參考資訊顯示，不算是「對不起來」。
+      var escHtml=function(v){return (v||'').toString().replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');};
+      var noteText=sqM.note||'';
+
+      var sqWrap=document.createElement('div');
+      sqWrap.style.cssText='padding:0 14px;background:'+(isWk?'#FAFAF8':'var(--white)')+';border-bottom:1px solid var(--border)';
+      var sqLabel='📝 Square自報快速核對'+(hasSqInput?(sqMismatch?'（⚠ 對不起來）':'（✓ 完全相符）'):'');
+      sqWrap.innerHTML='<button id="sq-manual-btn-'+d+'" data-label="'+sqLabel+'" onclick="toggleSqManualPanel('+d+')" style="background:none;border:none;color:'+(hasSqInput?(sqMismatch?'var(--warn)':'var(--ok)'):'var(--sub)')+';font-size:11px;font-weight:600;cursor:pointer;padding:6px 0;font-family:inherit">▸ '+sqLabel+'</button>'
+        +(sqMismatch&&noteText?'<div style="font-size:10.5px;color:var(--warn);padding:0 0 6px 14px">📌 '+escHtml(noteText)+'</div>':'')
+        +(sqMismatch&&!noteText?'<div style="font-size:10.5px;color:var(--faint);padding:0 0 6px 14px">尚未填備註說明原因，點開下面填一下</div>':'')
+        +'<div id="sq-manual-panel-'+d+'" style="display:none;padding:4px 0 12px">'
+        +'<div style="background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:10px 12px">'
+        +'<div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:8px;margin-bottom:8px">'
+        +['MV刷卡','mvCard','MV現金','mvCash','SR刷卡','srCard','SR現金','srCash'].reduce(function(acc,v,i,arr){
+            if(i%2===1){
+              var label=arr[i-1],field=v;
+              var val=sqM[field];
+              acc.push('<div><div style="font-size:9.5px;color:var(--sub);margin-bottom:2px">'+label+'</div><input type="text" inputmode="decimal" style="width:100%;border:1px solid var(--border);border-radius:5px;padding:4px 6px;font-size:12px;font-family:inherit;text-align:right;box-sizing:border-box" placeholder="$0" value="'+val+'" onchange="setSqManual('+d+',\''+field+'\',this.value)">'+'</div>');
+            }
+            return acc;
+          },[]).join('')
+        +'</div>'
+        +'<div style="font-size:11px;color:var(--sub);line-height:1.8">'
+        +'Square自報總計：<b>$'+sqManualTotal.toFixed(2)+'</b><br>'
+        +'每日記帳＋禮品卡售出：$'+bookNonGC.toFixed(2)+' + $'+gcSoldTotal.toFixed(2)+' = <b>$'+expectedSqTotal.toFixed(2)+'</b>'+(diffVsBook!==null?'　<span style="color:'+(Math.abs(diffVsBook)<0.01?'var(--ok)':'var(--warn)')+'">（差 '+(diffVsBook>=0?'+':'')+'$'+diffVsBook.toFixed(2)+'）</span>':'')+'<br>'
+        +'GoDaddy（未扣手續費）：$'+(actVal!==null?actVal.toFixed(2):'—')+(diffVsGD!==null?'　<span style="color:'+(Math.abs(diffVsGD)<0.01?'var(--ok)':'var(--warn)')+'">（差 '+(diffVsGD>=0?'+':'')+'$'+diffVsGD.toFixed(2)+'）</span>':'')
+        +'</div>'
+        +(sqMismatch?'<textarea placeholder="為什麼這天有差？（例如：忘記記某筆、Square系統延遲、退款尚未處理…）" onchange="setSqManualNote('+d+',this.value)" style="width:100%;margin-top:8px;padding:6px 8px;border:1px solid var(--warn-bd);border-radius:6px;font-size:11px;font-family:inherit;resize:vertical;min-height:34px;box-sizing:border-box">'+escHtml(noteText)+'</textarea>':'')
+        +'</div></div>';
+      tbl.appendChild(sqWrap);
+    })();
 
     // 「可能有疑慮」可收合面板：上傳過 Square CSV 對帳之後，自動比對出來的疑慮交易會顯示在這裡
     var reviewItems=(_D.gdReview&&_D.gdReview[mo]&&_D.gdReview[mo][d])||[];
@@ -3861,6 +3969,7 @@ function updGD(d,v){
   _D.gd[mk()][d].act=v===''?'':Math.round((parseFloat(v)||0)*100)/100;
   saveOnly();
   updateAll();
+  if(document.getElementById('gd-tbl'))buildGDTable(); // 立即重畫表格，填完Payout馬上看到差異更新，不用切頁再回來
 
   // 合理性檢查只用來「提醒」，絕對不會擋掉或撤銷剛剛的存檔
   if(v!==''){
