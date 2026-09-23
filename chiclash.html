@@ -2475,7 +2475,9 @@ function calcDay(s,d){
   // What clients say Square should show:
   // topupCard/topupCash 現在已經併進 cardSvc/cashSvc 裡面了，這裡不能再加一次，否則會重複計算
   // 賣禮品卡收到的刷卡/現金/Venmo，也是真的會進 Square 當日結算的錢，要另外加回來（gcSoldCard/Cash/Venmo 沒有併進 cardSvc/cashSvc/venmoSvc 本身，避免跟月營業額重複計算）
-  const calcOther=cardSvc+gcSoldCard+prodSoldCard+cardTip+venmoSvc+gcSoldVenmo+prodSoldVenmo+venmoTip; // card+venmo payments
+  // ClassPass 服務費：Square 自己的系統會顯示這筆交易(所以「Square 報告核對」這個比對要算進去)，
+  // 但 GoDaddy 永遠不會撥款這筆服務費(平台另外付錢，不會過卡)，所以 GD應收(gdDue)不算——這裡是兩種不同用途的公式，故意不一樣。
+  const calcOther=cardSvc+gcSoldCard+prodSoldCard+cardTip+venmoSvc+gcSoldVenmo+prodSoldVenmo+venmoTip+cpSvc; // card+venmo payments+ClassPass(Square報告看得到)
   const calcCash=cashSvc+gcSoldCash+prodSoldCash+cashTip;                    // cash payments (including cash tips)
   const calcGC=gcAmtUsed;                                      // gift card payments
   const calcTip=cardTip+venmoTip;
