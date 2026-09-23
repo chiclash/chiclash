@@ -2117,7 +2117,8 @@ input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-
           return {
             id:g.id, store:g.store, amount:g.amount||0,
             payMethod:g.payMethod||'', date:(function(v){var t=String(v||'');if(/^\d{4}-\d{2}-\d{2}$/.test(t)||t.indexOf('T')<0)return t.slice(0,10);var dd=new Date(t);return isNaN(dd.getTime())?t.slice(0,10):dd.toLocaleDateString('en-CA',{timeZone:'America/Los_Angeles'});})(g.issuedAt),
-            code:g.code||'', giftFor:g.giftFor||''
+            code:g.code||'', giftFor:g.giftFor||'',
+            time:(function(v){var t=String(v||'');if(t.indexOf('T')<0)return '';var dd=new Date(t);return isNaN(dd.getTime())?'':dd.toLocaleTimeString('en-US',{timeZone:'America/Los_Angeles',hour:'numeric',minute:'2-digit'});})(g.issuedAt)
           };
         });
       if (typeof renderAll === 'function') renderAll(); // 重新算一次，把剛載入的 iPad 禮品卡銷售額補進月營業額
@@ -2681,6 +2682,7 @@ function renderDay(d,dow){
     else if(t.hasSq) badges+=`<span class='bdg ok'>✓ Square 對帳</span>`;
     if(t.cpSvc>0) badges+=`<span class='bdg cp'>CP ${$f(t.cpSvc)}</span>`;
     if(t.gcSvc>0) badges+=`<span class='bdg gc'>GC ${$f(t.gcAmtUsed)}</span>`;
+    if(t.gcSold>0) badges+=`<span class='bdg gc' style="background:#FFF8EC;color:#9A6A10;border-color:#F0DDB0">🎁 賣卡 ${$f(t.gcSold)}</span>`;
     if(t.cashTip>0) badges+=`<span class='bdg tk'>現金小費 ${$f(t.cashTip)}</span>`;
     var missingNames=(r.clients||[]).filter(c=>!c.clientName&&c.svc).length;
     if(missingNames>0) badges+=`<span class='bdg warn' style="background:#FFF0EE;color:#C04020;border-color:#F0B0A0">⚠ ${missingNames}筆缺名字</span>`;
@@ -2708,6 +2710,7 @@ function renderDay(d,dow){
         </table>
         <button class='add-client-btn' onclick="addClient(${d})">＋ 新增客人</button>
         <div id="mrd-${d}"></div>
+        <div id="gcs-${d}"></div>
       </div>
       <div class='sq-rec'>
         <div class='sq-rec-title'>Square 報告核對（直接從 Square 複製）</div>
@@ -2737,6 +2740,46 @@ function renderDay(d,dow){
   renderClientTable(d);
   updateDaySummary(d);
   renderMemberDetectBanner(d);
+  renderDayGcSales(d);
+}
+
+// ── 每日記帳：自動顯示這天這家店賣出的禮品卡（店裡手動登記＋iPad 賣出）──
+// 只是顯示，資料本身在「Gift Card」頁（或 iPad）修改；金額本來就已經算進當日營業額／Square 對帳／GoDaddy 應收（刷卡）
+function dayGcSalesList(store,d){
+  var dateStr=mk()+'-'+String(d).padStart(2,'0');
+  var payLbl=function(p){return p==='cash'?'現金':(p==='venmo'||p==='zelle')?'Venmo':'刷卡';};
+  var list=[];
+  (_D.gc_cards||[]).forEach(function(g){
+    if(g.store!==store||g.date!==dateStr)return;
+    list.push({src:'店裡登記',code:g.code||'—',amt:g.amt||0,pay:payLbl(g.pay),who:g.note||'',time:''});
+  });
+  (window._gcFbAll||[]).forEach(function(g){
+    if(g.store!==store||g.date!==dateStr)return;
+    list.push({src:'📱 iPad',code:g.code||'—',amt:g.amount||0,pay:payLbl(g.payMethod),who:g.giftFor?('For: '+g.giftFor):'',time:g.time||''});
+  });
+  return list;
+}
+function renderDayGcSales(d){
+  var el=document.getElementById('gcs-'+d);if(!el)return;
+  var list=dayGcSalesList(activeStore,d);
+  if(!list.length){el.innerHTML='';return;}
+  var esc=function(v){return String(v||'').replace(/&/g,'&amp;').replace(/</g,'&lt;');};
+  var total=Math.round(list.reduce(function(s,g){return s+g.amt;},0)*100)/100;
+  el.innerHTML='<div style="margin:10px 0 4px;background:#FFF8EC;border:1px solid #F0DDB0;border-radius:10px;padding:10px 14px">'
+    +'<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">'
+      +'<span style="font-size:12px;font-weight:700;color:#9A6A10">🎁 這天賣出的禮品卡（自動帶入）</span>'
+      +'<span style="font-size:13px;font-weight:700;color:#9A6A10">共 $'+total.toFixed(2)+'</span></div>'
+    +list.map(function(g){
+      return '<div style="display:flex;gap:10px;align-items:center;font-size:12px;padding:4px 0;border-top:1px dashed #F0DDB0;flex-wrap:wrap">'
+        +(g.time?'<span style="color:var(--sub);font-family:monospace;min-width:58px">'+esc(g.time)+'</span>':'')
+        +'<span style="font-family:monospace;font-weight:700">'+esc(g.code)+'</span>'
+        +(g.who?'<span style="color:var(--sub)">'+esc(g.who)+'</span>':'')
+        +'<span style="font-size:10px;color:var(--faint)">'+g.src+'</span>'
+        +'<span style="margin-left:auto;color:var(--sub)">'+g.pay+'</span>'
+        +'<span style="font-weight:700;min-width:70px;text-align:right">$'+g.amt.toFixed(2)+'</span></div>';
+    }).join('')
+    +'<div style="font-size:10px;color:var(--faint);margin-top:4px">已算進當日營業額、Square 對帳和 GoDaddy 應收（刷卡的部分）。要修改請到「Gift Card」頁。如果這張卡沒有在 Square 結帳，Square 對帳會剛好差這個金額。</div>'
+    +'</div>';
 }
 
 function renderClientTable(d){
@@ -2910,6 +2953,7 @@ function updateDaySummary(d){
     else if(t.hasSq) badges+=`<span class='bdg ok'>✓ Square 對帳</span>`;
     if(t.cpSvc>0) badges+=`<span class='bdg cp'>CP ${$f(t.cpSvc)}</span>`;
     if(t.gcSvc>0) badges+=`<span class='bdg gc'>GC ${$f(t.gcAmtUsed)}</span>`;
+    if(t.gcSold>0) badges+=`<span class='bdg gc' style="background:#FFF8EC;color:#9A6A10;border-color:#F0DDB0">🎁 賣卡 ${$f(t.gcSold)}</span>`;
     if(t.cashTip>0) badges+=`<span class='bdg tk'>現金小費 ${$f(t.cashTip)}</span>`;
     var missingNames2=(sDay(activeStore,d).clients||[]).filter(c=>!c.clientName&&c.svc).length;
     if(missingNames2>0) badges+=`<span class='bdg warn' style="background:#FFF0EE;color:#C04020;border-color:#F0B0A0">⚠ ${missingNames2}筆缺名字</span>`;
