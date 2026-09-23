@@ -1416,6 +1416,13 @@ input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-
         </div>
       </div>
       <div id="boss-recon-mv" style="font-size:11px;font-weight:600;margin-top:8px;color:#888">—</div>
+      <div style="border-top:1px solid var(--mv-bd);margin-top:10px;padding-top:10px">
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <span style="font-size:9px;color:#888">💵 技師現金小費（本月）<br><span style="font-size:8px;opacity:.7">（直接給技師，不在保險箱裡，月底清點用）</span></span>
+          <span id="boss-cashtip-mv" style="font-size:17px;font-weight:700;color:var(--cash)">—</span>
+        </div>
+        <div id="boss-cashtip-list-mv" style="font-size:11px;color:var(--sub);margin-top:6px;line-height:1.7"></div>
+      </div>
       <div style="border-top:1px solid var(--mv-bd);margin-top:10px;padding-top:10px;display:flex;justify-content:space-between;align-items:center">
         <span style="font-size:9px;color:#888">🧮 帳面應有餘額<br><span style="font-size:8px;opacity:.7">（點鈔/放入/取出/支出推算）</span></span>
         <span id="boss-expect-mv" style="font-size:17px;font-weight:700;color:var(--mv)">—</span>
@@ -1449,6 +1456,13 @@ input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-
         </div>
       </div>
       <div id="boss-recon-sr" style="font-size:11px;font-weight:600;margin-top:8px;color:#888">—</div>
+      <div style="border-top:1px solid var(--sr-bd);margin-top:10px;padding-top:10px">
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <span style="font-size:9px;color:#888">💵 技師現金小費（本月）<br><span style="font-size:8px;opacity:.7">（直接給技師，不在保險箱裡，月底清點用）</span></span>
+          <span id="boss-cashtip-sr" style="font-size:17px;font-weight:700;color:var(--cash)">—</span>
+        </div>
+        <div id="boss-cashtip-list-sr" style="font-size:11px;color:var(--sub);margin-top:6px;line-height:1.7"></div>
+      </div>
       <div style="border-top:1px solid var(--sr-bd);margin-top:10px;padding-top:10px;display:flex;justify-content:space-between;align-items:center">
         <span style="font-size:9px;color:#888">🧮 帳面應有餘額<br><span style="font-size:8px;opacity:.7">（點鈔/放入/取出/支出推算）</span></span>
         <span id="boss-expect-sr" style="font-size:17px;font-weight:700;color:var(--sr)">—</span>
@@ -2069,7 +2083,11 @@ input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-
 
         // 真的是別的裝置/分頁新存的資料 → 用同一套「逐天安全合併」規則合併進來，
         // 以本機現有的（可能才剛打、還沒被雲端看到的）資料為主，雲端資料補上本機沒有的部分，避免互相蓋掉
-        var merged = mergeFullData(window._D || {}, cloudData);
+        // 雲端這份比較新（別台裝置剛存的）→ 以雲端為主，本機只補雲端完全沒有的日子/項目；
+        // 以前是反過來「本機為主」，會讓別台裝置的修改看不到，而且這台下次存檔時還會把對方的修改蓋掉。
+        var merged = mergeFullData(cloudData, window._D || {});
+        merged.gc_cards = cloudData.gc_cards || []; // 禮品卡以雲端為準，別台刪掉的卡才不會又被加回來
+        merged._savedAt = cloudTs;
         window._D = merged;
         try { localStorage.setItem('rev19', JSON.stringify(merged)); } catch(e2) {}
         if (typeof renderAll === 'function') renderAll();
@@ -2098,7 +2116,7 @@ input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-
         .map(function(g){
           return {
             id:g.id, store:g.store, amount:g.amount||0,
-            payMethod:g.payMethod||'', date:String(g.issuedAt).slice(0,10),
+            payMethod:g.payMethod||'', date:(function(v){var t=String(v||'');if(/^\d{4}-\d{2}-\d{2}$/.test(t)||t.indexOf('T')<0)return t.slice(0,10);var dd=new Date(t);return isNaN(dd.getTime())?t.slice(0,10):dd.toLocaleDateString('en-CA',{timeZone:'America/Los_Angeles'});})(g.issuedAt),
             code:g.code||'', giftFor:g.giftFor||''
           };
         });
@@ -2135,7 +2153,10 @@ let activeStore='mv';
   // Force update GoDaddy actuals
   const gdU={"1":83.04,"2":1236.25,"3":1880.68,"4":1486.56,"5":2507.24,"6":3392.5,"7":1592.71,"8":402.24,"9":1634.74,"10":1859.15,"11":1857.84,"12":2399.4,"13":2214.75,"14":1372.62,"15":141.66,"16":1091.89,"17":1353.32,"18":2422.69,"19":1979.16};
   if(!ex.gd)ex.gd={};if(!ex.gd['2026-03'])ex.gd['2026-03']={};
-  Object.keys(gdU).forEach(d=>{ex.gd['2026-03'][d]={act:gdU[d]};});
+  Object.keys(gdU).forEach(d=>{ // 只補還沒有資料的日子，不再每次開啟都蓋掉使用者自己改過的實收/手續費/備註
+    var r=ex.gd['2026-03'][d];
+    if(!r||r.act===''||r.act===undefined)ex.gd['2026-03'][d]=Object.assign({},r||{},{act:gdU[d]});
+  });
   if(!ex.gc_cards)ex.gc_cards=[];
   localStorage.setItem('rev19',JSON.stringify(ex));
   window._D=ex;
@@ -2206,9 +2227,24 @@ const gv=v=>v!==''&&v!==undefined&&v!==null?parseFloat(v)||0:0;
 function resolveGcAmt(c){
   var explicit=gv(c.gcAmt);
   if(explicit>0)return explicit;
-  if(gv(c.topup)<=0)return gv(c.svc);
-  return 0;
+  // 沒填「GC金額」：有補差額→禮品卡付的是「服務金額－補差額」；沒補差額→整筆都是禮品卡
+  return Math.max(0,Math.round((gv(c.svc)-gv(c.topup))*100)/100);
 }
+
+// 平分金額到「分」：先每人拿一樣的，除不盡的零頭照名字順序一人多給 $0.01，
+// 保證每個人拿到的加起來「剛好等於」總額，不會多一分也不會少一分。
+function splitEven(total,names){
+  var res={};
+  var list=(names||[]).slice();
+  if(!list.length)return res;
+  var cents=Math.round((total||0)*100);
+  var base=Math.floor(cents/list.length);
+  var rem=cents-base*list.length;
+  list.forEach(function(n,i){res[n]=(base+(i<rem?1:0))/100;});
+  return res;
+}
+function r2(n){return Math.round((n||0)*100)/100;}
+function sgnMoney(x){return (x>=0?'+$':'-$')+Math.abs(x).toFixed(2);} // 金額加正負號：+$20.00 / -$20.00
 
 // 合併同天同技師同客人的多筆記錄：服務費加總，小費加總，任一筆有cashTipOk就標記
 function mergeClientTxns(clients){
@@ -2272,45 +2308,55 @@ window.setSqManualNote=setSqManualNote;
 // 確保兩邊邏輯/畫面永遠一致，不會分岔。
 // 一定要完全對到 $0（容許極小的四捨五入誤差）才算相符，只要有差就要求填備註說明原因，方便老闆一眼看懂。
 function renderSqManualBlockHtml(d){
+  // 對帳規則（全系統一致）：
+  //   Square「Other」＝GoDaddy刷卡機刷的卡＋Venmo＋ClassPass＋禮品卡兌換（前台用 Other 結帳），都含小費 → calcOther＋calcGC
+  //   Square「Cash」＝現金＋現金小費 → 應等於 calcCash
+  //   GoDaddy 撥款（未扣手續費）＝只有刷卡的部分（含刷卡小費）→ 應等於 gdDue
   var mvT=calcDay('mv',d),srT=calcDay('sr',d);
-  var actValRaw=gdDay(d).act;
-  var actVal=actValRaw!==''&&actValRaw!==undefined?parseFloat(actValRaw):null;
   var sqM=sqManualDay(d);
-  var mvCard=gv(sqM.mvCard),mvCash=gv(sqM.mvCash),srCard=gv(sqM.srCard),srCash=gv(sqM.srCash);
-  var hasSqInput=sqM.mvCard!==''||sqM.mvCash!==''||sqM.srCard!==''||sqM.srCash!=='';
-  var sqManualTotal=mvCard+mvCash+srCard+srCash;
-  var gcSoldTotal=mvT.gcSold+srT.gcSold;
-  var bookNonGC=(mvT.cardSvc+mvT.cashSvc+mvT.venmoSvc+mvT.prodSold)+(srT.cardSvc+srT.cashSvc+srT.venmoSvc+srT.prodSold);
-  var expectedSqTotal=Math.round((bookNonGC+gcSoldTotal)*100)/100;
-  var diffVsBook=hasSqInput?Math.round((sqManualTotal-expectedSqTotal)*100)/100:null;
-  var diffVsGD=(hasSqInput&&actVal!==null)?Math.round((sqManualTotal-actVal)*100)/100:null;
-  var sqMismatch=diffVsBook!==null&&Math.abs(diffVsBook)>0.01;
-  // 註：「跟GoDaddy」那個比對(diffVsGD)不拿來判斷紅綠燈——因為GoDaddy撥款本來就含小費、
-  // 「每日記帳」這裡刻意不含小費，這兩個天生就不會對到$0，只當作參考資訊顯示，不算是「對不起來」。
   var escHtml=function(v){return (v||'').toString().replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');};
+  var cells=[
+    {label:'MV 刷卡(Other)',field:'mvCard',exp:mvT.calcOther+mvT.calcGC},
+    {label:'MV 現金(Cash)',field:'mvCash',exp:mvT.calcCash},
+    {label:'SR 刷卡(Other)',field:'srCard',exp:srT.calcOther+srT.calcGC},
+    {label:'SR 現金(Cash)',field:'srCash',exp:srT.calcCash}
+  ];
+  var hasSqInput=false,sqMismatch=false;
+  cells.forEach(function(c){
+    c.has=sqM[c.field]!==''&&sqM[c.field]!==undefined;
+    c.val=gv(sqM[c.field]);
+    c.exp=r2(c.exp);
+    c.diff=c.has?r2(c.val-c.exp):null;
+    if(c.has)hasSqInput=true;
+    if(c.diff!==null&&Math.abs(c.diff)>=0.01)sqMismatch=true;
+  });
+  // 同一家店「刷卡多X、現金少X」→ 幾乎都是現金小費在 Square 被記成刷卡（或反過來）
+  var hints=[];
+  [['MV',cells[0],cells[1]],['SR',cells[2],cells[3]]].forEach(function(g){
+    var o=g[1],c=g[2];
+    if(o.diff!==null&&c.diff!==null&&Math.abs(o.diff)>=0.01&&Math.abs(o.diff+c.diff)<0.01){
+      hints.push(g[0]+'：總額是對的，只是有 $'+Math.abs(o.diff).toFixed(2)+(o.diff>0?' 在每日記帳是現金、但 Square 記成刷卡':' 在每日記帳是刷卡、但 Square 記成現金')+'（通常是小費）');
+    }
+  });
   var noteText=sqM.note||'';
   var sqLabel='📝 Square自報快速核對'+(hasSqInput?(sqMismatch?'（⚠ 對不起來）':'（✓ 完全相符）'):'');
+  var fmtDiff=function(x){return x===null?'':'　<span style="color:'+(Math.abs(x)<0.01?'var(--ok)':'var(--warn)')+'">'+(Math.abs(x)<0.01?'✓':'（差 '+sgnMoney(x)+'）')+'</span>';};
   return '<button id="sq-manual-btn-'+d+'" data-label="'+sqLabel+'" onclick="toggleSqManualPanel('+d+')" style="background:none;border:none;color:'+(hasSqInput?(sqMismatch?'var(--warn)':'var(--ok)'):'var(--sub)')+';font-size:11px;font-weight:600;cursor:pointer;padding:6px 0;font-family:inherit">▸ '+sqLabel+'</button>'
     +(sqMismatch&&noteText?'<div style="font-size:10.5px;color:var(--warn);padding:0 0 6px 14px">📌 '+escHtml(noteText)+'</div>':'')
     +(sqMismatch&&!noteText?'<div style="font-size:10.5px;color:var(--faint);padding:0 0 6px 14px">尚未填備註說明原因，點開下面填一下</div>':'')
     +'<div id="sq-manual-panel-'+d+'" style="display:none;padding:4px 0 12px">'
     +'<div style="background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:10px 12px">'
+    +'<div style="font-size:10px;color:var(--sub);margin-bottom:6px">從 Square 報表的「付款方式」複製 Other（刷卡）跟 Cash（現金）兩欄，都是含小費的金額</div>'
     +'<div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:8px;margin-bottom:8px">'
-    +['MV刷卡','mvCard','MV現金','mvCash','SR刷卡','srCard','SR現金','srCash'].reduce(function(acc,v,i,arr){
-        if(i%2===1){
-          var label=arr[i-1],field=v;
-          var val=sqM[field];
-          acc.push('<div><div style="font-size:9.5px;color:var(--sub);margin-bottom:2px">'+label+'</div><input type="text" inputmode="decimal" style="width:100%;border:1px solid var(--border);border-radius:5px;padding:4px 6px;font-size:12px;font-family:inherit;text-align:right;box-sizing:border-box" placeholder="$0" value="'+val+'" onchange="setSqManual('+d+',\''+field+'\',this.value)">'+'</div>');
-        }
-        return acc;
-      },[]).join('')
+    +cells.map(function(c){
+        return '<div><div style="font-size:9.5px;color:var(--sub);margin-bottom:2px">'+c.label+'</div><input type="text" inputmode="decimal" style="width:100%;border:1px solid var(--border);border-radius:5px;padding:4px 6px;font-size:12px;font-family:inherit;text-align:right;box-sizing:border-box" placeholder="$0" value="'+sqM[c.field]+'" onchange="setSqManual('+d+',\''+c.field+'\',this.value)"></div>';
+      }).join('')
     +'</div>'
     +'<div style="font-size:11px;color:var(--sub);line-height:1.8">'
-    +'Square自報總計：<b>$'+sqManualTotal.toFixed(2)+'</b><br>'
-    +'每日記帳＋禮品卡售出：$'+bookNonGC.toFixed(2)+' + $'+gcSoldTotal.toFixed(2)+' = <b>$'+expectedSqTotal.toFixed(2)+'</b>'+(diffVsBook!==null?'　<span style="color:'+(Math.abs(diffVsBook)<0.01?'var(--ok)':'var(--warn)')+'">（差 '+(diffVsBook>=0?'+':'')+'$'+diffVsBook.toFixed(2)+'）</span>':'')+'<br>'
-    +'GoDaddy（未扣手續費）：$'+(actVal!==null?actVal.toFixed(2):'—')+(diffVsGD!==null?'　<span style="color:'+(Math.abs(diffVsGD)<0.01?'var(--ok)':'var(--warn)')+'">（差 '+(diffVsGD>=0?'+':'')+'$'+diffVsGD.toFixed(2)+'）</span>':'')
+    +cells.map(function(c){return c.label+' 每日記帳應為 <b>$'+c.exp.toFixed(2)+'</b>'+fmtDiff(c.diff);}).join('<br>')
+    +(hints.length?'<div style="color:var(--tip);margin-top:4px">💡 '+hints.join('<br>💡 ')+'</div>':'')
     +'</div>'
-    +(sqMismatch?'<textarea placeholder="為什麼這天有差？（例如：忘記記某筆、Square系統延遲、退款尚未處理…）" onchange="setSqManualNote('+d+',this.value)" style="width:100%;margin-top:8px;padding:6px 8px;border:1px solid var(--warn-bd);border-radius:6px;font-size:11px;font-family:inherit;resize:vertical;min-height:34px;box-sizing:border-box">'+escHtml(noteText)+'</textarea>':'')
+    +(sqMismatch?'<textarea placeholder="為什麼這天有差？（例如：現金小費被Square記成刷卡、忘記記某筆、退款尚未處理…）" onchange="setSqManualNote('+d+',this.value)" style="width:100%;margin-top:8px;padding:6px 8px;border:1px solid var(--warn-bd);border-radius:6px;font-size:11px;font-family:inherit;resize:vertical;min-height:34px;box-sizing:border-box">'+escHtml(noteText)+'</textarea>':'')
     +'</div></div>';
 }
 
@@ -2409,9 +2455,10 @@ function calcDay(s,d){
       // GoDaddy 撥款時一樣會收這筆刷卡錢，所以要併進 cardSvc/cashSvc，才會同時算進「月營業額」跟「GoDaddy應收」
       if(c.topupPay==='card'){topupCard+=topup; cardSvc+=topup;}
       else {topupCash+=topup; cashSvc+=topup;}
-      if(c.tipPay==='card')cardTip+=tip;
-      else if(c.tipPay==='venmo')venmoTip+=tip;
-      else cashTip+=tip;
+      var tp=c.tipPay||'card'; // 沒選＝刷卡（跟新增客人的預設、小費分配頁一致）
+      if(tp==='cash')cashTip+=tip;
+      else if(tp==='venmo')venmoTip+=tip;
+      else cardTip+=tip;
     } else {
       if(c.cp){
         // ClassPass 服務費：完全獨立一欄，不算進刷卡收入（因為這筆錢是 ClassPass 平台付的，不是客人在店裡刷卡）
@@ -2430,9 +2477,10 @@ function calcDay(s,d){
         else if(c.pay==='venmo')venmoSvc+=svc;
         else cashSvc+=svc;
       }
-      if(c.tipPay==='card')cardTip+=tip;
-      else if(c.tipPay==='venmo')venmoTip+=tip;
-      else cashTip+=tip;
+      var tp=c.tipPay||'card'; // 沒選＝刷卡（跟新增客人的預設、小費分配頁一致）
+      if(tp==='cash')cashTip+=tip;
+      else if(tp==='venmo')venmoTip+=tip;
+      else cardTip+=tip;
     }
   });
 
@@ -2502,7 +2550,7 @@ function calcDay(s,d){
   const hasSq=sqOther||sqCash||sqTip||sqTotal||sqGC;
   const hasClients=clients.length>0||gcSold>0||prodSold>0; // 這天只有賣禮品卡/產品、沒有服務客人時，也要照樣對帳（刷卡一樣會進 Square 的當日結算）
   if(hasSq&&hasClients){
-    sqDiff=sqTotal>0 ? sqTotal-calcTotal : (sqOther+sqCash+sqGC)-calcTotal;
+    sqDiff=Math.round((sqTotal>0 ? sqTotal-calcTotal : (sqOther+sqCash+sqGC)-calcTotal)*100)/100;
   }
 
   return{cardSvc,cashSvc,venmoSvc,cpSvc,gcSvc,gcAmtUsed,gcSold,gcSoldCard,gcSoldCash,prodSold,prodSoldCard,prodSoldCash,prodSoldVenmo,cardTip,cashTip,venmoTip,gdDue,rev,
@@ -2585,7 +2633,7 @@ function renderDay(d,dow){
   const r=sDay(activeStore,d);
   const t=calcDay(activeStore,d);
   const wasOpen=card.querySelector('.db')?.classList.contains('open');
-  const sqWarn=t.sqDiff!==null&&Math.abs(t.sqDiff)>0.05;
+  const sqWarn=t.sqDiff!==null&&Math.abs(t.sqDiff)>=0.01;
   const isDone=r.done===true;
   card.className=`dc${t.hasClients?' filled':''}${sqWarn?' warned':''}${isDone?' done-day':''}`;
 
@@ -2594,7 +2642,7 @@ function renderDay(d,dow){
     if(sqWarn) badges+=`<span class='bdg warn'>對帳差 ${(t.sqDiff>=0?'+':'')+$f(t.sqDiff)}</span>`;
     else if(t.hasSq) badges+=`<span class='bdg ok'>✓ Square 對帳</span>`;
     if(t.cpSvc>0) badges+=`<span class='bdg cp'>CP ${$f(t.cpSvc)}</span>`;
-    if(t.gcSvc>0) badges+=`<span class='bdg gc'>GC ${$f(t.gcSvc)}</span>`;
+    if(t.gcSvc>0) badges+=`<span class='bdg gc'>GC ${$f(t.gcAmtUsed)}</span>`;
     if(t.cashTip>0) badges+=`<span class='bdg tk'>現金小費 ${$f(t.cashTip)}</span>`;
     var missingNames=(r.clients||[]).filter(c=>!c.clientName&&c.svc).length;
     if(missingNames>0) badges+=`<span class='bdg warn' style="background:#FFF0EE;color:#C04020;border-color:#F0B0A0">⚠ ${missingNames}筆缺名字</span>`;
@@ -2632,7 +2680,7 @@ function renderDay(d,dow){
           <div class='sq-f'><label>Tip</label><input type="text" inputmode="decimal" class='sq-ti' placeholder="0.00" min="0" step="0.01" value="${gv(r.sqTip)||''}" oninput="updSq(${d},'sqTip',this.value)"></div>
           <div class='sq-f'><label>報告總額</label><input type="text" inputmode="decimal" class='sq-ti tot' placeholder="0.00" min="0" step="0.01" value="${gv(r.sqTotal)||''}" oninput="updSq(${d},'sqTotal',this.value)"></div>
           <div class='sq-f'><label>與客人記錄差異</label>
-            <div class="sq-diff ${t.sqDiff===null?'muted':Math.abs(t.sqDiff)<0.05?'ok':'warn'}" id="sqdiff-${d}">
+            <div class="sq-diff ${t.sqDiff===null?'muted':Math.abs(t.sqDiff)<0.01?'ok':'warn'}" id="sqdiff-${d}">
               ${t.sqDiff===null?'—':t.sqDiff===0?'✓ 相符':(t.sqDiff>=0?'+':'')+$f(t.sqDiff)}
             </div>
           </div>
@@ -2646,7 +2694,7 @@ function renderDay(d,dow){
         <div class='ds'><div class='ds-l' style="color:var(--ok)">GoDaddy 應收</div><div class='ds-v' style="color:var(--ok)" id="ds-gd-${d}">—</div></div>
       </div>
       <div class='day-staff-tip' id="dst-${d}"></div>
-      <div class='note-wrap'><input type="text" class='note-inp' placeholder="備註…" value="${r.note||''}" oninput="updSq(${d},'note',this.value)"></div>
+      <div class='note-wrap'><input type="text" class='note-inp' placeholder="備註…" value="${String(r.note||'').replace(/&/g,'&amp;').replace(/"/g,'&quot;')}" oninput="updSq(${d},'note',this.value)"></div>
     </div>`;
   renderClientTable(d);
   updateDaySummary(d);
@@ -2743,7 +2791,7 @@ function renderClientTable(d){
       </td>
       <td>
         <div class='tgl-grp'>
-          <button class="tgl ${c.tipPay==='card'?'on-card':''}" onclick="setTipPay(${d},${i},'card',this)">刷卡</button>
+          <button class="tgl ${(c.tipPay||'card')==='card'?'on-card':''}" onclick="setTipPay(${d},${i},'card',this)">刷卡</button>
           <button class="tgl ${c.tipPay==='cash'?'on-cash':''}" onclick="setTipPay(${d},${i},'cash',this)">現金</button>
           <button class="tgl ${c.tipPay==='venmo'?'on-venmo':''}" onclick="setTipPay(${d},${i},'venmo',this)">Venmo</button>
         </div>
@@ -2771,7 +2819,7 @@ function renderClientTable(d){
       const corrSvc=c.corrSvc!==undefined?c.corrSvc:'';
       const corrTip=c.corrTip!==undefined?c.corrTip:'';
       const isCard=c.pay==='card';
-      const corrGD=(corrSvc!==''||corrTip!=='')?((gv(corrSvc)+(isCard?gv(corrTip):0))*GD_FEE):null;
+      const corrGD=(corrSvc!==''||corrTip!=='')?(((isCard?gv(corrSvc):0)+((c.tipPay||'card')==='card'?gv(corrTip):0))*GD_FEE):null;
       const staffList=(_D.staff||[]);
       const selectedStaff=c.staff||[];
       const staffTags=staffList.length>0
@@ -2810,20 +2858,20 @@ function updateDaySummary(d){
   const sdEl=document.getElementById(`sqdiff-${d}`);
   if(sdEl){
     if(t.sqDiff===null){sdEl.textContent='—';sdEl.className='sq-diff muted';}
-    else if(Math.abs(t.sqDiff)<0.05){sdEl.textContent='✓ 相符';sdEl.className='sq-diff ok';}
+    else if(Math.abs(t.sqDiff)<0.01){sdEl.textContent='✓ 相符';sdEl.className='sq-diff ok';}
     else{sdEl.textContent=(t.sqDiff>=0?'+':'')+$f(t.sqDiff);sdEl.className='sq-diff warn';}
   }
   // Update header badges
-  const sqWarn=t.sqDiff!==null&&Math.abs(t.sqDiff)>0.05;
+  const sqWarn=t.sqDiff!==null&&Math.abs(t.sqDiff)>=0.01;
   const card=document.getElementById(`dc-${d}`);
   if(!card)return;
-  card.className=`dc${t.hasClients?' filled':''}${sqWarn?' warned':''}`;
+  card.className=`dc${t.hasClients?' filled':''}${sqWarn?' warned':''}${sDay(activeStore,d).done===true?' done-day':''}`;
   let badges='';
   if(t.hasClients){
     if(sqWarn) badges+=`<span class='bdg warn'>對帳差 ${(t.sqDiff>=0?'+':'')+$f(t.sqDiff)}</span>`;
     else if(t.hasSq) badges+=`<span class='bdg ok'>✓ Square 對帳</span>`;
     if(t.cpSvc>0) badges+=`<span class='bdg cp'>CP ${$f(t.cpSvc)}</span>`;
-    if(t.gcSvc>0) badges+=`<span class='bdg gc'>GC ${$f(t.gcSvc)}</span>`;
+    if(t.gcSvc>0) badges+=`<span class='bdg gc'>GC ${$f(t.gcAmtUsed)}</span>`;
     if(t.cashTip>0) badges+=`<span class='bdg tk'>現金小費 ${$f(t.cashTip)}</span>`;
     var missingNames2=(sDay(activeStore,d).clients||[]).filter(c=>!c.clientName&&c.svc).length;
     if(missingNames2>0) badges+=`<span class='bdg warn' style="background:#FFF0EE;color:#C04020;border-color:#F0B0A0">⚠ ${missingNames2}筆缺名字</span>`;
@@ -2860,7 +2908,7 @@ function updCorr(d,i,field,v,inp){
   const el=document.getElementById(`corr-gd-${d}-${i}`);
   if(el){
     if(corrSvc!==null||corrTip!==null){
-      const gdAmt=((corrSvc||0)+(isCard?(corrTip||0):0))*GD_FEE;
+      const gdAmt=((isCard?(corrSvc||0):0)+((c.tipPay||'card')==='card'?(corrTip||0):0))*GD_FEE;
       el.innerHTML=`GoDaddy 應收：<strong>$${gdAmt.toFixed(2)}</strong>`;
     } else {
       el.textContent='填入正確金額後顯示 GoDaddy 應收';
@@ -3021,25 +3069,32 @@ function updateAll(){
       srCk.textContent=srRevR?('明細加總 '+$f(srSum)+'（與上方月營業額差 '+(Math.abs(srDiff)<0.01?'$0.00（相符 ✓）':(srDiff>=0?'+':'')+$f(srDiff))+'）'):'';
     }
   })();
-  const exp=mv.gdDue+sr.gdDue;
+  // GoDaddy 對帳：實收(未扣手續費) 對 應收(刷卡＋刷卡小費，未扣手續費)，兩邊都是全額，手續費另外列，不拿來相減。
+  // 只比「有填實收的日子」，月中還沒填完的日子不會被當成 GoDaddy 少給。
   const days=new Date(cur.getFullYear(),cur.getMonth()+1,0).getDate();
-  let act=0;for(let d=1;d<=days;d++)act+=gv(gdDay(d).act);
+  let act=0,exp=0,actDays=0;
+  for(let d=1;d<=days;d++){
+    const a=gdDay(d).act;
+    if(a===''||a===undefined||a===null)continue;
+    act+=gv(a); actDays++;
+    exp+=calcDay('mv',d).gdDue+calcDay('sr',d).gdDue;
+  }
   // include manual adjustments in monthly diff
   let totalAdj=0;for(let d=1;d<=days;d++)totalAdj+=parseFloat(gdDay(d).adj)||0;
   // 每日手續費加總：GoDaddy 每次撥款各自扣一筆手續費（不是月底統一扣一次），
   // 跟「GoDaddy 對帳」逐日表格用同一套邏輯，把每天填的手續費加起來，才是這個月總共被扣了多少。
   let totalFee=0;for(let d=1;d<=days;d++)totalFee+=gv(getGDFee(d));
-  const rawDiff=act>0?act-totalFee-exp:null;
-  const diff=rawDiff!==null?rawDiff+totalAdj:null;
+  const rawDiff=actDays>0?Math.round((act-exp)*100)/100:null;
+  const diff=rawDiff!==null?Math.round((rawDiff+totalAdj)*100)/100:null;
 
   s('gdb-due',exp?$f(exp):'—');s('gdb-act',act?$f(act):'—');
   const bdEl=document.getElementById('gdb-diff');
-  if(bdEl){bdEl.textContent=diff!==null?(diff>=0?'+':'')+$f(diff):'—';bdEl.style.color=diff===null?'var(--text)':Math.abs(diff)<5?'var(--ok)':Math.abs(diff)<20?'var(--tip)':'var(--warn)';}
+  if(bdEl){bdEl.textContent=diff!==null?(diff>=0?'+':'')+$f(diff):'—';bdEl.style.color=diff===null?'var(--text)':Math.abs(diff)<0.01?'var(--ok)':'var(--warn)';}
   const banner=document.getElementById('gd-banner');
   const badge=document.getElementById('gd-badge');
-  var periodFeeNote=totalFee>0?`（已扣本月手續費合計 $${totalFee.toFixed(2)}）`:'';
+  var periodFeeNote=totalFee>0?`（本月手續費合計 $${totalFee.toFixed(2)}，另外列，不影響對帳）`:'';
   if(diff===null){banner.className='gd-banner neutral';document.getElementById('gdb-icon').textContent='💳';document.getElementById('gdb-title').textContent='GoDaddy 對帳狀況';document.getElementById('gdb-desc').textContent='填入每日 GoDaddy 實收後自動對帳';if(badge)badge.style.display='none';}
-  else if(Math.abs(diff)<5){banner.className='gd-banner ok';document.getElementById('gdb-icon').textContent='✅';document.getElementById('gdb-title').textContent='GoDaddy 對帳正常';document.getElementById('gdb-desc').textContent=`差異 ${(diff>=0?'+':'')+$f(diff)}，在 $5 以內${periodFeeNote}`;if(badge)badge.style.display='none';}
+  else if(Math.abs(diff)<0.01){banner.className='gd-banner ok';document.getElementById('gdb-icon').textContent='✅';document.getElementById('gdb-title').textContent='GoDaddy 對帳正常';document.getElementById('gdb-desc').textContent=`已填 ${actDays} 天，完全相符${periodFeeNote}`;if(badge)badge.style.display='none';}
   else{banner.className='gd-banner warn';document.getElementById('gdb-icon').textContent='⚠️';document.getElementById('gdb-title').textContent=`GoDaddy 差異 ${(diff>=0?'+':'')+$f(diff)}`;document.getElementById('gdb-desc').textContent=(diff<0?'GoDaddy 少給了，請至對帳頁核對':'GoDaddy 多給了，可能有跨天結算')+periodFeeNote;if(badge)badge.style.display='';}
 
   // ── 當月各店支出（從收支記帳讀取）──
@@ -3051,16 +3106,18 @@ function updateAll(){
       else if(r.store==='SR') homeSrExp += r.amount;
       else homeSharedExp += r.amount;
     });
-  const halfShared = Math.round(homeSharedExp/2*100)/100;
+  // 共同支出兩店平分到分，除不盡的 1 分算 MV，兩店加起來剛好等於總支出
+  const sharedSplit = splitEven(homeSharedExp,['MV','SR']);
+  const halfShared = sharedSplit.MV||0, srHalfShared = sharedSplit.SR||0;
   const mvTotal = Math.round((homeMvExp + halfShared)*100)/100;
-  const srTotal = Math.round((homeSrExp + halfShared)*100)/100;
+  const srTotal = Math.round((homeSrExp + srHalfShared)*100)/100;
   const grandExp = Math.round((homeMvExp+homeSrExp+homeSharedExp)*100)/100;
   const hasExp = grandExp > 0;
   s('home-mv-exp',   hasExp ? $f(homeMvExp)   : '—');
   s('home-mv-shared',hasExp ? $f(halfShared)   : '—');
   s('home-mv-total-exp', hasExp ? $f(mvTotal)  : '—');
   s('home-sr-exp',   hasExp ? $f(homeSrExp)    : '—');
-  s('home-sr-shared',hasExp ? $f(halfShared)   : '—');
+  s('home-sr-shared',hasExp ? $f(srHalfShared) : '—');
   s('home-sr-total-exp', hasExp ? $f(srTotal)  : '—');
   s('home-total-mv-exp',   hasExp ? $f(homeMvExp)    : '—');
   s('home-total-sr-exp',   hasExp ? $f(homeSrExp)    : '—');
@@ -3157,12 +3214,16 @@ function renderCalDetail(){
     var cardSvc=t.cardSvc, cardTip=t.cardTip, venmoSvc=t.venmoSvc, venmoTip=t.venmoTip,
         cashSvc=t.cashSvc, cashTip=t.cashTip, gcSoldTotal=t.gcSold, gcUsed=t.gcSvc||0, cpSvc=t.cpSvc, prodSold=t.prodSold;
     // Square/GoDaddy 總額：含產品銷售（產品銷售真的會過刷卡機），不含 ClassPass（ClassPass 不會經過刷卡機，Square 完全看不到這筆錢）
-    var sqGross=cardSvc+cardTip+venmoSvc+venmoTip+cashSvc+cashTip+gcSoldTotal+prodSold;
-    // 每日總銷售額（用於營業額）：含 ClassPass
-    var salesGross=sqGross+cpSvc;
+    // 禮品卡兌換：用客人實際刷掉的禮品卡金額（補差額的部分已經算在刷卡/現金裡，不能重複）
+    var gcRedeemed=t.gcAmtUsed||0;
+    // 每日總銷售額：跟 Square「Total Collected」同一個算法——禮品卡兌換也先算進來，下面推算當天收入時再扣掉
+    // （ClassPass 不經過 Square，所以另外加，並在下面註明）
+    var squareCollected=cardSvc+cardTip+venmoSvc+venmoTip+cashSvc+cashTip+gcSoldTotal+prodSold+gcRedeemed;
+    var salesGross=squareCollected+cpSvc;
     var totalFee=allocatedFee||0; // 依兩店當天「Square總額」比例，從「手續費(兩店合計)」分攤過來的金額
     var totalTips=cardTip+venmoTip+cashTip;
-    var netRevenue=salesGross-totalTips-totalFee;
+    // 當天收入：禮品卡兌換在賣卡那天已經算過營業額，這裡扣掉避免重複
+    var netRevenue=salesGross-gcRedeemed-totalTips-totalFee;
     var gcListItems=(gcClients||[]).map(function(g){
       var safeName=(g.name||'').replace(/&/g,'&amp;').replace(/</g,'&lt;');
       return '<div style="display:flex;justify-content:space-between;align-items:center;font-size:12.5px;padding:4px 0">'
@@ -3179,25 +3240,26 @@ function renderCalDetail(){
       +'<div style="display:flex;justify-content:space-between;font-size:13px;padding:3px 0"><span>現金</span><span style="font-weight:600">$'+cashSvc.toFixed(2)+'</span></div>'
       +'<div style="display:flex;justify-content:space-between;font-size:13px;padding:3px 0"><span>現金小費</span><span style="font-weight:600">$'+cashTip.toFixed(2)+'</span></div>'
       +'<div style="display:flex;justify-content:space-between;font-size:13px;padding:3px 0"><span>禮品卡銷售</span><span style="font-weight:600">$'+gcSoldTotal.toFixed(2)+'</span></div>'
-      +'<div style="display:flex;justify-content:space-between;font-size:13px;padding:3px 0;color:var(--sub)"><span>禮品卡使用（兌換，不計入營業額）</span><span style="font-weight:600">$'+gcUsed.toFixed(2)+'</span></div>'
+      +'<div style="display:flex;justify-content:space-between;font-size:13px;padding:3px 0"><span>禮品卡使用（兌換）</span><span style="font-weight:600">$'+gcRedeemed.toFixed(2)+'</span></div>'
       +'<div style="display:flex;justify-content:space-between;font-size:13px;padding:3px 0"><span>產品銷售</span><span style="font-weight:600">$'+prodSold.toFixed(2)+'</span></div>'
       +'<div style="display:flex;justify-content:space-between;font-size:13px;padding:3px 0"><span>ClassPass</span><span style="font-weight:600">$'+cpSvc.toFixed(2)+'</span></div>'
       +'<div style="display:flex;justify-content:space-between;font-size:13.5px;padding:6px 0 0;margin-top:4px;border-top:1.5px solid rgba(0,0,0,.08);font-weight:700"><span>每日總銷售額</span><span>$'+salesGross.toFixed(2)+'</span></div>'
+      +'<div style="font-size:11px;color:var(--faint);padding-top:2px">＝ Square Total Collected（Square 報表 Other＋Cash＋Gift Card 三欄加總）</div>'
       +'<div style="margin-top:10px;padding-top:10px;border-top:1px dashed rgba(0,0,0,.1)">'
         +'<div style="font-size:10px;font-weight:700;color:var(--sub);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px">往下推算「當天收入」</div>'
-        +'<div style="display:flex;justify-content:space-between;font-size:12.5px;padding:2px 0"><span>GoDaddy／Square 總額（不含 ClassPass，不扣手續費）</span><span style="font-weight:600">$'+sqGross.toFixed(2)+'</span></div>'
-        +'<div style="display:flex;justify-content:space-between;font-size:12.5px;padding:2px 0;color:var(--sub)"><span>+ ClassPass</span><span>+$'+cpSvc.toFixed(2)+'</span></div>'
+        +'<div style="display:flex;justify-content:space-between;font-size:12.5px;padding:2px 0"><span>每日總銷售額</span><span style="font-weight:600">$'+salesGross.toFixed(2)+'</span></div>'
+        +'<div style="display:flex;justify-content:space-between;font-size:12.5px;padding:2px 0;color:var(--sub)"><span>− 禮品卡使用（賣卡當天已算過營業額）</span><span>-$'+gcRedeemed.toFixed(2)+'</span></div>'
         +'<div style="display:flex;justify-content:space-between;font-size:12.5px;padding:2px 0;color:var(--sub)"><span>− 刷卡小費</span><span>-$'+cardTip.toFixed(2)+'</span></div>'
         +'<div style="display:flex;justify-content:space-between;font-size:12.5px;padding:2px 0;color:var(--sub)"><span>− Venmo小費</span><span>-$'+venmoTip.toFixed(2)+'</span></div>'
         +'<div style="display:flex;justify-content:space-between;font-size:12.5px;padding:2px 0;color:var(--sub)"><span>− 現金小費</span><span>-$'+cashTip.toFixed(2)+'</span></div>'
-        +'<div style="display:flex;justify-content:space-between;font-size:12.5px;padding:2px 0;color:var(--sub)"><span>− 手續費（依 Square 總額比例分攤）</span><span>-$'+totalFee.toFixed(2)+'</span></div>'
+        +'<div style="display:flex;justify-content:space-between;font-size:12.5px;padding:2px 0;color:var(--sub)"><span>− 手續費（依兩店刷卡金額比例分攤）</span><span>-$'+totalFee.toFixed(2)+'</span></div>'
         +'<div style="display:flex;justify-content:space-between;font-size:14px;padding:6px 0 0;margin-top:4px;border-top:1.5px solid rgba(0,0,0,.08);font-weight:700;color:'+colorVar+'"><span>＝ 當天收入</span><span>$'+netRevenue.toFixed(2)+'</span></div>'
       +'</div>'
       +(t.gcSvc>0?(
         '<div style="margin-top:10px;padding-top:10px;border-top:1px dashed rgba(0,0,0,.1)">'
           +'<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:2px">'
             +'<span style="font-size:11px;font-weight:700;color:var(--sub);text-transform:uppercase;letter-spacing:.06em">🔁 當天使用禮品卡的顧客（不算進收入，但算技師業績）</span>'
-            +'<span style="font-size:12px;font-weight:700;color:var(--sub)">共 $'+t.gcSvc.toFixed(2)+'</span>'
+            +'<span style="font-size:12px;font-weight:700;color:var(--sub)">共 $'+gcRedeemed.toFixed(2)+'</span>'
           +'</div>'
           +gcListItems
         +'</div>'
@@ -3216,8 +3278,9 @@ function renderCalDetail(){
 
   // 手續費（兩店合計）依當天兩店的營業額比例分攤
   var combinedFee=parseFloat(getGDFee(d))||0;
-  var mvGross=mvT.cardSvc+mvT.cardTip+mvT.venmoSvc+mvT.venmoTip+mvT.cashSvc+mvT.cashTip+mvT.gcSold+mvT.prodSold;
-  var srGross=srT.cardSvc+srT.cardTip+srT.venmoSvc+srT.venmoTip+srT.cashSvc+srT.cashTip+srT.gcSold+srT.prodSold;
+  // 手續費只有刷卡才會被收，所以用兩店各自的「刷卡金額」（＝GoDaddy應收）當比例，現金/Venmo 不分攤手續費
+  var mvGross=mvT.gdDue;
+  var srGross=srT.gdDue;
   var totalGrossForFee=mvGross+srGross;
   var mvFee=totalGrossForFee>0?Math.round(combinedFee*(mvGross/totalGrossForFee)*100)/100:0;
   var srFee=Math.round((combinedFee-mvFee)*100)/100; // 剩下的都算SR，確保兩邊加起來剛好等於合計手續費，不會因四捨五入兜不攏
@@ -3226,7 +3289,7 @@ function renderCalDetail(){
 
   wrap.innerHTML=
     '<div style="font-size:15px;font-weight:700;margin-bottom:2px">'+dateStr+'　週'+DOWH[dt.getDay()]+'</div>'
-    +'<div style="font-size:11px;color:var(--faint);margin-bottom:14px">GoDaddy 撥款是兩店合併的，但每日記帳分店各自獨立，所以下面拆解分開顯示，最後加總'+(combinedFee>0?'（手續費 $'+combinedFee.toFixed(2)+' 已依當天營收比例分攤到兩店）':'')+'</div>'
+    +'<div style="font-size:11px;color:var(--faint);margin-bottom:14px">GoDaddy 撥款是兩店合併的，但每日記帳分店各自獨立，所以下面拆解分開顯示，最後加總'+(combinedFee>0?'（手續費 $'+combinedFee.toFixed(2)+' 已依當天兩店刷卡金額比例分攤）':'')+'</div>'
     +buildDayBreakdown(mvT,'Mill Valley','var(--mv)','var(--mv-bg)',mvFee,mvGcClients)
     +buildDayBreakdown(srT,'San Rafael','var(--sr)','var(--sr-bg)',srFee,srGcClients)
     +'<div style="margin-bottom:18px;background:var(--ok-bg);border:1.5px solid var(--ok-bd);border-radius:9px;padding:14px 16px;display:flex;justify-content:space-between;align-items:center">'
@@ -3662,7 +3725,7 @@ function mergeGDSqFiles(){
   Object.keys(gdDayMap).forEach(function(dateStr){
     if(!dateStr.startsWith(moGD))return; // 只能扣當月的(calcDay用的是目前檢視的月份)
     var dNum=parseInt(dateStr.slice(8),10);
-    var gcRedeemed=calcDay('mv',dNum).gcSvc+calcDay('sr',dNum).gcSvc;
+    var gcRedeemed=calcDay('mv',dNum).gcAmtUsed+calcDay('sr',dNum).gcAmtUsed; // 只扣禮品卡實際付的部分，補差額是真的刷卡、會撥款
     if(gcRedeemed>0)gdDayMap[dateStr]=Math.max(0,gdDayMap[dateStr]-gcRedeemed);
   });
 
@@ -3812,7 +3875,7 @@ function buildGDTable(){
   // 表頭
   var hdr=document.createElement('div');
   hdr.style.cssText='display:grid;grid-template-columns:80px 1fr 1fr 1fr 90px;align-items:center;gap:8px;padding:7px 14px;background:var(--bg);border-bottom:1.5px solid var(--border);font-size:10px;text-transform:uppercase;letter-spacing:.07em;color:var(--sub);font-weight:600';
-  hdr.innerHTML='<span>日期</span><span style="color:var(--ok)">Square應收<br><span style="text-transform:none;font-weight:400;font-size:9px">（直接從Square後台複製，兩店合計）</span></span><span style="color:#1656A0">每日記帳<br><span style="text-transform:none;font-weight:400;font-size:9px">刷卡／現金／Venmo／禮品卡／ClassPass／產品</span></span><span>GoDaddy實收<br><span style="text-transform:none;font-weight:400;font-size:9px">（填「隔天」撥款清單金額，未扣手續費）</span></span><span style="text-align:center">差異</span>';
+  hdr.innerHTML='<span>日期</span><span style="color:var(--ok)">Square（兩店合計）<br><span style="text-transform:none;font-weight:400;font-size:9px">報表付款方式的 Other／Cash，含小費</span></span><span style="color:#1656A0">每日記帳算出來應該是<br><span style="text-transform:none;font-weight:400;font-size:9px">Square 三欄＋GoDaddy</span></span><span>GoDaddy實收<br><span style="text-transform:none;font-weight:400;font-size:9px">（填「隔天」撥款清單金額，未扣手續費）</span></span><span style="text-align:center">差異</span>';
   tbl.appendChild(hdr);
 
   var totalDue=0,totalAct=0,monthHasDiff=false;
@@ -3824,49 +3887,54 @@ function buildGDTable(){
 
     var mvT=calcDay('mv',d),srT=calcDay('sr',d);
 
-    // 每日記帳：完整拆解每一項，不合併，避免跟Square應收比對時重複算
-    var bkCard=mvT.cardSvc+srT.cardSvc;
-    var bkCash=mvT.cashSvc+srT.cashSvc;
-    var bkVenmo=mvT.venmoSvc+srT.venmoSvc;
-    var bkGC=mvT.gcSold+srT.gcSold;
-    var bkCP=mvT.cpSvc+srT.cpSvc;
-    var bkProd=mvT.prodSold+srT.prodSold;
-    var bkTotal=Math.round((bkCard+bkCash+bkVenmo+bkGC+bkCP+bkProd)*100)/100;
-    totalDue+=bkTotal;
+    // ── 每日記帳算出「應該要看到的數字」（兩店合計），規則跟每日記帳的 Square 報告核對完全一樣 ──
+    //   Square Other ＝ 刷卡（GoDaddy刷卡機）＋Venmo＋ClassPass＋禮品卡兌換（前台用 Other 結帳），含小費
+    //   Square Cash  ＝ 現金＋現金小費
+    //   GoDaddy 撥款 ＝ 只有刷卡的部分（含刷卡小費，未扣手續費）——禮品卡兌換不會撥款
+    var expGCUsed=r2(mvT.calcGC+srT.calcGC);
+    var expOther=r2(mvT.calcOther+srT.calcOther+expGCUsed);
+    var expCash=r2(mvT.calcCash+srT.calcCash);
+    var expGD=r2(mvT.gdDue+srT.gdDue);
+    var expCP=r2(mvT.cpSvc+srT.cpSvc);
+    var expVenmo=r2(expOther-expGCUsed-expGD-expCP);
 
-    // Square應收：手動輸入(跟GoDaddy實收一樣的做法)，分刷卡/現金兩欄，兩店合計
     var sqR=sqReconDay(d);
+    var hasSqCard=sqR.card!==''&&sqR.card!==undefined, hasSqCash=sqR.cash!==''&&sqR.cash!==undefined;
+    var hasSqInput=hasSqCard||hasSqCash;
     var sqCard=gv(sqR.card),sqCash=gv(sqR.cash);
-    var hasSqInput=sqR.card!==''||sqR.cash!=='';
-    var sqTotal=Math.round((sqCard+sqCash)*100)/100;
-    // 禮品卡使用（兌換）：客人拿之前買的禮品卡來抵服務費時，Square 後台一樣會顯示這筆交易（前台結帳用GC核銷），
-    // 所以使用者從 Square 複製過來的「刷卡/現金」總額，其實已經包含了這筆「假錢」。
-    // 但每日記帳這邊本來就正確地不把它算進營收（因為賣卡當下已經算過一次了）——要扣掉這筆，兩邊才是同一種東西、才能比。
-    var gcUsed=Math.round((mvT.gcSvc+srT.gcSvc)*100)/100;
-    var sqTotalAdj=Math.round((sqTotal-gcUsed)*100)/100;
+    var dOther=hasSqCard?r2(sqCard-expOther):null;
+    var dCash=hasSqCash?r2(sqCash-expCash):null;
 
-    // 讀取手動填入的 Payout
     var gdR=gdDay(d);
     var rAct=gdR.act;
-    var actVal=rAct!==''&&rAct!==undefined?parseFloat(rAct):null;
-    if(actVal!==null)totalAct+=actVal;
+    var actVal=rAct!==''&&rAct!==undefined&&rAct!==null?parseFloat(rAct):null;
+    var dGD=actVal!==null?r2(actVal-expGD):null;
+    // 月合計只算「有填 GoDaddy 實收」的日子，還沒填的日子不會被算成少給
+    if(actVal!==null){totalAct+=actVal;totalDue+=expGD;}
 
-    // 每日手續費：GoDaddy 每次撥款各自扣一筆手續費（不是月底統一扣一次）
     var feeVal=getGDFee(d);
     var feeNum=parseFloat(feeVal)||0;
-    var actAfterFee=actVal!==null?Math.round((actVal-feeNum)*100)/100:null;
+    var actAfterFee=actVal!==null?r2(actVal-feeNum):null;
 
-    // 差異：Square總額(手動，已扣掉禮品卡兌換) vs 每日記帳總額(自動算出的)——這是主要比對
-    var diff=hasSqInput?Math.round((sqTotalAdj-bkTotal)*100)/100:null;
-    var ok=diff!==null&&Math.abs(diff)<5;
-    var warn=diff!==null&&Math.abs(diff)>=5;
+    var bad=function(x){return x!==null&&Math.abs(x)>=0.01;};
+    var warn=bad(dOther)||bad(dCash)||bad(dGD);
+    var ok=(hasSqInput||actVal!==null)&&!warn;
     if(warn)monthHasDiff=true;
 
-    // 額外參考：Square刷卡 vs GoDaddy(未扣手續費)——理論上這兩個該對上(刷卡部分才會真的撥款)
-    var cardVsGD=(sqR.card!==''&&actVal!==null)?Math.round((sqCard-actVal)*100)/100:null;
+    // 自動判讀差異原因
+    var hint='';
+    if(bad(dOther)&&expGCUsed>0&&Math.abs(dOther+expGCUsed)<0.01){
+      hint='Square Other 剛好少了禮品卡兌換 $'+expGCUsed.toFixed(2)+'：這天禮品卡在 Square 是用「Gift Card」結帳而不是 Other，把 Square 的 Gift Card 金額加進 Other 就對了';
+    } else if(bad(dOther)&&dCash!==null&&Math.abs(dOther+dCash)<0.01){
+      hint='總額是對的，只是有 $'+Math.abs(dOther).toFixed(2)+(dOther>0?' 每日記帳是現金、Square 記成刷卡':' 每日記帳是刷卡、Square 記成現金')+'（通常是小費）';
+    } else if(bad(dGD)&&dOther!==null&&Math.abs(dGD-dOther)<0.01){
+      hint='GoDaddy 跟 Square 刷卡都差 '+sgnMoney(dGD)+'：兩邊一致，是每日記帳的刷卡有一筆記錯或漏記';
+    }
 
+    var diffTxt=function(x){return x===null?'':'<span style="font-size:10px;color:'+(Math.abs(x)<0.01?'var(--ok)':'var(--warn)')+';font-weight:600">'+(Math.abs(x)<0.01?'✓':sgnMoney(x))+'</span>';};
     var payoutLookupDate=new Date(y,m,d+1);
     var payoutLookupLabel=String(payoutLookupDate.getMonth()+1).padStart(2,'0')+'/'+String(payoutLookupDate.getDate()).padStart(2,'0');
+    var hasBook=expOther>0||expCash>0||expGCUsed>0;
 
     var row=document.createElement('div');
     row.style.cssText='display:grid;grid-template-columns:80px 1fr 1fr 1fr 90px;align-items:center;gap:8px;padding:8px 14px;border-bottom:1px solid var(--border);font-size:13px;background:'+(warn?'var(--warn-bg)':isWk?'#FAFAF8':'var(--white)');
@@ -3874,36 +3942,36 @@ function buildGDTable(){
       '<div><div style="font-weight:600;font-size:12px">'+String(m+1).padStart(2,'0')+'/'+String(d).padStart(2,'0')+'</div>'+
         '<div style="font-size:10px;color:'+(isWk?'var(--warn)':'var(--sub)')+'">'+DAYS[dt2.getDay()]+'</div></div>'+
       '<div>'+
-        '<div style="display:flex;gap:5px;align-items:center;margin-bottom:3px"><span style="font-size:9.5px;color:var(--sub);width:26px">刷卡</span><input type="text" inputmode="decimal" style="width:80px;border:1px solid var(--border);border-radius:5px;padding:3px 6px;font-size:12px;font-family:inherit;text-align:right" placeholder="$0" value="'+sqR.card+'" onchange="setSqRecon('+d+',\'card\',this.value)"></div>'+
-        '<div style="display:flex;gap:5px;align-items:center;margin-bottom:3px"><span style="font-size:9.5px;color:var(--sub);width:26px">現金</span><input type="text" inputmode="decimal" style="width:80px;border:1px solid var(--border);border-radius:5px;padding:3px 6px;font-size:12px;font-family:inherit;text-align:right" placeholder="$0" value="'+sqR.cash+'" onchange="setSqRecon('+d+',\'cash\',this.value)"></div>'+
-        (hasSqInput?'<div style="font-size:11px;color:var(--ok);font-weight:600">總額 $'+sqTotal.toFixed(2)+'</div>':'')+
-        (hasSqInput&&gcUsed>0?'<div style="font-size:9.5px;color:var(--sub);margin-top:2px">－禮品卡使用 $'+gcUsed.toFixed(2)+' ＝ <b>$'+sqTotalAdj.toFixed(2)+'</b>（可比對金額）</div>':'')+
+        '<div style="display:flex;gap:5px;align-items:center;margin-bottom:3px"><span style="font-size:9.5px;color:var(--sub);width:34px">Other</span><input type="text" inputmode="decimal" style="width:80px;border:1px solid var(--border);border-radius:5px;padding:3px 6px;font-size:12px;font-family:inherit;text-align:right" placeholder="$0" value="'+(sqR.card===undefined?'':sqR.card)+'" onchange="setSqRecon('+d+',\'card\',this.value)"> '+diffTxt(dOther)+'</div>'+
+        '<div style="display:flex;gap:5px;align-items:center;margin-bottom:3px"><span style="font-size:9.5px;color:var(--sub);width:34px">Cash</span><input type="text" inputmode="decimal" style="width:80px;border:1px solid var(--border);border-radius:5px;padding:3px 6px;font-size:12px;font-family:inherit;text-align:right" placeholder="$0" value="'+(sqR.cash===undefined?'':sqR.cash)+'" onchange="setSqRecon('+d+',\'cash\',this.value)"> '+diffTxt(dCash)+'</div>'+
       '</div>'+
       '<div style="font-size:11px;color:var(--sub);line-height:1.6">'+
-        (bkCard>0?'刷卡 $'+bkCard.toFixed(2)+'<br>':'')+
-        (bkCash>0?'現金 $'+bkCash.toFixed(2)+'<br>':'')+
-        (bkVenmo>0?'Venmo $'+bkVenmo.toFixed(2)+'<br>':'')+
-        (bkGC>0?'禮品卡 $'+bkGC.toFixed(2)+'<br>':'')+
-        (gcUsed>0?'<span style="color:var(--faint)">禮品卡使用(兌換) $'+gcUsed.toFixed(2)+'（不算總額內）</span><br>':'')+
-        (bkCP>0?'ClassPass $'+bkCP.toFixed(2)+'<br>':'')+
-        (bkProd>0?'產品 $'+bkProd.toFixed(2)+'<br>':'')+
-        (bkTotal>0?'<span style="color:#1656A0;font-weight:600">總額 $'+bkTotal.toFixed(2)+'</span>':'<span style="color:var(--faint)">—</span>')+
+        (hasBook?
+          'Other <b style="color:#1656A0">$'+expOther.toFixed(2)+'</b>'+
+            ((expVenmo>0.004||expCP>0.004||expGCUsed>0.004)?'<br><span style="font-size:9.5px;color:var(--faint)">＝刷卡 $'+expGD.toFixed(2)+(expVenmo>0.004?'＋Venmo $'+expVenmo.toFixed(2):'')+(expCP>0.004?'＋ClassPass $'+expCP.toFixed(2):'')+(expGCUsed>0.004?'＋禮品卡兌換 $'+expGCUsed.toFixed(2):'')+'</span>':'')+'<br>'+
+          'Cash <b style="color:#1656A0">$'+expCash.toFixed(2)+'</b><br>'+
+          '<span style="color:var(--ok);font-weight:600">GoDaddy 應收 $'+expGD.toFixed(2)+'</span>'
+        :'<span style="color:var(--faint)">—</span>')+
       '</div>'+
       '<div>'+
-      '<input type="text" inputmode="decimal" style="width:120px;border:1px solid '+(warn?'var(--warn-bd)':'var(--border)')+';border-radius:5px;padding:5px 8px;font-size:13px;font-family:inherit;text-align:right;outline:none;background:var(--white)" placeholder="填入 Payout" min="0" step="0.01" value="'+(actVal!==null?Math.round(actVal*100)/100:'')+'" onchange="updGD('+d+',this.value)">'+
+      '<input type="text" inputmode="decimal" style="width:120px;border:1px solid '+(bad(dGD)?'var(--warn-bd)':'var(--border)')+';border-radius:5px;padding:5px 8px;font-size:13px;font-family:inherit;text-align:right;outline:none;background:var(--white)" placeholder="填入 Payout" min="0" step="0.01" value="'+(actVal!==null?Math.round(actVal*100)/100:'')+'" onchange="updGD('+d+',this.value)"> '+diffTxt(dGD)+
       '<div style="font-size:9.5px;color:var(--faint);margin-top:2px">👉 去撥款清單找「'+payoutLookupLabel+'」那筆的金額</div>'+
       '<div style="margin-top:5px;display:flex;align-items:center;gap:5px">'+
-        '<span style="font-size:9.5px;color:var(--sub)">－手續費（去GoDaddy後台「Payouts by Day」查當天Fees，約2.3%）</span>'+
+        '<span style="font-size:9.5px;color:var(--sub)">－手續費（GoDaddy後台「Payouts by Day」當天Fees）</span>'+
         '<input type="text" inputmode="decimal" style="width:70px;border:1px solid var(--border);border-radius:5px;padding:3px 6px;font-size:11px;font-family:inherit;text-align:right;outline:none;background:var(--white)" placeholder="$0" min="0" step="0.01" value="'+feeVal+'" onchange="setGDFee('+d+',this.value)">'+
-        (actAfterFee!==null?'<span style="font-size:9.5px;color:var(--sub)">＝ '+$f(actAfterFee)+'</span>':'')+
+        (actAfterFee!==null&&feeNum>0?'<span style="font-size:9.5px;color:var(--sub)">＝ 實際入帳 '+$f(actAfterFee)+'</span>':'')+
       '</div>'+
-      (cardVsGD!==null?'<div style="font-size:9px;color:'+(Math.abs(cardVsGD)<5?'var(--faint)':'var(--warn)')+';margin-top:3px">Ⓘ 刷卡$'+sqCard.toFixed(2)+' vs GoDaddy未扣手續費$'+actVal.toFixed(2)+'（差'+(cardVsGD>=0?'+':'')+cardVsGD.toFixed(2)+'）</div>':'')+
       '</div>'+
       '<div style="text-align:center;font-size:14px">'+
-        (!hasSqInput?'<span style="color:var(--faint)">填Square應收</span>':
+        (!hasSqInput&&actVal===null?'<span style="color:var(--faint);font-size:11px">填 Square／GoDaddy</span>':
          ok?'<span style="color:var(--ok);font-size:18px">✓</span>':
-         '<div><span style="color:var(--warn);font-weight:700">'+(diff>=0?'+':'')+$f(diff)+'</span></div>')+
-      '</div>';
+         '<div style="font-size:11px;line-height:1.5">'+
+           (bad(dOther)?'<div style="color:var(--warn);font-weight:700">Other '+sgnMoney(dOther)+'</div>':'')+
+           (bad(dCash)?'<div style="color:var(--warn);font-weight:700">Cash '+sgnMoney(dCash)+'</div>':'')+
+           (bad(dGD)?'<div style="color:var(--warn);font-weight:700">GD '+sgnMoney(dGD)+'</div>':'')+
+         '</div>')+
+      '</div>'+
+      (hint?'<div style="grid-column:2 / -1;font-size:10.5px;color:var(--tip);margin-top:2px">💡 '+hint+'</div>':'');
     tbl.appendChild(row);
 
     // 「Square自報快速核對」：不用上傳CSV，直接把Square後台當天顯示的刷卡/現金營收打進來，
@@ -3958,12 +4026,12 @@ function buildGDTable(){
   // 月合計
   var foot=document.createElement('div');
   foot.style.cssText='display:grid;grid-template-columns:90px 1fr 1fr 90px;align-items:center;gap:8px;padding:10px 14px;background:var(--bg);border-top:2px solid var(--border2);font-size:13px;font-weight:700';
-  var totalDiff=totalAct-totalDue;
+  var totalDiff=r2(totalAct-totalDue);
   foot.innerHTML=
-    '<span style="color:var(--sub)">月合計</span>'+
-    '<span style="color:var(--ok)">'+$f(totalDue)+'</span>'+
-    '<span style="color:var(--text)">'+$f(totalAct)+'</span>'+
-    '<span style="text-align:center;color:'+(totalAct===0?'var(--faint)':Math.abs(totalDiff)<5?'var(--ok)':'var(--warn)')+'">'+
+    '<span style="color:var(--sub)">月合計<br><span style="font-size:9px;font-weight:400">只算有填實收的日子</span></span>'+
+    '<span style="color:var(--ok)">GoDaddy 應收 '+$f(totalDue)+'</span>'+
+    '<span style="color:var(--text)">實收 '+$f(totalAct)+'</span>'+
+    '<span style="text-align:center;color:'+(totalAct===0?'var(--faint)':Math.abs(totalDiff)<0.01?'var(--ok)':'var(--warn)')+'">'+
       (totalAct===0?'—':(totalDiff>=0?'+':'')+$f(totalDiff))+
     '</span>';
   tbl.appendChild(foot);
@@ -4736,9 +4804,10 @@ window.updateGCCombinedStats=updateGCCombinedStats;
 function gcSafeDate(v){
   if(!v)return '';
   try{
+    if(/^\d{4}-\d{2}-\d{2}$/.test(String(v)))return String(v); // 已經是日期就直接用
     var d=new Date(v);
     if(isNaN(d.getTime()))return '';
-    return d.toISOString().slice(0,10);
+    return d.toLocaleDateString('en-CA',{timeZone:'America/Los_Angeles'}); // 用加州時間的日期，傍晚賣的卡才不會算到隔天/下個月
   }catch(e){ return ''; }
 }
 function gcAllRecordsMerged(){
@@ -4939,7 +5008,7 @@ async function exportGCFullReport(){
   var blob=new Blob(['\ufeff'+csv],{type:'text/csv;charset=utf-8'});
   var url=URL.createObjectURL(blob);
   var a=document.createElement('a');
-  a.href=url; a.download='gift-cards-full-report-'+new Date().toISOString().slice(0,10)+'.csv';
+  a.href=url; a.download='gift-cards-full-report-'+todayLocal()+'.csv';
   document.body.appendChild(a); a.click(); document.body.removeChild(a);
   URL.revokeObjectURL(url);
 }
@@ -5064,7 +5133,7 @@ function renderGCPage(){
   });
   // Set today as default date
   const di=document.getElementById('gcf-date');
-  if(di&&!di.value)di.value=new Date().toISOString().split('T')[0];
+  if(di&&!di.value)di.value=todayLocal();
 
   // Firebase GC loaded separately by loadFBGiftCards()
 }
@@ -5093,7 +5162,11 @@ function addProduct(){
   var store=document.getElementById('prod-store').value||'mv';
   var client=(document.getElementById('prod-client').value||'').trim();
   if(!date||!name||amt<=0||!staff){alert('請填寫日期、產品名稱、金額和技師');return;}
-  prodData().push({id:Date.now(),date:date,name:name,amt:amt,staff:staff,pay:pay,store:store,client:client,comm:Math.round(amt*0.15*100)/100});
+  // 存進「產品日期」那個月份（以前一律存進目前畫面的月份，日期是別的月份時，這筆錢在兩個月都算不到）
+  var pmo=date.slice(0,7);
+  if(!_D.products)_D.products={};
+  if(!_D.products[pmo])_D.products[pmo]=[];
+  _D.products[pmo].push({id:Date.now(),date:date,name:name,amt:amt,staff:staff,pay:pay,store:store,client:client,comm:Math.round(amt*0.15*100)/100});
   save();
   // Clear form
   ['prod-name','prod-amt','prod-client'].forEach(function(id){var el=document.getElementById(id);if(el)el.value='';});
@@ -5195,7 +5268,7 @@ function renderProductsPage(){
   initProdStaffSel();
   // Set today as default
   var di=document.getElementById('prod-date');
-  if(di&&!di.value)di.value=new Date().toISOString().split('T')[0];
+  if(di&&!di.value)di.value=todayLocal();
 
   var data=prodData();
   var staff=_D.staff||[];
@@ -5304,7 +5377,7 @@ function updateCardExp(id,field,val){
 function renderCardExpPage(){
   initCexStaffFormSel();
   var di=document.getElementById('cexf-date');
-  if(di&&!di.value)di.value=new Date().toISOString().split('T')[0];
+  if(di&&!di.value)di.value=todayLocal();
 
   var all=cexList();
   var staffList=_D.staff||[];
@@ -5469,7 +5542,7 @@ var STOCK_CATEGORY_ORDER=['🧷 睫毛材料','🧽 清潔消毒用品','💆 He
 function renderStockPage(){
   initStkStaffFormSel();
   var di=document.getElementById('stkf-date');
-  if(di&&!di.value)di.value=new Date().toISOString().split('T')[0];
+  if(di&&!di.value)di.value=todayLocal();
 
   var all=stkList();
   var staffList=_D.staff||[];
@@ -5712,7 +5785,7 @@ function memberItemOptGroups(tier){
 
 function initMemberFormSelects(){
   var di=document.getElementById('mb-date');
-  if(di&&!di.value)di.value=new Date().toISOString().split('T')[0];
+  if(di&&!di.value)di.value=todayLocal();
   var amtEl=document.getElementById('mb-amt');
   var tierSel=document.getElementById('mb-tier');
   if(amtEl&&tierSel&&!amtEl.value&&!amtEl.dataset.touched) amtEl.value=tierSel.value;
@@ -5791,7 +5864,7 @@ function toggleRedeemForm(id){
   el.style.display=willOpen?'block':'none';
   if(willOpen){
     var dEl=document.getElementById('rf-date-'+id);
-    if(dEl&&!dEl.value)dEl.value=new Date().toISOString().split('T')[0];
+    if(dEl&&!dEl.value)dEl.value=todayLocal();
   }
 }
 
@@ -5953,7 +6026,7 @@ function isMemberExpired(m){
   if(m.redeemed)return false;
   var exp=memberExpireDateStr(m);
   if(!exp)return false;
-  var todayStr=new Date().toISOString().slice(0,10);
+  var todayStr=todayLocal();
   return todayStr>exp;
 }
 function renderMembersPage(){
@@ -6354,25 +6427,56 @@ function getTipConfirmed(store,d){
   return _D.tipConfirmed[mo][store][d]||null;
 }
 
+// 某一天「實際要發」的小費：有按過「確認分配」就用確認的；還沒確認的日子，
+// 用畫面上的預設（有存過平分選擇就照選擇，沒有就歸該筆的技師），不會因為忘了按確認就整天小費從薪資報表消失。
+function getEffectiveTipDay(mo,d){
+  var conf=(_D.tipConfirmed&&_D.tipConfirmed[mo])||{};
+  var mvC=conf.mv&&conf.mv[d], srC=conf.sr&&conf.sr[d];
+  if(mvC||srC){
+    return {confirmed:true, mv:mvC||{card:{},cash:{}}, sr:srC||{card:{},cash:{}}};
+  }
+  var out={confirmed:false, mv:{card:{},cash:{}}, sr:{card:{},cash:{}}};
+  var splitState=(_D.tipSplitState&&_D.tipSplitState[mo]&&_D.tipSplitState[mo][d])||{};
+  ['mv','sr'].forEach(function(store){
+    var day=_D[store]&&_D[store][mo]&&_D[store][mo][d];
+    if(!day||!Array.isArray(day.clients))return;
+    day.clients.forEach(function(c,ci){
+      var tip=gv(c.tip); if(!tip)return;
+      var names=splitState[store+'_'+ci];
+      if(!names||!names.length){
+        var tech=Array.isArray(c.staff)&&c.staff.length>0?c.staff[0]:(c.tech||'');
+        names=tech?[tech]:[];
+      }
+      names=names.filter(function(n,i){return names.indexOf(n)===i;}).sort();
+      if(!names.length)return;
+      var shares=splitEven(tip,names);
+      var type=(c.tipPay||'card')==='cash'?'cash':'card';
+      names.forEach(function(n){out[store][type][n]=r2((out[store][type][n]||0)+shares[n]);});
+    });
+  });
+  return out;
+}
+
 function calcMonthStaffTips(){
   const mo=mk();
   const result={};
-  if(!_D.tipConfirmed||!_D.tipConfirmed[mo])return result;
   // Build reverse map: Square name → staff name
   const sqMap=_D.sqNameMap||{};
   function resolveName(name){ return sqMap[name]||name; }
-  ['mv','sr'].forEach(store=>{
-    const storeData=_D.tipConfirmed[mo][store]||{};
-    Object.values(storeData).forEach(dayConf=>{
+  const days=new Date(cur.getFullYear(),cur.getMonth()+1,0).getDate();
+  for(let d=1;d<=days;d++){
+    const eff=getEffectiveTipDay(mo,d);
+    ['mv','sr'].forEach(store=>{
+      const dayConf=eff[store];
       ['card','cash'].forEach(type=>{
         Object.entries(dayConf[type]||{}).forEach(([name,amt])=>{
           const resolvedName=resolveName(name);
           if(!result[resolvedName])result[resolvedName]={mv:{card:0,cash:0},sr:{card:0,cash:0}};
-          result[resolvedName][store][type]+=amt;
+          result[resolvedName][store][type]=r2(result[resolvedName][store][type]+(amt||0));
         });
       });
     });
-  });
+  }
   return result;
 }
 
@@ -6593,7 +6697,7 @@ function buildTipDayBody(d){
         var isCP2=mergedForCl?mergedForCl.cp:(cl.c&&cl.c.cp);
         if(!cashOk&&mergedSvc2>0){
           // ClassPass客人：svc存的是打五折後的實收金額，門檻=svc×0.30（等於原價15%）
-          var minT2=isCP2?(mergedSvc2*0.30):(mergedSvc2*(cfg2.bonusThreshold||15)/100);
+          var minT2=isCP2?Math.round(mergedSvc2*0.30*100)/100:Math.round(mergedSvc2*(cfg2.bonusThreshold||15)/100*100)/100;
           if(mergedTip2<minT2)suppAmt=Math.round((minT2-mergedTip2)*100)/100;
         }
       }
@@ -6612,8 +6716,9 @@ function buildTipDayBody(d){
 
     // Per-person amount
     var count=selSet.size||1;
+    var shares=splitEven(cl.tip,Array.from(selSet).sort());
     var each=Math.round(cl.tip/count*100)/100;
-    var resultStr=selSet.size>1?'各 $'+each.toFixed(2):selSet.size===1?'$'+cl.tip.toFixed(2)+' → '+[...selSet][0]:'未分配';
+    var resultStr=selSet.size>1?Object.keys(shares).map(function(n){return n+' $'+shares[n].toFixed(2);}).join('、'):selSet.size===1?'$'+cl.tip.toFixed(2)+' → '+[...selSet][0]:'未分配';
 
     rows+='<div style="background:var(--white);border-radius:10px;padding:10px 12px;margin-bottom:8px;box-shadow:0 1px 6px rgba(0,0,0,.05)">'
       +'<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:8px">'
@@ -6645,7 +6750,7 @@ function buildTipDayBody(d){
     var minT3=mc.cp?Math.round(mc.svc*0.30*100)/100:Math.round(mc.svc*(cfg3.bonusThreshold||15)/100*100)/100; // ClassPass客人固定用svc×0.30（等於原價15%）
     if(mc.tip>=minT3)return;
     var s2=Math.round((minT3-mc.tip)*100)/100;
-    totalSupp2+=s2;
+    totalSupp2=Math.round((totalSupp2+s2)*100)/100;
     suppRows2+='<div style="display:flex;justify-content:space-between;font-size:12px;color:var(--sub);padding:3px 0">'
       +'<span>'+(mc.clientName||'客人')+' ('+tn+')'+(mc.cp?' <span style="color:var(--mv);font-weight:700">CP</span>':'')+'</span>'
       +'<span style="color:#C0392B;font-weight:600">+$'+s2.toFixed(2)+'</span></div>';
@@ -6665,11 +6770,11 @@ function buildTipDayBody(d){
     var txnKey2=cl.store+'_'+cl.idx;
     var selSet=tipSplitSel[splitKey][txnKey2]||new Set();
     if(!selSet.size) return;
-    var each=Math.round(cl.tip/selSet.size*100)/100;
+    var shares=splitEven(cl.tip,Array.from(selSet).sort());
     selSet.forEach(function(name){
       if(!totals[name]) totals[name]={card:0,cash:0};
-      if(cl.tipPay==='cash') totals[name].cash+=each;
-      else totals[name].card+=each;
+      if(cl.tipPay==='cash') totals[name].cash=r2(totals[name].cash+shares[name]);
+      else totals[name].card=r2(totals[name].card+shares[name]);
     });
   });
 
@@ -6711,7 +6816,7 @@ function toggleTipTxnStaff(splitKey,txnKey,name){
   // Persist selection immediately so it survives reload/reopen, even before "確認分配" is pressed
   var state=getTipSplitStateDay(mk(),d);
   state[txnKey]=Array.from(s);
-  localStorage.setItem('rev19',JSON.stringify(_D));
+  saveOnly(); // 同時存本機＋雲端（以前只存本機，換裝置就不見）
   var body=document.getElementById('tip-body-'+d);
   if(body){var sy=window.scrollY;body.innerHTML=buildTipDayBody(d);requestAnimationFrame(function(){window.scrollTo(0,sy);});}
 }
@@ -6736,11 +6841,11 @@ function confirmTipTxnSplit(splitKey,d){
     var txnKey=cl.store+'_'+cl.idx;
     var selSet=tipSplitSel[splitKey][txnKey]||new Set();
     if(!selSet.size) return;
-    var each=Math.round(cl.tip/selSet.size*100)/100;
+    var shares=splitEven(cl.tip,Array.from(selSet).sort());
     var bucket=totalsByStore[cl.store]||(totalsByStore[cl.store]={card:{},cash:{}});
     selSet.forEach(function(name){
-      if(cl.tipPay==='cash'){bucket.cash[name]=(bucket.cash[name]||0)+each;}
-      else{bucket.card[name]=(bucket.card[name]||0)+each;}
+      if(cl.tipPay==='cash'){bucket.cash[name]=r2((bucket.cash[name]||0)+shares[name]);}
+      else{bucket.card[name]=r2((bucket.card[name]||0)+shares[name]);}
     });
   });
 
@@ -6799,11 +6904,12 @@ function resyncMonthTipConfirmed(){
       var txnKey=cl.store+'_'+cl.idx;
       var selArr=splitState[txnKey];
       if(!selArr||!selArr.length)return;
-      var each=Math.round(cl.tip/selArr.length*100)/100;
+      var uniq=selArr.filter(function(n,i){return selArr.indexOf(n)===i;}).sort();
+      var shares=splitEven(cl.tip,uniq);
       var bucket=totalsByStore[cl.store];
-      selArr.forEach(function(name){
-        if(cl.tipPay==='cash'){bucket.cash[name]=(bucket.cash[name]||0)+each;}
-        else{bucket.card[name]=(bucket.card[name]||0)+each;}
+      uniq.forEach(function(name){
+        if(cl.tipPay==='cash'){bucket.cash[name]=r2((bucket.cash[name]||0)+shares[name]);}
+        else{bucket.card[name]=r2((bucket.card[name]||0)+shares[name]);}
       });
     });
     ['mv','sr'].forEach(function(store){
@@ -7177,7 +7283,7 @@ function renderReviewsPage(){
           return '<div style="display:flex;align-items:center;gap:8px;padding:7px 10px;border-bottom:'+(i<reviews.length-1?'1px solid var(--border)':'none')+';font-size:12px">'+
             '<span style="font-size:10px;background:var(--bg);border:1px solid var(--border);border-radius:4px;padding:2px 6px;font-weight:600;white-space:nowrap">'+platformLabel[r.platform]+'</span>'+
             '<span style="color:var(--sub);white-space:nowrap;min-width:32px">'+r.date.slice(5).replace('-','/')+'</span>'+
-            '<span style="flex:1;color:var(--sub);font-size:11px">'+r.note+'</span>'+
+            '<span style="flex:1;color:var(--sub);font-size:11px">'+(r.note||'')+'</span>'+
             '<div style="display:flex;align-items:center;gap:4px">'+
               '<span style="font-size:11px;color:var(--sub)">$</span>'+
               '<input type="text" inputmode="decimal" value="'+(r.amt||0)+'" min="0" step="0.01" onchange="updateReviewAmt(\''+store+'\','+r.id+',this.value)" style="width:70px;border:1px solid var(--border);border-radius:5px;padding:3px 6px;font-size:12px;font-family:inherit;text-align:right;outline:none" onfocus="this.style.borderColor=\''+storeColor+'\'" onblur="this.style.borderColor=\'var(--border)\'">'+
@@ -7246,11 +7352,10 @@ function renderReviewsPage(){
   if(!rsel.mv)rsel.mv={};if(!rsel.sr)rsel.sr={};
   var mvSel=staffList.filter(function(n){return rsel.mv[n]!==false;});
   var srSel=staffList.filter(function(n){return rsel.sr[n]!==false;});
-  var mvPer=mvSel.length>0?Math.round(mvTotal/mvSel.length*100)/100:0;
-  var srPer=srSel.length>0?Math.round(srTotal/srSel.length*100)/100:0;
+  var mvShare=splitEven(mvTotal,mvSel), srShare=splitEven(srTotal,srSel);
   var rows=staffList.map(function(name){
-    var mv=rsel.mv[name]!==false&&mvTotal>0?mvPer:0;
-    var sr=rsel.sr[name]!==false&&srTotal>0?srPer:0;
+    var mv=mvTotal>0?(mvShare[name]||0):0;
+    var sr=srTotal>0?(srShare[name]||0):0;
     var tot=mv+sr;
     return '<tr style="border-bottom:1px solid var(--border)">'+
       '<td style="padding:8px 14px;font-weight:600">'+name+'</td>'+
@@ -7343,8 +7448,7 @@ function calcMemberSaleRewardForStaff(name,mo){
     var sel=rsel[store]||{};
     var selStaff=staffList.filter(function(n){return sel[n]!==false;});
     if(selStaff.indexOf(name)<0)return;
-    var per=selStaff.length>0?Math.round(storeTotal/selStaff.length*100)/100:0;
-    total+=per;
+    total+=splitEven(storeTotal,selStaff)[name]||0;
   });
   return Math.round(total*100)/100;
 }
@@ -7442,11 +7546,10 @@ function renderMemberSaleRewardsPage(){
   if(!rsel.mv)rsel.mv={};if(!rsel.sr)rsel.sr={};
   var mvSel=staffList.filter(function(n){return rsel.mv[n]!==false;});
   var srSel=staffList.filter(function(n){return rsel.sr[n]!==false;});
-  var mvPer=mvSel.length>0?Math.round(mvTotal/mvSel.length*100)/100:0;
-  var srPer=srSel.length>0?Math.round(srTotal/srSel.length*100)/100:0;
+  var mvShare=splitEven(mvTotal,mvSel), srShare=splitEven(srTotal,srSel);
   var rows=staffList.map(function(name){
-    var mv=rsel.mv[name]!==false&&mvTotal>0?mvPer:0;
-    var sr=rsel.sr[name]!==false&&srTotal>0?srPer:0;
+    var mv=mvTotal>0?(mvShare[name]||0):0;
+    var sr=srTotal>0?(srShare[name]||0):0;
     var tot=mv+sr;
     return '<tr style="border-bottom:1px solid var(--border)">'+
       '<td style="padding:8px 14px;font-weight:600">'+name+'</td>'+
@@ -7478,14 +7581,8 @@ function renderMemberSaleRewardsPage(){
 function calcStaffMonthSales(name){
   // Sum Net Sales from impRows/payroll data for this employee this month
   var mo=mk();
-  // First try payroll data (from Square CSV import)
-  var pd=(_D.payroll&&_D.payroll[mo])||{data:[]};
+  // 業績一律以「每日記帳」為準（所有技師同一套算法，不再用 payroll 匯入的 Lucy/Luter 數字）
   var total=0;
-  (pd.data||[]).forEach(function(r){
-    if(name.includes('Lucy'))total+=r.lucy_net||0;
-    else if(name.includes('Luter'))total+=r.luter_net||0;
-  });
-  if(total>0) return Math.round(total*100)/100;
 
   // Fallback: sum from daily clients (includes GC redemption clients, which already have c.svc filled in)
   // ClassPass 客人的服務費照樣算進一般抽成業績（跟其他客人一樣，不特別排除）
@@ -7534,7 +7631,7 @@ function buildStaffReportData(){
     staffList.forEach(function(n){if(rvSel[store][n]===undefined)rvSel[store][n]=true;});
     var sel=staffList.filter(function(n){return rvSel[store][n]!==false;});
     var total=revs.reduce(function(s,r){return s+(r.amt||0);},0);
-    return sel.length>0?Math.round(total/sel.length*100)/100:0;
+    return splitEven(total,sel); // {名字: 金額}，零頭照員工順序分，加總剛好等於總額
   }
   var mvRevPer=revPerPerson('mv');
   var srRevPer=revPerPerson('sr');
@@ -7556,39 +7653,24 @@ function buildStaffReportData(){
 
     // Sum daily: both people's commission, check against threshold
     // Only weekdays (Mon-Fri) count toward the supplement
-    var datesSet=new Set(Object.keys(payrollByDate));
-    // Also check from daily clients if no payroll data
-    if(!datesSet.size){
-      var y=cur.getFullYear(),m=cur.getMonth();
-      var days=new Date(y,m+1,0).getDate();
-      for(var d=1;d<=days;d++){
-        var dateStr=y+'-'+String(m+1).padStart(2,'0')+'-'+String(d).padStart(2,'0');
-        var dow=new Date(dateStr+'T12:00:00').getDay();
-        if(dow===0||dow===6) continue; // skip weekends
-        var svcA=0,svcB=0;
-        ['mv','sr'].forEach(function(store){
-          (sDay(store,d).clients||[]).forEach(function(c){
-            var ct=Array.isArray(c.staff)&&c.staff.length>0?c.staff[0]:(c.tech||'');
-            if(ct===name)svcA+=gv(c.svc);
-            if(ct===partner)svcB+=gv(c.svc);
-          });
+    // 一律用每日記帳算（跟技師業績同一套：服務費＋ClassPass加購），平日才補，兩人當天都沒業績就不補
+    var y=cur.getFullYear(),m=cur.getMonth();
+    var days=new Date(y,m+1,0).getDate();
+    for(var d=1;d<=days;d++){
+      var dateStr=y+'-'+String(m+1).padStart(2,'0')+'-'+String(d).padStart(2,'0');
+      var dow=new Date(dateStr+'T12:00:00').getDay();
+      if(dow===0||dow===6) continue; // skip weekends
+      var svcA=0,svcB=0;
+      ['mv','sr'].forEach(function(store){
+        (sDay(store,d).clients||[]).forEach(function(c){
+          var ct=Array.isArray(c.staff)&&c.staff.length>0?c.staff[0]:(c.tech||'');
+          var amt=gv(c.svc)+gv(c.cpTopup);
+          if(ct===name)svcA+=amt;
+          if(ct===partner)svcB+=amt;
         });
-        var commSum=Math.round((svcA*rate1+svcB*rate2)*100)/100;
-        if(svcA>0||svcB>0) total+=Math.max(0,thresh-commSum);
-      }
-    } else {
-      Object.entries(payrollByDate).forEach(function(e){
-        var dateStr=e[0], r=e[1];
-        var dow=new Date(dateStr+'T12:00:00').getDay();
-        if(dow===0||dow===6) return; // skip weekends
-        var svcA=0,svcB=0;
-        if(name.includes('Lucy')) svcA=r.lucy_net||0;
-        else if(name.includes('Luter')) svcA=r.luter_net||0;
-        if(partner.includes('Lucy')) svcB=r.lucy_net||0;
-        else if(partner.includes('Luter')) svcB=r.luter_net||0;
-        var commSum=Math.round((svcA*rate1+svcB*rate2)*100)/100;
-        total+=Math.max(0,thresh-commSum);
       });
+      var commSum=Math.round((svcA*rate1+svcB*rate2)*100)/100;
+      if(svcA>0||svcB>0) total=Math.round((total+Math.max(0,thresh-commSum))*100)/100;
     }
     groupBonusMap[pairKey]=Math.round(total*100)/100;
   });
@@ -7605,9 +7687,9 @@ function buildStaffReportData(){
     var total=0;
     var sqMap=_D.sqNameMap||{};
     function resolveName(n){return sqMap[n]||n;}
-    var stores=(_D.tipConfirmed&&_D.tipConfirmed[mo])||{};
-    Object.keys(stores).forEach(function(store){
-      var dayConf=stores[store][d];
+    var eff=getEffectiveTipDay(mo,d); // 跟 calcMonthStaffTips 同一套：沒按確認的日子用預設分配
+    ['mv','sr'].forEach(function(store){
+      var dayConf=eff[store];
       if(!dayConf)return;
       ['card','cash'].forEach(function(type){
         Object.entries(dayConf[type]||{}).forEach(function(e){
@@ -7626,8 +7708,8 @@ function buildStaffReportData(){
     var totalTip=mvTip+srTip;
     var myPens=pens.filter(function(p){return p.staff===name;}).sort(function(a,b){return a.date<b.date?-1:1;});
     var penTotal=myPens.reduce(function(s,p){return s+(p.type==='bonus'?Math.abs(p.amt):-Math.abs(p.amt));},0);
-    var mvRev=(rvSel.mv&&rvSel.mv[name]!==false)?mvRevPer:0;
-    var srRev=(rvSel.sr&&rvSel.sr[name]!==false)?srRevPer:0;
+    var mvRev=mvRevPer[name]||0;
+    var srRev=srRevPer[name]||0;
     var recs=(attD.records[name]||[]);
     var totalNetMins=recs.reduce(function(s,r){return s+netMins(r.rawMins,r.breakDeducted);},0);
     var workDays=recs.filter(function(r){return netMins(r.rawMins,r.breakDeducted)>0;}).length;
@@ -7678,7 +7760,7 @@ function buildStaffReportData(){
             if(mc.svc<=0)return;
             if(mc.cashTipOk)return; // 已標記現金已收，不補款
             var minT=cpMinTip(mc,tipPct); // ClassPass客人：svc是打五折後存的，門檻=svc×0.30（等於原價15%）；其他人照這位技師自己設定的%
-            if(mc.tip<minT)perTxnSupp+=Math.round((minT-mc.tip)*100)/100;
+            if(mc.tip<minT)perTxnSupp=Math.round((perTxnSupp+Math.round((minT-mc.tip)*100)/100)*100)/100;
           });
         }
       });
@@ -7707,7 +7789,7 @@ function buildStaffReportData(){
               if(mc.svc<=0)return;
               if(mc.cashTipOk)return; // 已標記現金已收
               var minT=cpMinTip(mc,tipPct2); // ClassPass客人：門檻=svc×0.30（等於原價15%）
-              if(mc.tip<minT)t+=Math.round((minT-mc.tip)*100)/100;
+              if(mc.tip<minT)t=Math.round((t+Math.round((minT-mc.tip)*100)/100)*100)/100;
             });
           });
           topupDay[member]=Math.round(t*100)/100;
@@ -7723,14 +7805,13 @@ function buildStaffReportData(){
           dayPoolTotal+=confirmedTipMemberDay(member,d3)+(topupDay[member]||0);
         });
 
-        var eachShare=workedToday.length>0?Math.round(dayPoolTotal/workedToday.length*100)/100:0;
-        if(workedToday.indexOf(name)>=0) myPooledTotal+=eachShare;
+        var wtSorted=workedToday.slice().sort();
+        if(workedToday.indexOf(name)>=0) myPooledTotal=r2(myPooledTotal+(splitEven(dayPoolTotal,wtSorted)[name]||0));
 
         // 老闆補款也依同樣方式平分（顯示用：自己分到的補款份額，而非自己原始未平分的補款金額）
         var dayTopupTotal=0;
         allPoolMembers.forEach(function(member){dayTopupTotal+=topupDay[member]||0;});
-        var eachTopupShare=workedToday.length>0?Math.round(dayTopupTotal/workedToday.length*100)/100:0;
-        if(workedToday.indexOf(name)>=0) myTopupTotal+=eachTopupShare;
+        if(workedToday.indexOf(name)>=0) myTopupTotal=r2(myTopupTotal+(splitEven(dayTopupTotal,wtSorted)[name]||0));
       }
 
       bossSupp=Math.round(myTopupTotal*100)/100;
@@ -7740,7 +7821,7 @@ function buildStaffReportData(){
       pooledTipVal=Math.round(myPooledTotal*100)/100;
     } else if(cfg.bonusType==='group'&&cfg.bonusGroup){
       var pairKey=[name,cfg.bonusGroup].sort().join('|');
-      bossSupp=Math.round((groupBonusMap[pairKey]||0)/2*100)/100; // split equally between the two
+      bossSupp=splitEven(groupBonusMap[pairKey]||0,pairKey.split('|'))[name]||0; // 兩人平分，零頭照名字順序，加總剛好
       bossSuppLabel='與 '+cfg.bonusGroup+' 合計抽成不足 $'+(cfg.bonusThreshold||160);
     }
 
@@ -7748,7 +7829,7 @@ function buildStaffReportData(){
     var effectiveTip=pooledTipVal!==undefined?pooledTipVal:totalTip;
     var bossSuppForGrand=(cfg.bonusType==='minTipPooled')?0:bossSupp;
     // 產品抽成 15%
-    var prodComm=Math.round((((_D.products&&_D.products[mk()])||[]).filter(function(p){return p.staff===name;}).reduce(function(s,p){return s+(p.comm||p.amt*0.15);},0))*100)/100;
+    var prodComm=Math.round((((_D.products&&_D.products[mk()])||[]).filter(function(p){return p.staff===name;}).reduce(function(s,p){return s+((p.comm!==''&&p.comm!==undefined&&p.comm!==null&&!isNaN(parseFloat(p.comm)))?parseFloat(p.comm):(gv(p.amt)*0.15));},0))*100)/100;
     // 會員卡免費兌換技師抽成（固定金額，不算營業額）
     var memberComm=calcMemberCommForStaff(name,mk());
     var memberRedeems=membersData().filter(function(m){return m.redeemed&&m.redeem&&m.redeem.tech===name&&m.redeem.mo===mk();});
@@ -9386,9 +9467,10 @@ function exportReconReport(){
     if(r.store==='MV')homeMvExp+=r.amount; else if(r.store==='SR')homeSrExp+=r.amount; else homeSharedExp+=r.amount;
     expRows.push(r);
   });
-  var halfShared=Math.round(homeSharedExp/2*100)/100;
+  var sharedSplitR=splitEven(homeSharedExp,['MV','SR']);
+  var halfShared=sharedSplitR.MV||0, srHalfSharedR=sharedSplitR.SR||0;
   var mvExpTotal=Math.round((homeMvExp+halfShared)*100)/100;
-  var srExpTotal=Math.round((homeSrExp+halfShared)*100)/100;
+  var srExpTotal=Math.round((homeSrExp+srHalfSharedR)*100)/100;
   var grandExp=Math.round((homeMvExp+homeSrExp+homeSharedExp)*100)/100;
 
   // ── GoDaddy 對帳（跟GoDaddy對帳頁同一份計算邏輯：以每日記帳逐筆反推）──
@@ -9398,17 +9480,18 @@ function exportReconReport(){
     var mvD=calcDay('mv',d), srD=calcDay('sr',d);
     var due=mvD.gdDue+srD.gdDue;
     if(due<=0 && !(mvD.hasClients||srD.hasClients)) continue; // 完全沒營業的日子不列
-    var actVal=gv(gdDay(d).act);
-    totalDue+=due; if(actVal>0)totalAct+=actVal;
-    var diff=actVal>0?Math.round((actVal-due)*100)/100:null;
+    var actRaw=gdDay(d).act, hasAct=actRaw!==''&&actRaw!==undefined&&actRaw!==null;
+    var actVal=gv(actRaw);
+    if(hasAct){totalDue+=due;totalAct+=actVal;} // 合計只算有填實收的日子，跟對帳頁一致
+    var diff=hasAct?Math.round((actVal-due)*100)/100:null;
     gdRows+='<tr>'
       +'<td>'+String(m+1).padStart(2,'0')+'/'+String(d).padStart(2,'0')+'（'+DAYS[dt.getDay()]+'）</td>'
       +'<td style="text-align:right">$'+due.toFixed(2)+'</td>'
       +'<td style="text-align:right">'+(actVal>0?'$'+actVal.toFixed(2):'—')+'</td>'
-      +'<td style="text-align:right;font-weight:700;color:'+(diff===null?'#999':Math.abs(diff)<5?'#1A7A45':'#B83010')+'">'+(diff===null?'—':(diff>=0?'+':'')+'$'+diff.toFixed(2))+'</td>'
+      +'<td style="text-align:right;font-weight:700;color:'+(diff===null?'#999':Math.abs(diff)<0.01?'#1A7A45':'#B83010')+'">'+(diff===null?'—':Math.abs(diff)<0.01?'✓':sgnMoney(diff))+'</td>'
       +'</tr>';
   }
-  var totalDiff=totalAct-totalDue;
+  var totalDiff=Math.round((totalAct-totalDue)*100)/100;
 
   // ── 逐日交易明細（單一分店）──
   function storeDetailHTML(store,labelZh){
@@ -9518,7 +9601,7 @@ function exportReconReport(){
     +'<div class="sum-grid">'
       +'<div class="sum-box"><div class="sum-l">本月應收（依每日記帳反推）</div><div class="sum-v">$'+totalDue.toFixed(2)+'</div></div>'
       +'<div class="sum-box"><div class="sum-l">本月實收（手動填入的撥款）</div><div class="sum-v">$'+totalAct.toFixed(2)+'</div></div>'
-      +'<div class="sum-box"><div class="sum-l">差異</div><div class="sum-v" style="color:'+(Math.abs(totalDiff)<5?'#1A7A45':'#B83010')+'">'+(totalDiff>=0?'+':'')+'$'+totalDiff.toFixed(2)+'</div></div>'
+      +'<div class="sum-box"><div class="sum-l">差異</div><div class="sum-v" style="color:'+(Math.abs(totalDiff)<0.01?'#1A7A45':'#B83010')+'">'+(totalDiff>=0?'+':'')+'$'+totalDiff.toFixed(2)+'</div></div>'
     +'</div>'
 
     +'<div class="sec-title">當月支出</div>'
@@ -9661,6 +9744,7 @@ function attRec(name){
   if(!d.records[name])d.records[name]=[];
   return d.records[name];
 }
+function todayLocal(){return fmtDate(new Date());} // 本機（加州）今天的日期，不要用 toISOString（那是UTC，傍晚後會跳到明天）
 function fmtDate(date){return date.getFullYear()+'-'+String(date.getMonth()+1).padStart(2,'0')+'-'+String(date.getDate()).padStart(2,'0');}
 function minsToHrs(m){if(!m||m<=0)return'0h 0m';return Math.floor(m/60)+'h '+String(m%60).padStart(2,'0')+'m';}
 function netMins(rawMins,breakDeducted){var n=(rawMins||0)-(breakDeducted!==false?30:0);return n>0?n:0;}
@@ -10823,28 +10907,66 @@ function saveCDCount(store){
   saveOnly();renderCDPage();
 }
 // ── 計算某店某月現金服務收入（從每日 clients pay=cash 加總，不含現金小費）──
-function calcStoreCashRevForMonth(store, month){
-  var storeData=(_D[store]&&_D[store][month])||{};
+// 某店某一天「應該進現金櫃」的錢（不含小費——現金小費直接給技師）：
+// 現金服務費（ClassPass 客人的服務費是平台付的，不算）＋禮品卡補差額付現金＋ClassPass 加購付現金＋現金買產品＋現金買禮品卡
+function cashRevForDate(store, dateStr){
+  var mo=dateStr.slice(0,7), d=String(parseInt(dateStr.slice(8,10),10));
+  var day=_D[store]&&_D[store][mo]&&_D[store][mo][d];
   var total=0;
-  Object.keys(storeData).forEach(function(d){
-    var day=storeData[d];
-    if(!day)return;
-    // 優先用 clients 記錄算現金服務費（不含小費）
-    var clients=day.clients;
-    if(Array.isArray(clients)&&clients.length>0){
-      clients.forEach(function(c){
-        if(c.pay==='cash'){
-          total+=parseFloat(c.svc)||0;
-        }
-        // GC 客人如果補差額用現金也算進來
-        if(c.pay==='gc'&&c.topupPay==='cash'){
-          total+=parseFloat(c.topup)||0;
-        }
-      });
-    } else if(day.sqCash){
-      // 沒有 clients 記錄時退回用 sqCash（手動輸入的 Square 現金欄）
-      total+=parseFloat(day.sqCash)||0;
-    }
+  var clients=day&&Array.isArray(day.clients)?day.clients:[];
+  if(clients.length>0){
+    clients.forEach(function(c){
+      if(c.pay==='gc'){ if(c.topupPay==='cash')total+=gv(c.topup); return; }
+      if(c.cp){ if(c.cpTopupPay==='cash')total+=gv(c.cpTopup); return; }
+      if(c.pay==='cash')total+=gv(c.svc);
+    });
+  } else if(day&&day.sqCash){
+    total+=gv(day.sqCash); // 沒有客人明細時退回用手動輸入的 Square 現金欄
+  }
+  ((_D.products&&_D.products[mo])||[]).forEach(function(p){
+    var belongs=p.store?(p.store===store):(store==='mv');
+    if(p.date===dateStr&&belongs&&p.pay==='cash')total+=gv(p.amt);
+  });
+  (_D.gc_cards||[]).forEach(function(g){ if(g.store===store&&g.date===dateStr&&g.pay==='cash')total+=(g.amt||0); });
+  (window._gcFbAll||[]).forEach(function(g){ if(g.store===store&&g.date===dateStr&&g.payMethod==='cash')total+=(g.amount||0); });
+  return Math.round(total*100)/100;
+}
+// 某店某月「技師現金小費」：每個技師拿到多少現金小費（依小費分配頁的結果；還沒按確認的日子用預設分配），
+// 這些錢直接給技師、不放進保險箱，所以另外列一格，月底好清點。
+function calcCashTipsForMonth(store, month){
+  var y=parseInt(month.slice(0,4),10), m=parseInt(month.slice(5,7),10);
+  var days=new Date(y,m,0).getDate();
+  var sqMap=_D.sqNameMap||{};
+  var byTech={}, total=0, count=0;
+  for(var d=1;d<=days;d++){
+    var day=_D[store]&&_D[store][month]&&_D[store][month][d];
+    (day&&Array.isArray(day.clients)?day.clients:[]).forEach(function(c){ if(gv(c.tip)>0&&(c.tipPay||'card')==='cash')count++; });
+    var eff=getEffectiveTipDay(month,d)[store];
+    Object.keys((eff&&eff.cash)||{}).forEach(function(n){
+      var name=sqMap[n]||n, amt=eff.cash[n]||0;
+      byTech[name]=Math.round(((byTech[name]||0)+amt)*100)/100;
+      total=Math.round((total+amt)*100)/100;
+    });
+  }
+  return {total:total, count:count, byTech:byTech};
+}
+function calcStoreCashRevForMonth(store, month){
+  var y=parseInt(month.slice(0,4),10), m=parseInt(month.slice(5,7),10);
+  var days=new Date(y,m,0).getDate(), total=0;
+  for(var d=1;d<=days;d++) total+=cashRevForDate(store, month+'-'+String(d).padStart(2,'0'));
+  return Math.round(total*100)/100;
+}
+// 跟點鈔「同一段期間」的記帳現金收入（上次點鈔的隔天 ～ 這次點鈔當天），這樣兩邊比的是同一段時間，不會因為跨月而對不上
+function calcCDBookCashForCountWindows(store, month){
+  var counts=cdData().filter(function(e){return e.store===store&&e.type==='count'&&e.date.slice(0,7)===month;});
+  if(!counts.length)return null;
+  var total=0;
+  counts.forEach(function(count){
+    var since=count.lastDate||'';
+    var start=since?new Date(since+'T12:00:00'):new Date(count.date.slice(0,7)+'-01T12:00:00');
+    if(since)start.setDate(start.getDate()+1);
+    var end=new Date(count.date+'T12:00:00');
+    for(var dt=new Date(start);dt<=end;dt.setDate(dt.getDate()+1)) total+=cashRevForDate(store, fmtDate(dt));
   });
   return Math.round(total*100)/100;
 }
@@ -10880,8 +11002,12 @@ function calcCDImpliedCashRev(store, month){
     var outAmt=cdData().filter(function(e){
       return e.store===store&&e.type==='out'&&e.date>since&&e.date<=count.date;
     }).reduce(function(s,e){return s+e.amt;},0);
+    // 這段期間從現金櫃直接付掉的支出，也要加回來才是真正收進來的現金
+    var expAmt=cdData().filter(function(e){
+      return e.store===store&&e.type==='expense'&&e.date>since&&e.date<=count.date;
+    }).reduce(function(s,e){return s+e.amt;},0);
     var lastAmt=count.lastAmt||0;
-    var implied=(count.amt-lastAmt)-inAmt+outAmt;
+    var implied=(count.amt-lastAmt)-inAmt+outAmt+expAmt;
     total+=implied;
   });
   return Math.round(total*100)/100;
@@ -10890,7 +11016,7 @@ function calcCDImpliedCashRev(store, month){
 function calcCDBalanceBefore(store, month){
   var counts=cdData().filter(function(e){
     return e.store===store&&e.type==='count'&&e.date.slice(0,7)<month;
-  });
+  }).sort(function(a,b){return a.date<b.date?-1:a.date>b.date?1:(a.id||0)-(b.id||0);});
   if(counts.length===0)return 0;
   return counts[counts.length-1].amt;
 }
@@ -10970,14 +11096,15 @@ function renderCDReconPanel(store, selMonth){
   // 點鈔推算現金收入（兩次點鈔差 - 放入 + 取出）
   var impliedRev=calcCDImpliedCashRev(store, selMonth);
   var hasCount=impliedRev!==null;
+  var bookCashWin=calcCDBookCashForCountWindows(store, selMonth); // 跟點鈔同一段期間的記帳現金
   // 上月最後點鈔餘額
   var prevBal=calcCDBalanceBefore(store, selMonth);
   // 本月放入合計
   var monthIn=calcCDMonthIn(store, selMonth);
   // 差異：點鈔推算 vs 每日記帳
-  var diff=hasCount?Math.round((impliedRev-sqCashRev)*100)/100:null;
+  var diff=hasCount?Math.round((impliedRev-bookCashWin)*100)/100:null;
   var diffAbs=diff!==null?Math.abs(diff):0;
-  var matched=diff!==null&&diffAbs<0.05;
+  var matched=diff!==null&&diffAbs<0.01;
   var hasData=sqCashRev>0||hasCount;
   var cls=!hasData?'neutral':matched?'ok':'warn';
   var diffStr=diff===null?'需要點鈔記錄':matched?'✓ 完全對上':(diff>=0?'+':'')+$f(diff);
@@ -10987,8 +11114,8 @@ function renderCDReconPanel(store, selMonth){
       '<div class="cd-recon-title">&#128204; 本月現金對帳 — '+moLabel+'</div>'+
       '<div class="cd-recon-grid">'+
         '<div class="cd-recon-cell">'+
-          '<div class="cd-recon-l">每日記帳現金收入<br><span style="font-size:8px;opacity:.7">（每天記帳的現金服務費合計）</span></div>'+
-          '<div class="cd-recon-v" style="color:var(--cash)">'+$f(sqCashRev)+'</div>'+
+          '<div class="cd-recon-l">每日記帳現金收入<br><span style="font-size:8px;opacity:.7">'+(hasCount?'（跟點鈔同一段期間：現金服務費＋現金產品／禮品卡，不含小費）':'（本月現金服務費＋現金產品／禮品卡，不含小費）')+'</span></div>'+
+          '<div class="cd-recon-v" style="color:var(--cash)">'+$f(hasCount?bookCashWin:sqCashRev)+'</div>'+
         '</div>'+
         '<div class="cd-recon-cell">'+
           '<div class="cd-recon-l">點鈔推算收入<br><span style="font-size:8px;opacity:.7">（本月點鈔差額 − 老闆補零）</span></div>'+
@@ -11203,7 +11330,8 @@ function renderCDPage(){
     var out=calcCDStoreBossOut(store,selMonth);
     var cash=calcStoreCashRevForMonth(store,selMonth);
     var impl=calcCDImpliedCashRev(store,selMonth);
-    var reconOk=impl===null||Math.abs(Math.round((impl-cash)*100)/100)<0.05;
+    var cashWin=calcCDBookCashForCountWindows(store,selMonth);
+    var reconOk=impl===null||Math.abs(Math.round((impl-cashWin)*100)/100)<0.01;
     var storeColor=store==='mv'?'var(--mv)':'var(--sr)';
     var balEl=document.getElementById('boss-bal-'+store);
     var cashEl=document.getElementById('boss-cash-'+store);
@@ -11240,13 +11368,25 @@ function renderCDPage(){
         }
       }
     }
+    // 技師現金小費（本月）
+    var ctEl=document.getElementById('boss-cashtip-'+store);
+    var ctList=document.getElementById('boss-cashtip-list-'+store);
+    var ct=calcCashTipsForMonth(store,selMonth);
+    if(ctEl)ctEl.textContent=ct.total>0?$f(ct.total):'$0.00';
+    if(ctList){
+      var names=Object.keys(ct.byTech).filter(function(n){return ct.byTech[n]>0;}).sort(function(a,b){return ct.byTech[b]-ct.byTech[a];});
+      ctList.innerHTML=names.length
+        ?names.map(function(n){return '<div style="display:flex;justify-content:space-between"><span>'+String(n).replace(/&/g,'&amp;').replace(/</g,'&lt;')+'</span><span style="font-weight:600;color:var(--cash)">'+$f(ct.byTech[n])+'</span></div>';}).join('')
+          +'<div style="font-size:9.5px;color:#aaa;margin-top:2px">共 '+ct.count+' 筆現金小費・依小費分配頁的分配結果</div>'
+        :'<span style="color:#aaa">本月沒有現金小費</span>';
+    }
     if(reconEl){
       var manBal=cdGetManual(store,selMonth);
       if(manBal!==null){
         reconEl.textContent='✓ 手動餘額已設定';
         reconEl.style.color='#1A7A45';
       } else {
-        reconEl.textContent=impl===null?'尚無點鈔記錄':reconOk?'✓ 對帳正確':'⚠ 點鈔與記帳差了 '+$f(Math.abs(Math.round((impl-cash)*100)/100));
+        reconEl.textContent=impl===null?'尚無點鈔記錄':reconOk?'✓ 對帳正確':'⚠ 點鈔與記帳差了 '+$f(Math.abs(Math.round((impl-cashWin)*100)/100));
         reconEl.style.color=impl===null?'#aaa':reconOk?'#1A7A45':'#B83010';
       }
     }
@@ -11786,7 +11926,7 @@ function impRenderGDRecon() {
     Object.keys(sqByDate).forEach(function(dateStr){
       if(!dateStr.startsWith(moGD))return;
       var dNum=parseInt(dateStr.slice(8),10);
-      var gcRedeemed=calcDay('mv',dNum).gcSvc+calcDay('sr',dNum).gcSvc;
+      var gcRedeemed=calcDay('mv',dNum).gcAmtUsed+calcDay('sr',dNum).gcAmtUsed; // 只扣禮品卡實際付的部分，補差額是真的刷卡、會撥款
       if(gcRedeemed>0)sqByDate[dateStr]=Math.max(0,sqByDate[dateStr]-gcRedeemed);
     });
   })();
@@ -12952,7 +13092,7 @@ async function ldgImportFromBilling(btn) {
   }
 }
 // Init date
-(function(){const lfd=document.getElementById('lf-date');if(lfd)lfd.value=new Date().toISOString().slice(0,10);})();
+(function(){const lfd=document.getElementById('lf-date');if(lfd)lfd.value=todayLocal();})();
 
 // ══ LUCY & LUTER PAYROLL ═════════════════════════════════════════
 var prAdjId = 0;
