@@ -2740,8 +2740,15 @@ function renderClientTable(d){
       <td style="text-align:center">
         <input type="checkbox" class='gd-chk' ${c.gdOk?'checked':''} onchange="updC(${d},${i},'gdOk',this.checked)" title="GoDaddy 已對帳">
       </td>
+      <td><button class='tgl' style="font-size:10px;padding:3px 6px" onclick="toggleProductSubRow(${d},${i})" title="幫這位客人加一筆產品銷售，店家/日期會自動帶入，不會再搞錯">🛍️${prodCountForClient(d,i,c)>0?'('+prodCountForClient(d,i,c)+')':'+'}</button></td>
       <td><button class='del-btn' onclick="delClient(${d},${i})">×</button></td>`;
     tbody.appendChild(tr);
+    // 這位客人底下的產品銷售子列（可收合）：日期/店家/客人姓名都自動帶入，不用像之前那樣另外去產品銷售頁面手動選店家
+    const prodRow=document.createElement('tr');
+    prodRow.id=`prod-subrow-${d}-${i}`;
+    prodRow.style.display='none';
+    prodRow.innerHTML=`<td colspan="2"></td><td colspan="12">${renderProductSubRowHtml(d,i,c)}</td>`;
+    tbody.appendChild(prodRow);
     // If flagged, add correction row below
     if(c.flagged){
       const cr=document.createElement('tr');
@@ -5090,10 +5097,83 @@ function delProduct(id){
   _D.products[mk()]=prodData().filter(function(p){return p.id!==id;});
   save();renderProductsPage();
 }
+// 找出某個客人底下已經掛的產品銷售(用日期+店家+客人姓名比對，跟其他地方一致的做法)
+function prodClientMatches(mo,dateStr,store,clientName){
+  return ((_D.products&&_D.products[mo])||[]).filter(function(p){
+    return p.date===dateStr&&p.store===store&&(p.client||'').trim()===(clientName||'').trim()&&clientName;
+  });
+}
+function prodCountForClient(d,i,c){
+  var dateStr=mk()+'-'+String(d).padStart(2,'0');
+  return prodClientMatches(mk(),dateStr,activeStore,c.clientName).length;
+}
+
+function toggleProductSubRow(d,i){
+  var row=document.getElementById(`prod-subrow-${d}-${i}`);
+  if(!row)return;
+  row.style.display=row.style.display==='none'?'table-row':'none';
+}
+window.toggleProductSubRow=toggleProductSubRow;
+
+function renderProductSubRowHtml(d,i,c){
+  var escHtml=function(v){return (v||'').toString().replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');};
+  var dateStr=mk()+'-'+String(d).padStart(2,'0');
+  var matches=prodClientMatches(mk(),dateStr,activeStore,c.clientName);
+  var staffOpts=(_D.staff||[]).map(function(s){return '<option value="'+s+'">'+s+'</option>';}).join('');
+  var defaultTech=Array.isArray(c.staff)&&c.staff.length>0?c.staff[0]:(c.tech||'');
+  var rows=matches.map(function(p){
+    return '<div style="display:flex;gap:6px;align-items:center;margin-bottom:6px;flex-wrap:wrap">'
+      +'<input type="text" class="ti" placeholder="產品名稱" value="'+(p.name||'').replace(/"/g,'&quot;')+'" oninput="updateProduct('+p.id+',\'name\',this.value)" style="width:140px">'
+      +'<input type="text" inputmode="decimal" class="ti" placeholder="金額" value="'+p.amt+'" oninput="updateProduct('+p.id+',\'amt\',this.value);refreshProductSubRow('+d+','+i+')" style="width:70px">'
+      +'<select class="ti" onchange="updateProduct('+p.id+',\'pay\',this.value)" style="width:80px">'
+        +['card','cash','venmo'].map(function(pm){return '<option value="'+pm+'"'+(p.pay===pm?' selected':'')+'>'+(pm==='card'?'刷卡':pm==='cash'?'現金':'Venmo')+'</option>';}).join('')
+      +'</select>'
+      +'<select class="ti" onchange="updateProduct('+p.id+',\'staff\',this.value)" style="width:80px"><option value="">技師</option>'
+        +(_D.staff||[]).map(function(s){return '<option value="'+s+'"'+(p.staff===s?' selected':'')+'>'+s+'</option>';}).join('')
+      +'</select>'
+      +'<button class="del-btn" onclick="delProduct('+p.id+');refreshProductSubRow('+d+','+i+')">×</button>'
+      +'</div>';
+  }).join('');
+  return '<div style="background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:10px 12px;margin:4px 0">'
+    +'<div style="font-size:10px;color:var(--sub);margin-bottom:6px">🛍️ '+escHtml(c.clientName||'這位客人')+' 的產品銷售（店家「'+(activeStore==='mv'?'Mill Valley':'San Rafael')+'」、日期已自動帶入）</div>'
+    +rows
+    +'<button class="tgl" style="font-size:11px" onclick="addProductToClient('+d+','+i+')">＋ 加一筆產品</button>'
+    +'</div>';
+}
+
+function refreshProductSubRow(d,i){
+  var row=document.getElementById(`prod-subrow-${d}-${i}`);
+  if(!row)return;
+  var c=(sDay(activeStore,d).clients||[])[i];
+  if(!c)return;
+  var wasOpen=row.style.display!=='none';
+  row.querySelector('td:last-child').innerHTML=renderProductSubRowHtml(d,i,c);
+  row.style.display=wasOpen?'table-row':'none';
+  // 按鈕上的數量提示也要跟著更新
+  var btn=document.querySelector(`tr td button[onclick="toggleProductSubRow(${d},${i})"]`);
+  if(btn)btn.textContent='🛍️'+(prodCountForClient(d,i,c)>0?'('+prodCountForClient(d,i,c)+')':'+');
+}
+window.refreshProductSubRow=refreshProductSubRow;
+
+function addProductToClient(d,i){
+  var c=(sDay(activeStore,d).clients||[])[i];
+  if(!c)return;
+  if(!c.clientName){alert('請先填客人姓名，才能掛產品銷售');return;}
+  var dateStr=mk()+'-'+String(d).padStart(2,'0');
+  var defaultTech=Array.isArray(c.staff)&&c.staff.length>0?c.staff[0]:(c.tech||'');
+  prodData().push({
+    id:Date.now()+Math.random(),date:dateStr,name:'',amt:0,
+    staff:defaultTech,pay:'card',store:activeStore,client:c.clientName,comm:0
+  });
+  save();
+  refreshProductSubRow(d,i);
+}
+window.addProductToClient=addProductToClient;
+
 function updateProduct(id,field,val){
   var p=prodData().find(function(pp){return pp.id===id;});
   if(!p)return;
-  if(field==='staff'||field==='name'||field==='client'||field==='pay'){
+  if(field==='staff'||field==='name'||field==='client'||field==='pay'||field==='store'){
     p[field]=val;
   } else if(field==='amt'){
     p.amt=parseFloat(val)||0;
@@ -5142,6 +5222,7 @@ function renderProductsPage(){
     +'<thead><tr style="background:var(--bg);border-bottom:1.5px solid var(--border)">'
     +'<th style="padding:8px 14px;text-align:left;font-size:10px;color:var(--sub);font-weight:600">日期</th>'
     +'<th style="padding:8px 14px;text-align:left;font-size:10px;color:var(--sub);font-weight:600">產品</th>'
+    +'<th style="padding:8px 14px;text-align:left;font-size:10px;color:var(--sub);font-weight:600">店家</th>'
     +'<th style="padding:8px 14px;text-align:left;font-size:10px;color:var(--sub);font-weight:600">技師</th>'
     +'<th style="padding:8px 14px;text-align:left;font-size:10px;color:var(--sub);font-weight:600">顧客</th>'
     +'<th style="padding:8px 14px;text-align:right;font-size:10px;color:var(--sub);font-weight:600">金額</th>'
@@ -5153,6 +5234,11 @@ function renderProductsPage(){
       return '<tr style="border-bottom:1px solid var(--border)">'
         +'<td style="padding:8px 14px;color:var(--sub);font-size:12px">'+p.date.slice(5).replace('-','/')+'</td>'
         +'<td style="padding:8px 14px;font-weight:600">'+p.name+'</td>'
+        +'<td style="padding:8px 14px">'+(p.store?'':'<div style="font-size:9px;color:var(--warn);margin-bottom:2px">⚠未填</div>')+'<select class="ti" style="width:100%;text-align:left;border:1px solid '+(p.store?'var(--border)':'var(--warn-bd)')+';border-radius:6px;padding:4px 6px;font-size:12px" onchange="updateProduct('+p.id+',\'store\',this.value)">'
+          +'<option value=""'+(!p.store?' selected':'')+'>— 未選 —</option>'
+          +'<option value="mv"'+(p.store==='mv'?' selected':'')+'>Mill Valley</option>'
+          +'<option value="sr"'+(p.store==='sr'?' selected':'')+'>San Rafael</option>'
+        +'</select></td>'
         +'<td style="padding:8px 14px"><select class="ti" style="width:100%;text-align:left;border:1px solid var(--border);border-radius:6px;padding:4px 6px;font-size:12px" onchange="updateProduct('+p.id+',\'staff\',this.value)">'
           +staff.map(function(s){return '<option value="'+s+'"'+(s===p.staff?' selected':'')+'>'+s+'</option>';}).join('')
         +'</select></td>'
