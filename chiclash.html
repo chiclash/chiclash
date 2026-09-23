@@ -2011,7 +2011,7 @@ input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-
     merged.sr = mergeDailyStore(base.sr, other.sr, 'sr');
     merged.gd = mergeDailyStore(base.gd, other.gd, 'gd');
     merged.gc_cards = mergeArrayById(base.gc_cards, other.gc_cards);
-    const safeKeys = ['staffPay','payroll','sqNameMap','tipConfirmed','tipSplitState','reviewSel','reviews','att','penalties','bnkBal','cdManual','tipSchedule','memberItems','members','memberSaleRewards','memberSaleRewardSel'];
+    const safeKeys = ['staffPay','payroll','sqNameMap','tipConfirmed','tipSplitState','reviewSel','reviews','att','penalties','bnkBal','cdManual','tipSchedule','memberItems','members','memberSaleRewards','memberSaleRewardSel','gdDayOk'];
     safeKeys.forEach(function(key){
       if(other[key] !== undefined && base[key] === undefined){
         merged[key] = other[key];
@@ -2307,6 +2307,43 @@ window.setSqManualNote=setSqManualNote;
 // 產生某一天「Square自報快速核對」區塊的HTML，被buildGDTable()整表渲染跟refreshSqManualBlock()局部更新共用，
 // 確保兩邊邏輯/畫面永遠一致，不會分岔。
 // 一定要完全對到 $0（容許極小的四捨五入誤差）才算相符，只要有差就要求填備註說明原因，方便老闆一眼看懂。
+// ── GoDaddy 對帳「已確認」──
+// 某天有差異、但已經查清楚原因（例如櫃台在 Square 點錯付款方式），按「已確認」後改成綠色。
+// 會記住按下當時的差異數字：之後只要每日記帳/Square/GoDaddy 任何一個數字變了，確認就自動失效、恢復紅色，避免新的錯誤被蓋掉。
+function gdRowDiffs(d){
+  var mvT=calcDay('mv',d),srT=calcDay('sr',d);
+  var expGCUsed=r2(mvT.calcGC+srT.calcGC);
+  var expOther=r2(mvT.calcOther+srT.calcOther+expGCUsed);
+  var expCash=r2(mvT.calcCash+srT.calcCash);
+  var expGD=r2(mvT.gdDue+srT.gdDue);
+  var sqR=sqReconDay(d), a=gdDay(d).act;
+  return [
+    (sqR.card!==''&&sqR.card!==undefined)?r2(gv(sqR.card)-expOther):null,
+    (sqR.cash!==''&&sqR.cash!==undefined)?r2(gv(sqR.cash)-expCash):null,
+    (a!==''&&a!==undefined&&a!==null)?r2(parseFloat(a)-expGD):null
+  ];
+}
+function sqManualDiffs(d){
+  var mvT=calcDay('mv',d),srT=calcDay('sr',d),sqM=sqManualDay(d);
+  return [['mvCard',mvT.calcOther+mvT.calcGC],['mvCash',mvT.calcCash],['srCard',srT.calcOther+srT.calcGC],['srCash',srT.calcCash]].map(function(x){
+    var v=sqM[x[0]]; return (v!==''&&v!==undefined)?r2(gv(v)-r2(x[1])):null;
+  });
+}
+function gdDaySig(d){return JSON.stringify([gdRowDiffs(d),sqManualDiffs(d)]);}
+function isGdDayConfirmed(d){
+  var c=_D.gdDayOk&&_D.gdDayOk[mk()]&&_D.gdDayOk[mk()][d];
+  return !!(c&&c.sig===gdDaySig(d));
+}
+function toggleGdDayOk(d){
+  if(!_D.gdDayOk)_D.gdDayOk={};
+  if(!_D.gdDayOk[mk()])_D.gdDayOk[mk()]={};
+  if(isGdDayConfirmed(d)) delete _D.gdDayOk[mk()][d];
+  else _D.gdDayOk[mk()][d]={sig:gdDaySig(d),at:Date.now()};
+  saveOnly();
+  buildGDTable();
+}
+window.toggleGdDayOk=toggleGdDayOk;
+
 function renderSqManualBlockHtml(d){
   // 對帳規則（全系統一致）：
   //   Square「Other」＝GoDaddy刷卡機刷的卡＋Venmo＋ClassPass＋禮品卡兌換（前台用 Other 結帳），都含小費 → calcOther＋calcGC
@@ -2339,11 +2376,12 @@ function renderSqManualBlockHtml(d){
     }
   });
   var noteText=sqM.note||'';
-  var sqLabel='📝 Square自報快速核對'+(hasSqInput?(sqMismatch?'（⚠ 對不起來）':'（✓ 完全相符）'):'');
+  var dayOk=sqMismatch&&isGdDayConfirmed(d);
+  var sqLabel='📝 Square自報快速核對'+(hasSqInput?(sqMismatch?(dayOk?'（✓ 已確認）':'（⚠ 對不起來）'):'（✓ 完全相符）'):'');
   var fmtDiff=function(x){return x===null?'':'　<span style="color:'+(Math.abs(x)<0.01?'var(--ok)':'var(--warn)')+'">'+(Math.abs(x)<0.01?'✓':'（差 '+sgnMoney(x)+'）')+'</span>';};
-  return '<button id="sq-manual-btn-'+d+'" data-label="'+sqLabel+'" onclick="toggleSqManualPanel('+d+')" style="background:none;border:none;color:'+(hasSqInput?(sqMismatch?'var(--warn)':'var(--ok)'):'var(--sub)')+';font-size:11px;font-weight:600;cursor:pointer;padding:6px 0;font-family:inherit">▸ '+sqLabel+'</button>'
-    +(sqMismatch&&noteText?'<div style="font-size:10.5px;color:var(--warn);padding:0 0 6px 14px">📌 '+escHtml(noteText)+'</div>':'')
-    +(sqMismatch&&!noteText?'<div style="font-size:10.5px;color:var(--faint);padding:0 0 6px 14px">尚未填備註說明原因，點開下面填一下</div>':'')
+  return '<button id="sq-manual-btn-'+d+'" data-label="'+sqLabel+'" onclick="toggleSqManualPanel('+d+')" style="background:none;border:none;color:'+(hasSqInput?(sqMismatch&&!dayOk?'var(--warn)':'var(--ok)'):'var(--sub)')+';font-size:11px;font-weight:600;cursor:pointer;padding:6px 0;font-family:inherit">▸ '+sqLabel+'</button>'
+    +(sqMismatch&&noteText?'<div style="font-size:10.5px;color:'+(dayOk?'var(--ok)':'var(--warn)')+';padding:0 0 6px 14px">📌 '+escHtml(noteText)+'</div>':'')
+    +(sqMismatch&&!noteText&&!dayOk?'<div style="font-size:10.5px;color:var(--faint);padding:0 0 6px 14px">尚未填備註說明原因，點開下面填一下</div>':'')
     +'<div id="sq-manual-panel-'+d+'" style="display:none;padding:4px 0 12px">'
     +'<div style="background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:10px 12px">'
     +'<div style="font-size:10px;color:var(--sub);margin-bottom:6px">從 Square 報表的「付款方式」複製 Other（刷卡）跟 Cash（現金）兩欄，都是含小費的金額</div>'
@@ -3917,7 +3955,9 @@ function buildGDTable(){
     var actAfterFee=actVal!==null?r2(actVal-feeNum):null;
 
     var bad=function(x){return x!==null&&Math.abs(x)>=0.01;};
-    var warn=bad(dOther)||bad(dCash)||bad(dGD);
+    var hasDiff=bad(dOther)||bad(dCash)||bad(dGD);
+    var confirmedOk=hasDiff&&isGdDayConfirmed(d); // 差異原因已查清楚、按過「已確認」
+    var warn=hasDiff&&!confirmedOk;
     var ok=(hasSqInput||actVal!==null)&&!warn;
     if(warn)monthHasDiff=true;
 
@@ -3937,7 +3977,7 @@ function buildGDTable(){
     var hasBook=expOther>0||expCash>0||expGCUsed>0;
 
     var row=document.createElement('div');
-    row.style.cssText='display:grid;grid-template-columns:80px 1fr 1fr 1fr 90px;align-items:center;gap:8px;padding:8px 14px;border-bottom:1px solid var(--border);font-size:13px;background:'+(warn?'var(--warn-bg)':isWk?'#FAFAF8':'var(--white)');
+    row.style.cssText='display:grid;grid-template-columns:80px 1fr 1fr 1fr 90px;align-items:center;gap:8px;padding:8px 14px;border-bottom:1px solid var(--border);font-size:13px;background:'+(warn?'var(--warn-bg)':confirmedOk?'var(--ok-bg)':isWk?'#FAFAF8':'var(--white)');
     row.innerHTML=
       '<div><div style="font-weight:600;font-size:12px">'+String(m+1).padStart(2,'0')+'/'+String(d).padStart(2,'0')+'</div>'+
         '<div style="font-size:10px;color:'+(isWk?'var(--warn)':'var(--sub)')+'">'+DAYS[dt2.getDay()]+'</div></div>'+
@@ -3964,11 +4004,12 @@ function buildGDTable(){
       '</div>'+
       '<div style="text-align:center;font-size:14px">'+
         (!hasSqInput&&actVal===null?'<span style="color:var(--faint);font-size:11px">填 Square／GoDaddy</span>':
-         ok?'<span style="color:var(--ok);font-size:18px">✓</span>':
+         !hasDiff?'<span style="color:var(--ok);font-size:18px">✓</span>':
          '<div style="font-size:11px;line-height:1.5">'+
-           (bad(dOther)?'<div style="color:var(--warn);font-weight:700">Other '+sgnMoney(dOther)+'</div>':'')+
-           (bad(dCash)?'<div style="color:var(--warn);font-weight:700">Cash '+sgnMoney(dCash)+'</div>':'')+
-           (bad(dGD)?'<div style="color:var(--warn);font-weight:700">GD '+sgnMoney(dGD)+'</div>':'')+
+           (bad(dOther)?'<div style="color:'+(confirmedOk?'var(--ok)':'var(--warn)')+';font-weight:700">Other '+sgnMoney(dOther)+'</div>':'')+
+           (bad(dCash)?'<div style="color:'+(confirmedOk?'var(--ok)':'var(--warn)')+';font-weight:700">Cash '+sgnMoney(dCash)+'</div>':'')+
+           (bad(dGD)?'<div style="color:'+(confirmedOk?'var(--ok)':'var(--warn)')+';font-weight:700">GD '+sgnMoney(dGD)+'</div>':'')+
+           '<button onclick="toggleGdDayOk('+d+')" title="'+(confirmedOk?'取消確認，恢復紅色':'差異原因已經查清楚了，按下改成綠色')+'" style="margin-top:4px;padding:3px 10px;border-radius:12px;font-size:10.5px;font-weight:700;cursor:pointer;font-family:inherit;border:1px solid var(--ok);background:'+(confirmedOk?'var(--ok)':'var(--white)')+';color:'+(confirmedOk?'#fff':'var(--ok)')+'">'+(confirmedOk?'✓ 已確認':'已確認')+'</button>'+
          '</div>')+
       '</div>'+
       (hint?'<div style="grid-column:2 / -1;font-size:10.5px;color:var(--tip);margin-top:2px">💡 '+hint+'</div>':'');
