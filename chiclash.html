@@ -2330,6 +2330,21 @@ function refreshSqManualBlock(d){
 }
 window.refreshSqManualBlock=refreshSqManualBlock;
 
+// Square應收：改成手動輸入(跟GoDaddy實收一樣的做法)，分刷卡/現金兩欄，兩店合計，不自動算。
+function sqReconDay(d){
+  if(!_D.sqRecon)_D.sqRecon={};
+  if(!_D.sqRecon[mk()])_D.sqRecon[mk()]={};
+  if(!_D.sqRecon[mk()][d])_D.sqRecon[mk()][d]={card:'',cash:''};
+  return _D.sqRecon[mk()][d];
+}
+function setSqRecon(d,field,v){
+  var r=sqReconDay(d);
+  r[field]=v===''?'':Math.round((parseFloat(v)||0)*100)/100;
+  saveOnly();
+  if(document.getElementById('gd-tbl'))buildGDTable();
+}
+window.setSqRecon=setSqRecon;
+
 function gdDay(d){
   if(!_D.gd)_D.gd={};
   if(!_D.gd[mk()])_D.gd[mk()]={};
@@ -3140,7 +3155,7 @@ function renderCalDetail(){
 
   function buildDayBreakdown(t,label,colorVar,bgVar,allocatedFee,gcClients){
     var cardSvc=t.cardSvc, cardTip=t.cardTip, venmoSvc=t.venmoSvc, venmoTip=t.venmoTip,
-        cashSvc=t.cashSvc, cashTip=t.cashTip, gcSoldTotal=t.gcSold, cpSvc=t.cpSvc, prodSold=t.prodSold;
+        cashSvc=t.cashSvc, cashTip=t.cashTip, gcSoldTotal=t.gcSold, gcUsed=t.gcSvc||0, cpSvc=t.cpSvc, prodSold=t.prodSold;
     // Square/GoDaddy 總額：含產品銷售（產品銷售真的會過刷卡機），不含 ClassPass（ClassPass 不會經過刷卡機，Square 完全看不到這筆錢）
     var sqGross=cardSvc+cardTip+venmoSvc+venmoTip+cashSvc+cashTip+gcSoldTotal+prodSold;
     // 每日總銷售額（用於營業額）：含 ClassPass
@@ -3164,6 +3179,7 @@ function renderCalDetail(){
       +'<div style="display:flex;justify-content:space-between;font-size:13px;padding:3px 0"><span>現金</span><span style="font-weight:600">$'+cashSvc.toFixed(2)+'</span></div>'
       +'<div style="display:flex;justify-content:space-between;font-size:13px;padding:3px 0"><span>現金小費</span><span style="font-weight:600">$'+cashTip.toFixed(2)+'</span></div>'
       +'<div style="display:flex;justify-content:space-between;font-size:13px;padding:3px 0"><span>禮品卡銷售</span><span style="font-weight:600">$'+gcSoldTotal.toFixed(2)+'</span></div>'
+      +'<div style="display:flex;justify-content:space-between;font-size:13px;padding:3px 0;color:var(--sub)"><span>禮品卡使用（兌換，不計入營業額）</span><span style="font-weight:600">$'+gcUsed.toFixed(2)+'</span></div>'
       +'<div style="display:flex;justify-content:space-between;font-size:13px;padding:3px 0"><span>產品銷售</span><span style="font-weight:600">$'+prodSold.toFixed(2)+'</span></div>'
       +'<div style="display:flex;justify-content:space-between;font-size:13px;padding:3px 0"><span>ClassPass</span><span style="font-weight:600">$'+cpSvc.toFixed(2)+'</span></div>'
       +'<div style="display:flex;justify-content:space-between;font-size:13.5px;padding:6px 0 0;margin-top:4px;border-top:1.5px solid rgba(0,0,0,.08);font-weight:700"><span>每日總銷售額</span><span>$'+salesGross.toFixed(2)+'</span></div>'
@@ -3796,7 +3812,7 @@ function buildGDTable(){
   // 表頭
   var hdr=document.createElement('div');
   hdr.style.cssText='display:grid;grid-template-columns:80px 1fr 1fr 1fr 90px;align-items:center;gap:8px;padding:7px 14px;background:var(--bg);border-bottom:1.5px solid var(--border);font-size:10px;text-transform:uppercase;letter-spacing:.07em;color:var(--sub);font-weight:600';
-  hdr.innerHTML='<span>日期</span><span style="color:var(--ok)">Square應收<br><span style="text-transform:none;font-weight:400;font-size:9px">（依刷卡相關記帳算出）</span></span><span style="color:#1656A0">每日記帳總金額<br><span style="text-transform:none;font-weight:400;font-size:9px">刷卡＋現金＋Venmo＋禮品卡售出＋產品銷售</span></span><span>GoDaddy實收<br><span style="text-transform:none;font-weight:400;font-size:9px">（填「隔天」撥款清單金額，未扣手續費）</span></span><span style="text-align:center">差異</span>';
+  hdr.innerHTML='<span>日期</span><span style="color:var(--ok)">Square應收<br><span style="text-transform:none;font-weight:400;font-size:9px">（直接從Square後台複製，兩店合計）</span></span><span style="color:#1656A0">每日記帳<br><span style="text-transform:none;font-weight:400;font-size:9px">刷卡／現金／Venmo／禮品卡／ClassPass／產品</span></span><span>GoDaddy實收<br><span style="text-transform:none;font-weight:400;font-size:9px">（填「隔天」撥款清單金額，未扣手續費）</span></span><span style="text-align:center">差異</span>';
   tbl.appendChild(hdr);
 
   var totalDue=0,totalAct=0,monthHasDiff=false;
@@ -3806,44 +3822,28 @@ function buildGDTable(){
     var isWk=dt2.getDay()===0||dt2.getDay()===6;
     var dateStr=y+'-'+String(m+1).padStart(2,'0')+'-'+String(d).padStart(2,'0');
 
-    // 主要應收數字：永遠用匯入中心（每日記帳）自然日計算——這是「Square應收」，只算真正會過卡的部分
     var mvT=calcDay('mv',d),srT=calcDay('sr',d);
-    var due=mvT.gdDue+srT.gdDue;
-    totalDue+=due;
 
-    // 已知的「現金小費調整」金額：服務是刷卡付的，但小費故意記成現金/Venmo（老闆習慣性讓某些技師直接領現金小費）。
-    // 這種情況下，GoDaddy 真正撥款一定會比 Square應收多出這些小費，是必然、可預期的差距，不是記帳錯誤。
-    // 直接算出這個金額，讓「差異」欄位能清楚拆成「已知會有的調整」跟「真的沒辦法解釋的部分」。
-    var knownCashTipAdj=0;
-    ['mv','sr'].forEach(function(store){
-      (sDay(store,d).clients||[]).forEach(function(c){
-        if(c.cp)return; // ClassPass 已經在gdDue公式裡處理過，這裡不重複算
-        var tip=gv(c.tip);
-        if(c.pay==='card'&&c.tipPay!=='card'&&tip>0)knownCashTipAdj+=tip;
-      });
-    });
-    knownCashTipAdj=Math.round(knownCashTipAdj*100)/100;
+    // 每日記帳：完整拆解每一項，不合併，避免跟Square應收比對時重複算
+    var bkCard=mvT.cardSvc+srT.cardSvc;
+    var bkCash=mvT.cashSvc+srT.cashSvc;
+    var bkVenmo=mvT.venmoSvc+srT.venmoSvc;
+    var bkGC=mvT.gcSold+srT.gcSold;
+    var bkCP=mvT.cpSvc+srT.cpSvc;
+    var bkProd=mvT.prodSold+srT.prodSold;
+    var bkTotal=Math.round((bkCard+bkCash+bkVenmo+bkGC+bkCP+bkProd)*100)/100;
+    totalDue+=bkTotal;
 
-    // 每日記帳總金額：刷卡＋現金＋Venmo＋禮品卡售出＋ClassPass＋產品銷售（就是 t.rev 的兩店合計）
-    var bookTotal=mvT.rev+srT.rev;
-    var cashTotal=(mvT.cashSvc+mvT.gcSoldCash+mvT.prodSoldCash)+(srT.cashSvc+srT.gcSoldCash+srT.prodSoldCash);
-    var bookMinusCash=Math.round((bookTotal-cashTotal)*100)/100;
-    // 「每日記帳總金額（扣現金）」跟「Square應收」本來就是兩種不同定義的數字，不會、也不該完全相等：
-    // 前者有 Venmo、ClassPass，但不含小費；後者有刷卡小費，但不含 Venmo、ClassPass。
-    // 與其顯示一個天天都會跳、沒有實際意義的「對不起來」警告，不如直接把這個「正常會有的差距」拆解清楚是哪幾項組成的。
-    var venmoPart=mvT.venmoSvc+srT.venmoSvc;
-    var cpPart=mvT.cpSvc+srT.cpSvc;
-    var gcVenmoPart=(mvT.gcSold-mvT.gcSoldCard-mvT.gcSoldCash)+(srT.gcSold-srT.gcSoldCard-srT.gcSoldCash);
-    var prodVenmoPart=mvT.prodSoldVenmo+srT.prodSoldVenmo;
-    var cardTipPart=mvT.cardTip+srT.cardTip;
-    var explainedGap=Math.round((venmoPart+cpPart+gcVenmoPart+prodVenmoPart-cardTipPart)*100)/100;
-    var actualGap=Math.round((bookMinusCash-due)*100)/100;
-    var breakdownMatches=Math.abs(explainedGap-actualGap)<1;
-
-    // Square CSV 精算（若有上傳）——僅作交叉核對提醒，不覆蓋 due
-    var csvDue=hasCsvCalc&&gdSqCalc[dateStr]!==undefined?gdSqCalc[dateStr]:null;
-    var csvDiff=csvDue!==null?Math.round((csvDue-due)*100)/100:null;
-    var csvMismatch=csvDiff!==null&&Math.abs(csvDiff)>=1;
+    // Square應收：手動輸入(跟GoDaddy實收一樣的做法)，分刷卡/現金兩欄，兩店合計
+    var sqR=sqReconDay(d);
+    var sqCard=gv(sqR.card),sqCash=gv(sqR.cash);
+    var hasSqInput=sqR.card!==''||sqR.cash!=='';
+    var sqTotal=Math.round((sqCard+sqCash)*100)/100;
+    // 禮品卡使用（兌換）：客人拿之前買的禮品卡來抵服務費時，Square 後台一樣會顯示這筆交易（前台結帳用GC核銷），
+    // 所以使用者從 Square 複製過來的「刷卡/現金」總額，其實已經包含了這筆「假錢」。
+    // 但每日記帳這邊本來就正確地不把它算進營收（因為賣卡當下已經算過一次了）——要扣掉這筆，兩邊才是同一種東西、才能比。
+    var gcUsed=Math.round((mvT.gcSvc+srT.gcSvc)*100)/100;
+    var sqTotalAdj=Math.round((sqTotal-gcUsed)*100)/100;
 
     // 讀取手動填入的 Payout
     var gdR=gdDay(d);
@@ -3851,19 +3851,19 @@ function buildGDTable(){
     var actVal=rAct!==''&&rAct!==undefined?parseFloat(rAct):null;
     if(actVal!==null)totalAct+=actVal;
 
-    // 每日手續費：GoDaddy 每次撥款會各自扣一筆手續費（不是月底統一扣一次），這裡要先讀出來，
-    // 拿「填入的Payout」減掉這筆手續費之後，才是真正能拿去跟「Square應收」比較的數字——
-    // 之前這個欄位雖然有得填、也有顯示扣完之後多少錢，但「差異」欄位其實從來沒有真的用到它，這裡修正。
+    // 每日手續費：GoDaddy 每次撥款各自扣一筆手續費（不是月底統一扣一次）
     var feeVal=getGDFee(d);
     var feeNum=parseFloat(feeVal)||0;
     var actAfterFee=actVal!==null?Math.round((actVal-feeNum)*100)/100:null;
 
-    var diff=actAfterFee!==null?Math.round((actAfterFee-due)*100)/100:null;
-    // 真正需要注意的，是扣掉「已知現金小費調整」之後還剩下多少——這才是真的沒辦法解釋的部分
-    var unexplainedDiff=diff!==null?Math.round((diff-knownCashTipAdj)*100)/100:null;
-    var ok=unexplainedDiff!==null&&Math.abs(unexplainedDiff)<5;
-    var warn=unexplainedDiff!==null&&Math.abs(unexplainedDiff)>=5;
+    // 差異：Square總額(手動，已扣掉禮品卡兌換) vs 每日記帳總額(自動算出的)——這是主要比對
+    var diff=hasSqInput?Math.round((sqTotalAdj-bkTotal)*100)/100:null;
+    var ok=diff!==null&&Math.abs(diff)<5;
+    var warn=diff!==null&&Math.abs(diff)>=5;
     if(warn)monthHasDiff=true;
+
+    // 額外參考：Square刷卡 vs GoDaddy(未扣手續費)——理論上這兩個該對上(刷卡部分才會真的撥款)
+    var cardVsGD=(sqR.card!==''&&actVal!==null)?Math.round((sqCard-actVal)*100)/100:null;
 
     var payoutLookupDate=new Date(y,m,d+1);
     var payoutLookupLabel=String(payoutLookupDate.getMonth()+1).padStart(2,'0')+'/'+String(payoutLookupDate.getDate()).padStart(2,'0');
@@ -3873,12 +3873,21 @@ function buildGDTable(){
     row.innerHTML=
       '<div><div style="font-weight:600;font-size:12px">'+String(m+1).padStart(2,'0')+'/'+String(d).padStart(2,'0')+'</div>'+
         '<div style="font-size:10px;color:'+(isWk?'var(--warn)':'var(--sub)')+'">'+DAYS[dt2.getDay()]+'</div></div>'+
-      '<div><span style="color:var(--ok);font-weight:600">'+(due>0?$f(due):'—')+'</span>'+
-        (csvMismatch?'<div style="font-size:10px;color:var(--warn);margin-top:2px">⚠ CSV精算 '+$f(csvDue)+'（差 '+(csvDiff>=0?'+':'')+$f(csvDiff)+'）</div>':'')+
+      '<div>'+
+        '<div style="display:flex;gap:5px;align-items:center;margin-bottom:3px"><span style="font-size:9.5px;color:var(--sub);width:26px">刷卡</span><input type="text" inputmode="decimal" style="width:80px;border:1px solid var(--border);border-radius:5px;padding:3px 6px;font-size:12px;font-family:inherit;text-align:right" placeholder="$0" value="'+sqR.card+'" onchange="setSqRecon('+d+',\'card\',this.value)"></div>'+
+        '<div style="display:flex;gap:5px;align-items:center;margin-bottom:3px"><span style="font-size:9.5px;color:var(--sub);width:26px">現金</span><input type="text" inputmode="decimal" style="width:80px;border:1px solid var(--border);border-radius:5px;padding:3px 6px;font-size:12px;font-family:inherit;text-align:right" placeholder="$0" value="'+sqR.cash+'" onchange="setSqRecon('+d+',\'cash\',this.value)"></div>'+
+        (hasSqInput?'<div style="font-size:11px;color:var(--ok);font-weight:600">總額 $'+sqTotal.toFixed(2)+'</div>':'')+
+        (hasSqInput&&gcUsed>0?'<div style="font-size:9.5px;color:var(--sub);margin-top:2px">－禮品卡使用 $'+gcUsed.toFixed(2)+' ＝ <b>$'+sqTotalAdj.toFixed(2)+'</b>（可比對金額）</div>':'')+
       '</div>'+
-      '<div><span style="color:#1656A0;font-weight:600">'+(bookTotal>0?$f(bookTotal):'—')+'</span>'+
-        (bookTotal>0?'<div style="font-size:10px;color:var(--sub);margin-top:2px">－現金 '+$f(cashTotal)+' ＝ '+$f(bookMinusCash)+'</div>':'')+
-        (bookTotal>0&&Math.abs(actualGap)>=1?'<div style="font-size:9.5px;color:'+(breakdownMatches?'var(--faint)':'var(--warn)')+';margin-top:2px">Ⓘ 與Square應收差 '+(actualGap>=0?'+':'')+$f(actualGap)+'：Venmo $'+venmoPart.toFixed(2)+' + ClassPass $'+cpPart.toFixed(2)+(Math.abs(gcVenmoPart)>=1?' + 禮品卡(Venmo) $'+gcVenmoPart.toFixed(2):'')+(Math.abs(prodVenmoPart)>=1?' + 產品(Venmo) $'+prodVenmoPart.toFixed(2):'')+' － 刷卡小費 $'+cardTipPart.toFixed(2)+(breakdownMatches?'（正常，不是記帳錯誤）':'（⚠ 這樣算還有兜不攏的部分，可能真的有問題）')+'</div>':'')+
+      '<div style="font-size:11px;color:var(--sub);line-height:1.6">'+
+        (bkCard>0?'刷卡 $'+bkCard.toFixed(2)+'<br>':'')+
+        (bkCash>0?'現金 $'+bkCash.toFixed(2)+'<br>':'')+
+        (bkVenmo>0?'Venmo $'+bkVenmo.toFixed(2)+'<br>':'')+
+        (bkGC>0?'禮品卡 $'+bkGC.toFixed(2)+'<br>':'')+
+        (gcUsed>0?'<span style="color:var(--faint)">禮品卡使用(兌換) $'+gcUsed.toFixed(2)+'（不算總額內）</span><br>':'')+
+        (bkCP>0?'ClassPass $'+bkCP.toFixed(2)+'<br>':'')+
+        (bkProd>0?'產品 $'+bkProd.toFixed(2)+'<br>':'')+
+        (bkTotal>0?'<span style="color:#1656A0;font-weight:600">總額 $'+bkTotal.toFixed(2)+'</span>':'<span style="color:var(--faint)">—</span>')+
       '</div>'+
       '<div>'+
       '<input type="text" inputmode="decimal" style="width:120px;border:1px solid '+(warn?'var(--warn-bd)':'var(--border)')+';border-radius:5px;padding:5px 8px;font-size:13px;font-family:inherit;text-align:right;outline:none;background:var(--white)" placeholder="填入 Payout" min="0" step="0.01" value="'+(actVal!==null?Math.round(actVal*100)/100:'')+'" onchange="updGD('+d+',this.value)">'+
@@ -3888,13 +3897,12 @@ function buildGDTable(){
         '<input type="text" inputmode="decimal" style="width:70px;border:1px solid var(--border);border-radius:5px;padding:3px 6px;font-size:11px;font-family:inherit;text-align:right;outline:none;background:var(--white)" placeholder="$0" min="0" step="0.01" value="'+feeVal+'" onchange="setGDFee('+d+',this.value)">'+
         (actAfterFee!==null?'<span style="font-size:9.5px;color:var(--sub)">＝ '+$f(actAfterFee)+'</span>':'')+
       '</div>'+
+      (cardVsGD!==null?'<div style="font-size:9px;color:'+(Math.abs(cardVsGD)<5?'var(--faint)':'var(--warn)')+';margin-top:3px">Ⓘ 刷卡$'+sqCard.toFixed(2)+' vs GoDaddy未扣手續費$'+actVal.toFixed(2)+'（差'+(cardVsGD>=0?'+':'')+cardVsGD.toFixed(2)+'）</div>':'')+
       '</div>'+
       '<div style="text-align:center;font-size:14px">'+
-        (actVal===null?'<span style="color:var(--faint)">—</span>':
-         ok?'<span style="color:var(--ok);font-size:18px">✓</span>'+(knownCashTipAdj>0?'<div style="font-size:8.5px;color:var(--faint);margin-top:2px">已扣現金小費調整$'+knownCashTipAdj.toFixed(2)+'</div>':''):
-         '<div><span style="color:var(--warn);font-weight:700">'+(unexplainedDiff>=0?'+':'')+$f(unexplainedDiff)+'</span>'+
-           (knownCashTipAdj>0?'<div style="font-size:8.5px;color:var(--faint);margin-top:2px">總差'+(diff>=0?'+':'')+$f(diff)+'－已知現金小費調整$'+knownCashTipAdj.toFixed(2)+'</div>':'')+
-         '</div>')+
+        (!hasSqInput?'<span style="color:var(--faint)">填Square應收</span>':
+         ok?'<span style="color:var(--ok);font-size:18px">✓</span>':
+         '<div><span style="color:var(--warn);font-weight:700">'+(diff>=0?'+':'')+$f(diff)+'</span></div>')+
       '</div>';
     tbl.appendChild(row);
 
