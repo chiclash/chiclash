@@ -2011,7 +2011,7 @@ input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-
     merged.sr = mergeDailyStore(base.sr, other.sr, 'sr');
     merged.gd = mergeDailyStore(base.gd, other.gd, 'gd');
     merged.gc_cards = mergeArrayById(base.gc_cards, other.gc_cards);
-    const safeKeys = ['staffPay','payroll','sqNameMap','tipConfirmed','tipSplitState','reviewSel','reviews','att','penalties','bnkBal','cdManual','tipSchedule','memberItems','members','memberSaleRewards','memberSaleRewardSel','gdDayOk'];
+    const safeKeys = ['staffPay','payroll','sqNameMap','tipConfirmed','tipSplitState','reviewSel','reviews','att','penalties','bnkBal','cdManual','tipSchedule','memberItems','members','memberSaleRewards','memberSaleRewardSel','gdDayOk','gdExplain'];
     safeKeys.forEach(function(key){
       if(other[key] !== undefined && base[key] === undefined){
         merged[key] = other[key];
@@ -2330,6 +2330,61 @@ function sqManualDiffs(d){
     var v=sqM[x[0]]; return (v!==''&&v!==undefined)?r2(gv(v)-r2(x[1])):null;
   });
 }
+// ── 差額說明（逐項列出原因＋金額，給老闆看）──
+// 每一項：{f:'other'|'cash'|'gd', amt:有正負號的金額, why:原因}；某一欄的說明加總＝那一欄的差額，就算「已全部說明」
+function gdExplainList(d){
+  if(!_D.gdExplain)_D.gdExplain={};
+  if(!_D.gdExplain[mk()])_D.gdExplain[mk()]={};
+  if(!_D.gdExplain[mk()][d])_D.gdExplain[mk()][d]=[];
+  return _D.gdExplain[mk()][d];
+}
+function gdExplainStatus(d){
+  var diffs=gdRowDiffs(d), keys=['other','cash','gd'];
+  var items=(_D.gdExplain&&_D.gdExplain[mk()]&&_D.gdExplain[mk()][d])||[];
+  var res={items:items,rows:{},all:true,any:false};
+  keys.forEach(function(k,i){
+    var diff=diffs[i]===null?0:diffs[i];
+    var sum=r2(items.filter(function(x){return x.f===k;}).reduce(function(s,x){return s+gv(x.amt);},0));
+    var left=r2(diff-sum);
+    res.rows[k]={diff:diff,sum:sum,left:left};
+    if(Math.abs(diff)>=0.01)res.any=true;
+    if(Math.abs(left)>=0.01)res.all=false;
+  });
+  res.done=res.any&&res.all&&items.length>0;
+  return res;
+}
+function addGdExplain(d,f){gdExplainList(d).push({f:f||'other',amt:'',why:''});saveOnly();buildGDTable();}
+function updGdExplain(d,i,k,v){var l=gdExplainList(d);if(!l[i])return;l[i][k]=v;saveOnly();buildGDTable();}
+function delGdExplain(d,i){gdExplainList(d).splice(i,1);saveOnly();buildGDTable();}
+window.addGdExplain=addGdExplain;window.updGdExplain=updGdExplain;window.delGdExplain=delGdExplain;
+function renderGdExplainHtml(d,st){
+  var esc=function(v){return String(v||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/"/g,'&quot;');};
+  var names={other:'Square 刷卡（Other）',cash:'Square 現金（Cash）',gd:'GoDaddy 實收'};
+  var notes={other:'Square 記錄的問題，不代表少收錢',cash:'Square 記錄的問題，不代表少收錢',gd:'這一欄才是實際收到的錢'};
+  var html='<div style="grid-column:1 / -1;margin-top:6px;background:var(--white);border:1px solid '+(st.done?'var(--ok)':'var(--border)')+';border-radius:8px;padding:8px 12px">';
+  html+='<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px"><span style="font-size:11.5px;font-weight:700;color:'+(st.done?'var(--ok)':'var(--text)')+'">'+(st.done?'✓ 差額已全部說明':'📋 差額說明')+'</span>'
+    +'<span style="font-size:10px;color:var(--faint)">每一欄的說明加起來＝那一欄的差額，就會自動變綠色</span></div>';
+  ['other','cash','gd'].forEach(function(k){
+    var r=st.rows[k];
+    var its=st.items.map(function(x,i){return {x:x,i:i};}).filter(function(o){return o.x.f===k;});
+    if(Math.abs(r.diff)<0.01&&!its.length)return;
+    html+='<div style="margin-top:6px;border-top:1px dashed var(--border);padding-top:6px">'
+      +'<div style="display:flex;justify-content:space-between;font-size:12px;font-weight:700"><span>'+names[k]+' <span style="font-weight:400;font-size:10px;color:var(--faint)">（'+notes[k]+'）</span></span><span style="color:'+(Math.abs(r.left)<0.01?'var(--ok)':'var(--warn)')+'">差 '+sgnMoney(r.diff)+'</span></div>';
+    its.forEach(function(o){
+      html+='<div style="display:flex;gap:6px;align-items:center;margin-top:4px">'
+        +'<input type="text" inputmode="decimal" value="'+esc(o.x.amt)+'" placeholder="例 -150" onchange="updGdExplain('+d+','+o.i+',\'amt\',this.value)" style="width:80px;border:1px solid var(--border);border-radius:5px;padding:3px 6px;font-size:12px;font-family:inherit;text-align:right">'
+        +'<input type="text" value="'+esc(o.x.why)+'" placeholder="原因，例：iPad 賣卡沒在 Square 結帳" onchange="updGdExplain('+d+','+o.i+',\'why\',this.value)" style="flex:1;border:1px solid var(--border);border-radius:5px;padding:3px 8px;font-size:12px;font-family:inherit">'
+        +'<button onclick="delGdExplain('+d+','+o.i+')" style="border:none;background:none;color:var(--faint);cursor:pointer;font-size:13px">✕</button></div>';
+    });
+    html+='<div style="display:flex;justify-content:space-between;align-items:center;margin-top:4px;font-size:11px">'
+      +'<button onclick="addGdExplain('+d+',\''+k+'\')" style="border:1px dashed var(--border);background:none;border-radius:5px;padding:2px 8px;font-size:11px;cursor:pointer;font-family:inherit;color:var(--sub)">＋ 加一個原因</button>'
+      +(Math.abs(r.left)<0.01?'<span style="color:var(--ok);font-weight:700">✓ 已說明清楚</span>':'<span style="color:var(--warn);font-weight:700">還有 '+sgnMoney(r.left)+' 沒說明</span>')
+      +'</div></div>';
+  });
+  return html+'</div>';
+}
+window.renderGdExplainHtml=renderGdExplainHtml;
+
 function gdDaySig(d){return JSON.stringify([gdRowDiffs(d),sqManualDiffs(d)]);}
 function isGdDayConfirmed(d){
   var c=_D.gdDayOk&&_D.gdDayOk[mk()]&&_D.gdDayOk[mk()][d];
@@ -2377,7 +2432,7 @@ function renderSqManualBlockHtml(d){
     }
   });
   var noteText=sqM.note||'';
-  var dayOk=sqMismatch&&isGdDayConfirmed(d);
+  var dayOk=sqMismatch&&(isGdDayConfirmed(d)||gdExplainStatus(d).done);
   var sqLabel='📝 Square自報快速核對'+(hasSqInput?(sqMismatch?(dayOk?'（✓ 已確認）':'（⚠ 對不起來）'):'（✓ 完全相符）'):'');
   var fmtDiff=function(x){return x===null?'':'　<span style="color:'+(Math.abs(x)<0.01?'var(--ok)':'var(--warn)')+'">'+(Math.abs(x)<0.01?'✓':'（差 '+sgnMoney(x)+'）')+'</span>';};
   return '<button id="sq-manual-btn-'+d+'" data-label="'+sqLabel+'" onclick="toggleSqManualPanel('+d+')" style="background:none;border:none;color:'+(hasSqInput?(sqMismatch&&!dayOk?'var(--warn)':'var(--ok)'):'var(--sub)')+';font-size:11px;font-weight:600;cursor:pointer;padding:6px 0;font-family:inherit">▸ '+sqLabel+'</button>'
@@ -4000,7 +4055,8 @@ function buildGDTable(){
 
     var bad=function(x){return x!==null&&Math.abs(x)>=0.01;};
     var hasDiff=bad(dOther)||bad(dCash)||bad(dGD);
-    var confirmedOk=hasDiff&&isGdDayConfirmed(d); // 差異原因已查清楚、按過「已確認」
+    var exSt=gdExplainStatus(d);
+    var confirmedOk=hasDiff&&(isGdDayConfirmed(d)||exSt.done); // 按過「已確認」，或差額已經逐項說明清楚
     var warn=hasDiff&&!confirmedOk;
     var ok=(hasSqInput||actVal!==null)&&!warn;
     if(warn)monthHasDiff=true;
@@ -4053,10 +4109,11 @@ function buildGDTable(){
            (bad(dOther)?'<div style="color:'+(confirmedOk?'var(--ok)':'var(--warn)')+';font-weight:700">Other '+sgnMoney(dOther)+'</div>':'')+
            (bad(dCash)?'<div style="color:'+(confirmedOk?'var(--ok)':'var(--warn)')+';font-weight:700">Cash '+sgnMoney(dCash)+'</div>':'')+
            (bad(dGD)?'<div style="color:'+(confirmedOk?'var(--ok)':'var(--warn)')+';font-weight:700">GD '+sgnMoney(dGD)+'</div>':'')+
-           '<button onclick="toggleGdDayOk('+d+')" title="'+(confirmedOk?'取消確認，恢復紅色':'差異原因已經查清楚了，按下改成綠色')+'" style="margin-top:4px;padding:3px 10px;border-radius:12px;font-size:10.5px;font-weight:700;cursor:pointer;font-family:inherit;border:1px solid var(--ok);background:'+(confirmedOk?'var(--ok)':'var(--white)')+';color:'+(confirmedOk?'#fff':'var(--ok)')+'">'+(confirmedOk?'✓ 已確認':'已確認')+'</button>'+
+           (exSt.done?'<div style="color:var(--ok);font-weight:700;margin-top:4px">✓ 已說明</div>':'<button onclick="toggleGdDayOk('+d+')" title="'+(confirmedOk?'取消確認，恢復紅色':'差異原因已經查清楚了，按下改成綠色')+'" style="margin-top:4px;padding:3px 10px;border-radius:12px;font-size:10.5px;font-weight:700;cursor:pointer;font-family:inherit;border:1px solid var(--ok);background:'+(confirmedOk?'var(--ok)':'var(--white)')+';color:'+(confirmedOk?'#fff':'var(--ok)')+'">'+(confirmedOk?'✓ 已確認':'已確認')+'</button>')+
          '</div>')+
       '</div>'+
-      (hint?'<div style="grid-column:2 / -1;font-size:10.5px;color:var(--tip);margin-top:2px">💡 '+hint+'</div>':'');
+      (hint&&!exSt.done?'<div style="grid-column:2 / -1;font-size:10.5px;color:var(--tip);margin-top:2px">💡 '+hint+'</div>':'')+
+      ((hasDiff||exSt.items.length)?renderGdExplainHtml(d,exSt):'');
     tbl.appendChild(row);
 
     // 「Square自報快速核對」：不用上傳CSV，直接把Square後台當天顯示的刷卡/現金營收打進來，
