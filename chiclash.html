@@ -2227,9 +2227,12 @@ const gv=v=>v!==''&&v!==undefined&&v!==null?parseFloat(v)||0:0;
 // 如果有填補差額但 GC 金額沒填，代表禮品卡只付了「一部分」但不確定確切金額，這種情況不亂猜，維持 0。
 function resolveGcAmt(c){
   var explicit=gv(c.gcAmt);
-  if(explicit>0)return explicit;
+  // 有填「GC金額」就照填的；如果小費選 GC、但填的金額沒含小費，補上小費（取兩者較大的）
+  if(explicit>0)return (c.tipPay==='gc')?Math.max(explicit,Math.round((gv(c.svc)-gv(c.topup)+gv(c.tip))*100)/100):explicit;
   // 沒填「GC金額」：有補差額→禮品卡付的是「服務金額－補差額」；沒補差額→整筆都是禮品卡
-  return Math.max(0,Math.round((gv(c.svc)-gv(c.topup))*100)/100);
+  // 小費也用禮品卡付（小費方式選 GC）→ 小費也是從禮品卡扣的
+  var gcTipPart=(c.tipPay==='gc')?gv(c.tip):0;
+  return Math.max(0,Math.round((gv(c.svc)-gv(c.topup)+gcTipPart)*100)/100);
 }
 
 // 平分金額到「分」：先每人拿一樣的，除不盡的零頭照名字順序一人多給 $0.01，
@@ -2515,6 +2518,7 @@ function ledgerCardItems(d){
       if(tip>0){
         if(tp==='cash'){noGD.cash+=tip;parts.push('小費 $'+tip.toFixed(2)+' 現金');}
         else if(tp==='venmo'){noGD.venmo+=tip;parts.push('小費 $'+tip.toFixed(2)+' Venmo');}
+        else if(tp==='gc'&&c.pay==='gc'){parts.push('小費 $'+tip.toFixed(2)+' 禮品卡付');}
         else {card+=tip;tipPart=tip;parts.push('小費刷卡 $'+tip.toFixed(2));}
       }
       // 這位客人一起結帳的產品（刷卡）
@@ -2850,7 +2854,7 @@ function calcDay(s,d){
   const r=sDay(s,d);
   const clients=r.clients;
   let cardSvc=0,cashSvc=0,cpSvc=0,gcSvc=0,gcAmtUsed=0,topupCard=0,topupCash=0,venmoSvc=0;
-  let cardTip=0,cashTip=0,venmoTip=0,cpCardTip=0;
+  let cardTip=0,cashTip=0,venmoTip=0,cpCardTip=0,gcTip=0;
 
   clients.forEach(c=>{
     const svc=gv(c.svc), tip=gv(c.tip), gcAmt=resolveGcAmt(c);
@@ -2863,7 +2867,8 @@ function calcDay(s,d){
       if(c.topupPay==='card'){topupCard+=topup; cardSvc+=topup;}
       else {topupCash+=topup; cashSvc+=topup;}
       var tp=c.tipPay||'card'; // 沒選＝刷卡（跟新增客人的預設、小費分配頁一致）
-      if(tp==='cash')cashTip+=tip;
+      if(tp==='gc'&&c.pay==='gc')gcTip+=tip; // 小費用禮品卡付：已經算在禮品卡兌換金額裡，不算刷卡也不算現金
+      else if(tp==='cash')cashTip+=tip;
       else if(tp==='venmo')venmoTip+=tip;
       else cardTip+=tip;
     } else {
@@ -2885,7 +2890,8 @@ function calcDay(s,d){
         else cashSvc+=svc;
       }
       var tp=c.tipPay||'card'; // 沒選＝刷卡（跟新增客人的預設、小費分配頁一致）
-      if(tp==='cash')cashTip+=tip;
+      if(tp==='gc'&&c.pay==='gc')gcTip+=tip; // 小費用禮品卡付：已經算在禮品卡兌換金額裡，不算刷卡也不算現金
+      else if(tp==='cash')cashTip+=tip;
       else if(tp==='venmo')venmoTip+=tip;
       else cardTip+=tip;
     }
@@ -2960,7 +2966,7 @@ function calcDay(s,d){
     sqDiff=Math.round((sqTotal>0 ? sqTotal-calcTotal : (sqOther+sqCash+sqGC)-calcTotal)*100)/100;
   }
 
-  return{cardSvc,cashSvc,venmoSvc,cpSvc,gcSvc,gcAmtUsed,gcSold,gcSoldCard,gcSoldCash,prodSold,prodSoldCard,prodSoldCash,prodSoldVenmo,cardTip,cashTip,venmoTip,gdDue,rev,
+  return{gcTip,cardSvc,cashSvc,venmoSvc,cpSvc,gcSvc,gcAmtUsed,gcSold,gcSoldCard,gcSoldCash,prodSold,prodSoldCard,prodSoldCash,prodSoldVenmo,cardTip,cashTip,venmoTip,gdDue,rev,
     calcOther,calcCash,calcGC,calcTip,calcTotal,sqDiff,hasSq,hasClients};
 }
 
@@ -3243,7 +3249,9 @@ function renderClientTable(d){
           <button class="tgl ${(c.tipPay||'card')==='card'?'on-card':''}" onclick="setTipPay(${d},${i},'card',this)">刷卡</button>
           <button class="tgl ${c.tipPay==='cash'?'on-cash':''}" onclick="setTipPay(${d},${i},'cash',this)">現金</button>
           <button class="tgl ${c.tipPay==='venmo'?'on-venmo':''}" onclick="setTipPay(${d},${i},'venmo',this)">Venmo</button>
+          ${c.pay==='gc'?`<button class="tgl ${c.tipPay==='gc'?'on-gc':''}" onclick="setTipPay(${d},${i},'gc',this)" title="小費也是用禮品卡付的">GC</button>`:''}
         </div>
+        ${(c.pay==='gc'&&gv(c.tip)>0&&c.tipPay!=='gc'&&gv(c.gcAmt)>0&&Math.abs(gv(c.gcAmt)-(gv(c.svc)-gv(c.topup)+gv(c.tip)))<0.01)?`<div style="font-size:10px;color:var(--tip);margin-top:2px">GC金額含小費？小費請點「GC」</div>`:''}
       </td>
       <td style="text-align:right;font-weight:600;font-size:13px;white-space:nowrap;color:var(--text);min-width:60px">${(gv(c.svc)+gv(c.tip)+gv(c.cpTopup))>0?'$'+(gv(c.svc)+gv(c.tip)+gv(c.cpTopup)).toFixed(2):'—'}</td>
       <td style="text-align:center">
@@ -3435,8 +3443,9 @@ function setTipPay(d,i,val,btn){
   const c=sDay(activeStore,d).clients[i];if(!c)return;
   c.tipPay=val;save();
   const grp=btn.closest('.tgl-grp');
-  grp.querySelectorAll('.tgl').forEach(b=>{b.className='tgl'+(b===btn?(' on-'+(val==='card'?'card':'cash')):'');});
+  grp.querySelectorAll('.tgl').forEach(b=>{b.className='tgl'+(b===btn?(' on-'+(val==='card'?'card':val==='gc'?'gc':val==='venmo'?'venmo':'cash')):'');});
   updateDaySummary(d);updateAll();
+  if(c.pay==='gc')renderClientTable(d); // 更新「GC金額含小費？」提示
 }
 function toggleCP(d,i,btn){
   const c=sDay(activeStore,d).clients[i];if(!c)return;
