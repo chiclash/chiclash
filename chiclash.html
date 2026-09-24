@@ -2011,7 +2011,7 @@ input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-
     merged.sr = mergeDailyStore(base.sr, other.sr, 'sr');
     merged.gd = mergeDailyStore(base.gd, other.gd, 'gd');
     merged.gc_cards = mergeArrayById(base.gc_cards, other.gc_cards);
-    const safeKeys = ['staffPay','payroll','sqNameMap','tipConfirmed','tipSplitState','reviewSel','reviews','att','penalties','bnkBal','cdManual','tipSchedule','memberItems','members','memberSaleRewards','memberSaleRewardSel','gdDayOk','gdExplain'];
+    const safeKeys = ['staffPay','payroll','sqNameMap','tipConfirmed','tipSplitState','reviewSel','reviews','att','penalties','bnkBal','cdManual','tipSchedule','memberItems','members','memberSaleRewards','memberSaleRewardSel','gdDayOk','gdExplain','gdTxns'];
     safeKeys.forEach(function(key){
       if(other[key] !== undefined && base[key] === undefined){
         merged[key] = other[key];
@@ -2411,6 +2411,235 @@ function renderGdExplainHtml(d,st){
   return html+'</div>';
 }
 window.renderGdExplainHtml=renderGdExplainHtml;
+
+
+// ════════════ GoDaddy 逐筆比對 ════════════
+// 把 GoDaddy「Transactions」表格整頁複製貼上，系統自動拿每日記帳每一位客人「應該刷卡的金額」跟 GoDaddy 每一筆配對，
+// 列出：對上的、合併結帳的、金額不同的、只在記帳／只在 GoDaddy 的，加起來剛好等於 GoDaddy 差額。
+var _gdMatchOpen={};
+function parseGdTxnPaste(text){
+  var t=String(text||'').replace(/\u00a0/g,' ');
+  var re=/(\d{2})\/(\d{2})\/(\d{4})\s+(\d{1,2}:\d{2}\s*[AP]M)\s+(Sale|Void|Refund|Return)\b([\s\S]*?)(?=\d{2}\/\d{2}\/\d{4}\s+\d{1,2}:\d{2}\s*[AP]M|$)/gi;
+  var out=[],m;
+  while((m=re.exec(t))!==null){
+    var chunk=m[6];
+    var amts=(chunk.match(/-?\$-?[\d,]+\.\d{2}/g)||[]).map(function(a){var neg=a.indexOf('-')>=0;return (neg?-1:1)*parseFloat(a.replace(/[^\d.]/g,''));});
+    if(!amts.length)continue;
+    var type=m[5].charAt(0).toUpperCase()+m[5].slice(1).toLowerCase();
+    var payout=amts[amts.length-1];
+    var isSale=type==='Sale';
+    var lastAmt=chunk.lastIndexOf('$');
+    var after=lastAmt>=0?chunk.slice(lastAmt):chunk;
+    var l4=(after.match(/\b(\d{4})\b/)||[])[1]||'';
+    out.push({date:m[3]+'-'+m[1]+'-'+m[2],time:m[4].replace(/\s+/,' ').toUpperCase(),type:type,
+      sale:isSale&&amts.length>=5?amts[0]:(isSale?amts[0]:0),tip:isSale&&amts.length>=5?amts[1]:0,
+      amt:r2(payout),last4:l4});
+  }
+  return out;
+}
+function gdTxnsForDay(d){return (_D.gdTxns&&_D.gdTxns[mk()]&&_D.gdTxns[mk()][d])||null;}
+function saveGdTxnPaste(d){
+  var ta=document.getElementById('gdpaste-'+d);if(!ta)return;
+  var list=parseGdTxnPaste(ta.value);
+  if(!list.length){alert('看不到 GoDaddy 交易。請在 GoDaddy「Transactions」頁，從第一筆的日期拖曳選到最後一筆，複製後貼上。');return;}
+  var dateStr=mk()+'-'+String(d).padStart(2,'0');
+  var other=list.filter(function(x){return x.date!==dateStr;});
+  list=list.filter(function(x){return x.date===dateStr;});
+  if(!list.length){alert('貼上的交易日期是 '+other[0].date+'，不是這一天（'+dateStr+'）。');return;}
+  if(!_D.gdTxns)_D.gdTxns={};
+  if(!_D.gdTxns[mk()])_D.gdTxns[mk()]={};
+  _D.gdTxns[mk()][d]=list;
+  var sum=r2(list.reduce(function(s,x){return s+x.amt;},0));
+  var r=gdDay(d);
+  if(r.act===''||r.act===undefined||r.act===null){ r.act=sum; } // 實收還沒填 → 直接用明細加總
+  _gdMatchOpen[d]=true;
+  saveOnly();buildGDTable();updateAll();
+}
+function clearGdTxnPaste(d){ if(_D.gdTxns&&_D.gdTxns[mk()])delete _D.gdTxns[mk()][d]; _gdMatchOpen[d]=true; saveOnly();buildGDTable(); }
+function toggleGdMatch(d){ _gdMatchOpen[d]=!_gdMatchOpen[d]; buildGDTable(); }
+window.saveGdTxnPaste=saveGdTxnPaste;window.clearGdTxnPaste=clearGdTxnPaste;window.toggleGdMatch=toggleGdMatch;
+
+// 每日記帳裡「應該會刷卡」的每一筆（兩店），以及不經過 GoDaddy 的摘要
+function ledgerCardItems(d){
+  var mo=mk(), dateStr=mo+'-'+String(d).padStart(2,'0');
+  var items=[], noGD={cash:0,cashN:0,cp:0,cpN:0,gc:0,gcN:0,venmo:0,venmoN:0,cpList:[]}, cashSvc={};
+  var prods=(_D.products&&_D.products[mo])||[];
+  var usedProd={};
+  ['mv','sr'].forEach(function(store){
+    var sName=store==='mv'?'MV':'SR';
+    (sDay(store,d).clients||[]).forEach(function(c,ci){
+      var svc=gv(c.svc),tip=gv(c.tip),card=0,parts=[],svcPart=0,tipPart=0;
+      var tp=c.tipPay||'card';
+      if(c.pay==='gc'){
+        var gcA=resolveGcAmt(c); noGD.gc+=gcA; if(gcA>0)noGD.gcN++;
+        parts.push('禮品卡 $'+gcA.toFixed(2)+'（不經過 GoDaddy）');
+        if(gv(c.topup)>0){ if(c.topupPay==='cash'){noGD.cash+=gv(c.topup);parts.push('補差額 $'+gv(c.topup).toFixed(2)+' 現金');} else {card+=gv(c.topup);parts.push('補差額刷卡 $'+gv(c.topup).toFixed(2));} }
+      } else if(c.cp){
+        noGD.cp+=svc; if(svc>0){noGD.cpN++;noGD.cpList.push((c.clientName||'（沒填名字）')+' $'+svc.toFixed(2));}
+        parts.push('ClassPass $'+svc.toFixed(2)+'（不經過 GoDaddy）');
+        if(gv(c.cpTopup)>0){ if(c.cpTopupPay==='cash'){noGD.cash+=gv(c.cpTopup);parts.push('加購 $'+gv(c.cpTopup).toFixed(2)+' 現金');} else {card+=gv(c.cpTopup);parts.push('加購刷卡 $'+gv(c.cpTopup).toFixed(2));} }
+      } else if(c.pay==='cash'){ noGD.cash+=svc; if(svc>0)noGD.cashN++; if(svc>0){parts.push('服務 $'+svc.toFixed(2)+' 現金'); var nk=(c.clientName||'（沒填名字）')+'（'+sName+'）'; cashSvc[nk]=r2((cashSvc[nk]||0)+svc); cashSvc[nk+'#'+items.length+'_'+svc]=svc;}}
+      else if(c.pay==='venmo'){ noGD.venmo+=svc; if(svc>0)noGD.venmoN++; if(svc>0)parts.push('服務 $'+svc.toFixed(2)+' Venmo');}
+      else { card+=svc; svcPart=svc; if(svc>0)parts.push('服務刷卡 $'+svc.toFixed(2)); }
+      if(tip>0){
+        if(tp==='cash'){noGD.cash+=tip;parts.push('小費 $'+tip.toFixed(2)+' 現金');}
+        else if(tp==='venmo'){noGD.venmo+=tip;parts.push('小費 $'+tip.toFixed(2)+' Venmo');}
+        else {card+=tip;tipPart=tip;parts.push('小費刷卡 $'+tip.toFixed(2));}
+      }
+      // 這位客人一起結帳的產品（刷卡）
+      prods.forEach(function(p,pi){
+        var belongs=p.store?(p.store===store):(store==='mv');
+        if(usedProd[pi]||!belongs||p.date!==dateStr||!c.clientName||p.client!==c.clientName)return;
+        usedProd[pi]=true;
+        if(p.pay==='cash'){noGD.cash+=gv(p.amt);parts.push('產品 '+(p.name||'')+' $'+gv(p.amt).toFixed(2)+' 現金');}
+        else {card+=gv(p.amt);parts.push('產品刷卡 '+(p.name||'')+' $'+gv(p.amt).toFixed(2));}
+      });
+      card=r2(card);
+      if(card>0) items.push({label:(c.clientName||'（沒填名字）'),who:sName+(c.tech?'・'+c.tech:''),amt:card,desc:parts.join('＋'),svcPart:svcPart,tipPart:tipPart,store:store,pos:ci});
+    });
+    // 沒掛在客人身上的產品
+    prods.forEach(function(p,pi){
+      var belongs=p.store?(p.store===store):(store==='mv');
+      if(usedProd[pi]||!belongs||p.date!==dateStr)return;
+      usedProd[pi]=true;
+      if(p.pay==='cash'){noGD.cash+=gv(p.amt);return;}
+      items.push({label:'產品 '+(p.name||''),who:sName+(p.staff?'・'+p.staff:''),amt:r2(gv(p.amt)),desc:'產品刷卡'});
+    });
+    // 賣出的禮品卡（刷卡）
+    dayGcSalesList(store,d).forEach(function(g){
+      if(g.pay!=='刷卡'){noGD.cash+=g.pay==='現金'?g.amt:0;return;}
+      items.push({label:'賣禮品卡 '+g.code,who:sName+(g.who?'・'+g.who:''),amt:r2(g.amt),desc:g.src+' 賣卡刷卡'});
+    });
+  });
+  return {items:items,noGD:noGD,cashSvc:cashSvc};
+}
+// 配對：①金額一樣 ②兩三筆合併結帳 ③一筆分兩次刷 ④剩下的找最接近的當「金額不同」
+function matchGdTxns(ledger,gd){
+  var L=ledger.map(function(x,i){return Object.assign({i:i,used:false},x);});
+  var G=gd.map(function(x,i){return Object.assign({i:i,used:false},x);});
+  var res=[], eq=function(a,b){return Math.abs(a-b)<0.005;};
+  // 作廢：Sale X ＋ Void -X 互相抵銷
+  G.forEach(function(v){ if(v.used||v.amt>=0)return;
+    var s=G.find(function(x){return !x.used&&x!==v&&x.amt>0&&eq(x.amt,-v.amt)&&(!v.last4||x.last4===v.last4);});
+    if(s){s.used=v.used=true;res.push({kind:'void',g:[s,v],l:[]});}
+  });
+  // ① 一對一
+  L.forEach(function(l){ var g=G.find(function(x){return !x.used&&eq(x.amt,l.amt);}); if(g){g.used=l.used=true;res.push({kind:'ok',l:[l],g:[g]});} });
+  // ② 兩筆或三筆記帳 → 一筆 GoDaddy（合併結帳）
+  G.forEach(function(g){ if(g.used)return;
+    var fl=L.filter(function(x){return !x.used;});
+    for(var a=0;a<fl.length&&!g.used;a++)for(var b=a+1;b<fl.length&&!g.used;b++){
+      if(eq(fl[a].amt+fl[b].amt,g.amt)){fl[a].used=fl[b].used=g.used=true;res.push({kind:'combo',l:[fl[a],fl[b]],g:[g]});}
+      else for(var c2=b+1;c2<fl.length&&!g.used;c2++) if(eq(fl[a].amt+fl[b].amt+fl[c2].amt,g.amt)){fl[a].used=fl[b].used=fl[c2].used=g.used=true;res.push({kind:'combo',l:[fl[a],fl[b],fl[c2]],g:[g]});}
+    }
+  });
+  // ③ 一筆記帳 → 兩筆 GoDaddy（分開刷）
+  L.forEach(function(l){ if(l.used)return;
+    var fg=G.filter(function(x){return !x.used;});
+    for(var a=0;a<fg.length&&!l.used;a++)for(var b=a+1;b<fg.length&&!l.used;b++) if(eq(fg[a].amt+fg[b].amt,l.amt)){fg[a].used=fg[b].used=l.used=true;res.push({kind:'split',l:[l],g:[fg[a],fg[b]]});}
+  });
+  // 時間窗：每日記帳是照結帳順序打的，所以用「前後已經對上的客人」在 GoDaddy 的時間，
+  //   推算沒對上的這位大概是幾點結帳，只跟那個時段（前後多 90 分鐘）的 GoDaddy 交易配對
+  var tmin=function(t){var mm=String(t||'').match(/(\d{1,2}):(\d{2})\s*([AP])M/i);if(!mm)return null;var h=parseInt(mm[1],10)%12;if(mm[3].toUpperCase()==='P')h+=12;return h*60+parseInt(mm[2],10);};
+  var anchors=[];
+  res.forEach(function(r){ if(r.kind==='void')return; var gt=tmin(r.g[0].time); r.l.forEach(function(l){ if(l.pos!==undefined&&gt!==null)anchors.push({store:l.store,pos:l.pos,t:gt}); }); });
+  var inWindow=function(l,g){
+    if(l.pos===undefined)return true;
+    var gt=tmin(g.time); if(gt===null)return true;
+    var prev=null,next=null;
+    anchors.forEach(function(a){ if(a.store!==l.store)return;
+      if(a.pos<l.pos&&(prev===null||a.t>prev))prev=a.t;
+      if(a.pos>l.pos&&(next===null||a.t<next))next=a.t; });
+    return (prev===null||gt>=prev-90)&&(next===null||gt<=next+90);
+  };
+  // ④ 剩下的：有線索（GoDaddy 小費＝記帳刷卡小費，或 GoDaddy 服務費＝記帳服務費）或金額差不到 25%，才當成同一筆「金額不同」；
+  //    不確定的就分開列成「只在記帳／只在 GoDaddy」，避免配錯讓人誤會
+  var pairs=[];
+  L.forEach(function(l){ if(l.used)return; G.forEach(function(g){ if(g.used||g.amt<=0)return;
+    if(!inWindow(l,g))return;
+    var df=Math.abs(l.amt-g.amt);
+    var clue=(l.tipPart>0&&eq(g.tip,l.tipPart))||(l.svcPart>0&&eq(g.sale,l.svcPart));
+    if(clue||df<=Math.max(l.amt,g.amt)*0.25)pairs.push({l:l,g:g,df:df,clue:clue});
+  }); });
+  pairs.sort(function(a,b){return (b.clue-a.clue)||(a.df-b.df);});
+  pairs.forEach(function(p){ if(p.l.used||p.g.used)return; p.l.used=p.g.used=true; res.push({kind:'diff',l:[p.l],g:[p.g],delta:r2(p.g.amt-p.l.amt)}); });
+  L.forEach(function(l){ if(!l.used)res.push({kind:'onlyL',l:[l],g:[],delta:r2(-l.amt)}); });
+  G.forEach(function(g){ if(!g.used)res.push({kind:'onlyG',l:[],g:[g],delta:r2(g.amt)}); });
+  return res;
+}
+function renderGdMatchHtml(d,dGD){
+  var open=!!_gdMatchOpen[d], txns=gdTxnsForDay(d);
+  var esc=function(v){return String(v||'').replace(/&/g,'&amp;').replace(/</g,'&lt;');};
+  var btnLbl=txns?('🔍 GoDaddy 逐筆比對（已貼 '+txns.length+' 筆）'):'🔍 GoDaddy 逐筆比對（貼上 GoDaddy 交易，自動找出差在哪）';
+  var html='<div style="grid-column:1 / -1;margin-top:8px"><button onclick="toggleGdMatch('+d+')" style="background:#EAF1FB;border:1.5px solid #1656A0;color:#1656A0;font-size:12.5px;font-weight:700;cursor:pointer;padding:6px 14px;border-radius:8px;font-family:inherit">'+(open?'▾ ':'▸ ')+btnLbl+'</button>';
+  if(!open)return html+'</div>';
+  html+='<div style="background:var(--white);border:1px solid #C9DAF0;border-radius:8px;padding:10px 12px;margin-top:4px">';
+  if(!txns){
+    return html+'<div style="font-size:11.5px;color:var(--sub);line-height:1.7;margin-bottom:6px">到 GoDaddy →「Transactions」，選這一天，<b>從第一筆的日期拖曳選到最後一筆</b>，複製（⌘C）後貼在下面，按「開始比對」。</div>'
+      +'<textarea id="gdpaste-'+d+'" placeholder="09/05/2026 07:15 PM  Sale  747f8bfc  $95.00  $19.00  $0.00  $114.00  $114.00  Payment card ..." style="width:100%;min-height:90px;box-sizing:border-box;border:1px solid var(--border);border-radius:6px;padding:6px 8px;font-size:11px;font-family:monospace"></textarea>'
+      +'<button onclick="saveGdTxnPaste('+d+')" style="margin-top:6px;padding:5px 14px;border-radius:6px;border:none;background:#1656A0;color:#fff;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit">開始比對</button></div></div>';
+  }
+  var led=ledgerCardItems(d), res=matchGdTxns(led.items,txns);
+  var sumL=r2(led.items.reduce(function(s,x){return s+x.amt;},0)), sumG=r2(txns.reduce(function(s,x){return s+x.amt;},0));
+  var gLbl=function(g){return g.time+' '+(g.amt<0?'-$'+Math.abs(g.amt).toFixed(2)+'（取消）':'$'+g.amt.toFixed(2))+(g.tip>0?'（含小費 $'+g.tip.toFixed(2)+'）':'')+(g.last4?' 卡 '+g.last4:'');};
+  var lLbl=function(l){return '<b>'+esc(l.label)+'</b> <span style="color:var(--faint);font-size:10px">'+esc(l.who)+'</span> $'+l.amt.toFixed(2)+'<div style="font-size:10px;color:var(--faint)">'+esc(l.desc)+'</div>';};
+  var probs=res.filter(function(r){return r.kind==='diff'||r.kind==='onlyL'||r.kind==='onlyG';});
+  var oks=res.filter(function(r){return r.kind==='ok'||r.kind==='combo'||r.kind==='split'||r.kind==='void';});
+  var totalDelta=r2(probs.reduce(function(s,r){return s+r.delta;},0));
+  // 問題清單
+  if(probs.length){
+    html+='<div style="font-size:12px;font-weight:700;color:var(--warn);margin-bottom:4px">⚠ 對不上的 '+probs.length+' 筆（加起來 '+sgnMoney(totalDelta)+'）</div>';
+    probs.forEach(function(r){
+      var tip='', left='', right='';
+      if(r.kind==='diff'){ left=lLbl(r.l[0]); right=gLbl(r.g[0]);
+        tip=r.delta<0?'GoDaddy 少刷 $'+Math.abs(r.delta).toFixed(2)+'：可能小費給現金、有 $'+Math.abs(r.delta).toFixed(2)+' 是 ClassPass（請點 CP）／禮品卡，或記帳金額寫錯':'GoDaddy 多刷 $'+r.delta.toFixed(2)+'：可能記帳金額寫少，或小費記成現金但其實刷卡';}
+      else if(r.kind==='onlyL'){ left=lLbl(r.l[0]); right='<span style="color:var(--faint)">GoDaddy 找不到</span>';
+        var smaller=probs.filter(function(x){return x.kind==='onlyG'&&x.g[0].amt>0&&x.g[0].amt<r.l[0].amt;}).map(function(x){return x.g[0];});
+        tip='記帳說要刷卡 $'+r.l[0].amt.toFixed(2)+'，GoDaddy 沒有：可能其實付現金，或記錯付款方式';
+        if(smaller.length){
+          tip+='<br>👉 如果這位是 <b>ClassPass</b> 客人：GoDaddy 那邊 '+smaller.slice(0,3).map(function(g){return g.time+' $'+g.amt.toFixed(2)+'（那 ClassPass 就是 $'+r2(r.l[0].amt-g.amt).toFixed(2)+'）';}).join(' 或 ')+'，請到每日記帳點 <b>CP</b>，填 ClassPass 付的金額，刷卡的部分填在加購／小費';
+        } else if(r.l[0].svcPart>0){
+          tip+='<br>👉 如果這位是 <b>ClassPass</b> 客人，請到每日記帳點 <b>CP</b>，這筆就不會算進 GoDaddy';
+        }}
+      else { left='<span style="color:var(--faint)">記帳找不到</span>'; right=gLbl(r.g[0]);
+        var cand=Object.keys(led.cashSvc).filter(function(k){return Math.abs(led.cashSvc[k]-r.g[0].amt)<0.005;}).map(function(k){return k.split('#')[0];});
+        cand=cand.filter(function(k,i){return cand.indexOf(k)===i;});
+        tip=cand.length?('金額跟 <b>'+esc(cand.join('、'))+'</b> 記帳的「現金」服務費一樣 → 很可能其實是刷卡，付款方式點錯了')
+          :('GoDaddy 有這筆刷卡 $'+r.g[0].amt.toFixed(2)+'，記帳沒有：可能點成現金、漏記客人，或多收／收錯');}
+      html+='<div style="display:grid;grid-template-columns:1fr 1fr 90px;gap:8px;align-items:start;padding:6px 0;border-top:1px dashed var(--border);font-size:11.5px">'
+        +'<div>'+left+'</div><div>'+right+'</div><div style="text-align:right;font-weight:700;color:var(--warn)">'+sgnMoney(r.delta)+'</div>'
+        +'<div style="grid-column:1 / -1;font-size:10.5px;color:var(--tip)">💡 '+tip+'</div></div>';
+    });
+  } else {
+    html+='<div style="font-size:12px;font-weight:700;color:var(--ok)">✓ 每一筆都對上了</div>';
+  }
+  // 總結算式
+  var act=gdDay(d).act, actNum=(act===''||act===undefined||act===null)?null:parseFloat(act);
+  html+='<div style="margin-top:8px;padding:8px 10px;background:var(--bg);border-radius:6px;font-size:11.5px;line-height:1.8">'
+    +'每日記帳應該刷卡 <b>$'+sumL.toFixed(2)+'</b>　→　GoDaddy 明細加總 <b>$'+sumG.toFixed(2)+'</b>　＝　差 <b style="color:'+(Math.abs(sumG-sumL)<0.01?'var(--ok)':'var(--warn)')+'">'+sgnMoney(r2(sumG-sumL))+'</b>'
+    +(probs.length?'　（就是上面 ⚠ 加起來 '+sgnMoney(totalDelta)+' ✓）':'')
+    +(actNum!==null&&Math.abs(actNum-sumG)>=0.01?'<div style="color:var(--warn)">⚠ 你填的 GoDaddy 實收 $'+actNum.toFixed(2)+' 跟貼上的明細加總 $'+sumG.toFixed(2)+' 不一樣，可能少貼了幾筆</div>':'')
+    +'</div>';
+  // 不經過 GoDaddy 的（自動說明，例如 ClassPass）
+  var n=led.noGD, nb=[];
+  if(n.cp>0)nb.push('<b>ClassPass $'+n.cp.toFixed(2)+'</b>（'+esc(n.cpList.join('、'))+'）');
+  if(n.gc>0)nb.push('禮品卡兌換 $'+n.gc.toFixed(2)+'（'+n.gcN+' 位）');
+  if(n.cash>0)nb.push('現金（含現金小費）$'+r2(n.cash).toFixed(2));
+  if(n.venmo>0)nb.push('Venmo $'+r2(n.venmo).toFixed(2));
+  if(nb.length)html+='<div style="font-size:10.5px;color:var(--sub);margin-top:6px">ℹ 這些本來就不會經過 GoDaddy，已經自動扣掉：'+nb.join('、')+'</div>';
+  // 對上的（收合）
+  html+='<details style="margin-top:6px"><summary style="font-size:11px;color:var(--ok);cursor:pointer">✓ 對上的 '+oks.length+' 組（點開看）</summary>';
+  oks.forEach(function(r){
+    var tag=r.kind==='combo'?'合併結帳':r.kind==='split'?'分兩次刷':r.kind==='void'?'刷了又取消':'';
+    html+='<div style="display:grid;grid-template-columns:1fr 1fr 90px;gap:8px;padding:4px 0;border-top:1px dashed var(--border);font-size:11px;color:var(--sub)">'
+      +'<div>'+(r.l.length?r.l.map(lLbl).join(''):'—')+'</div><div>'+r.g.map(gLbl).join('<br>')+'</div><div style="text-align:right;color:var(--ok)">✓ '+tag+'</div></div>';
+  });
+  html+='</details>'
+    +'<div style="margin-top:6px;text-align:right"><button onclick="clearGdTxnPaste('+d+')" style="border:1px solid var(--border);background:none;border-radius:5px;padding:2px 10px;font-size:10.5px;color:var(--sub);cursor:pointer;font-family:inherit">清除重貼</button></div>'
+    +'</div></div>';
+  return html;
+}
+window.renderGdMatchHtml=renderGdMatchHtml;
 
 function gdDaySig(d){return JSON.stringify([gdRowDiffs(d),sqManualDiffs(d)]);}
 function isGdDayConfirmed(d){
@@ -4123,6 +4352,7 @@ function buildGDTable(){
       '<div>'+
       '<input type="text" inputmode="decimal" style="width:120px;border:1px solid '+(bad(dGD)?'var(--warn-bd)':'var(--border)')+';border-radius:5px;padding:5px 8px;font-size:13px;font-family:inherit;text-align:right;outline:none;background:var(--white)" placeholder="填入 Payout" min="0" step="0.01" value="'+(actVal!==null?Math.round(actVal*100)/100:'')+'" onchange="updGD('+d+',this.value)"> '+diffTxt(dGD)+
       '<div style="font-size:9.5px;color:var(--faint);margin-top:2px">👉 去撥款清單找「'+payoutLookupLabel+'」那筆的金額</div>'+
+      '<button onclick="_gdMatchOpen['+d+']=true;buildGDTable();setTimeout(function(){var t=document.getElementById(\'gdpaste-'+d+'\');if(t)t.focus();},50)" style="margin-top:4px;background:#1656A0;border:none;color:#fff;font-size:10.5px;font-weight:700;cursor:pointer;padding:3px 10px;border-radius:6px;font-family:inherit">🔍 貼 GoDaddy 明細比對</button>'+
       '<div style="margin-top:5px;display:flex;align-items:center;gap:5px">'+
         '<span style="font-size:9.5px;color:var(--sub)">－手續費（GoDaddy後台「Payouts by Day」當天Fees）</span>'+
         '<input type="text" inputmode="decimal" style="width:70px;border:1px solid var(--border);border-radius:5px;padding:3px 6px;font-size:11px;font-family:inherit;text-align:right;outline:none;background:var(--white)" placeholder="$0" min="0" step="0.01" value="'+feeVal+'" onchange="setGDFee('+d+',this.value)">'+
@@ -4140,7 +4370,8 @@ function buildGDTable(){
          '</div>')+
       '</div>'+
       (hint&&!exSt.done?'<div style="grid-column:2 / -1;font-size:10.5px;color:var(--tip);margin-top:2px">💡 '+hint+'</div>':'')+
-      ((hasDiff||exSt.items.length)?renderGdExplainHtml(d,exSt):'');
+      ((hasDiff||exSt.items.length)?renderGdExplainHtml(d,exSt):'')+
+      ((hasBook||gdTxnsForDay(d))?renderGdMatchHtml(d,dGD):'');
     tbl.appendChild(row);
 
     // 「Square自報快速核對」：不用上傳CSV，直接把Square後台當天顯示的刷卡/現金營收打進來，
