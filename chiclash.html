@@ -2569,6 +2569,25 @@ function matchGdTxns(ledger,gd){
     var fg=G.filter(function(x){return !x.used;});
     for(var a=0;a<fg.length&&!l.used;a++)for(var b=a+1;b<fg.length&&!l.used;b++) if(eq(fg[a].amt+fg[b].amt,l.amt)){fg[a].used=fg[b].used=l.used=true;res.push({kind:'split',l:[l],g:[fg[a],fg[b]]});}
   });
+  // ③½ 同一位客人做了好幾個項目、一次結帳：把還沒對上的同名客人（同一家店）合成一筆再對
+  var groups={};
+  L.forEach(function(l){ if(l.used||l.pos===undefined||!l.label||l.label==='（沒填名字）')return;
+    var key=l.store+'|'+l.label.trim().toLowerCase(); (groups[key]=groups[key]||[]).push(l); });
+  Object.keys(groups).forEach(function(k){
+    var g=groups[k]; if(g.length<2)return;
+    var merged={i:'m'+k,used:false,merged:g,label:g[0].label,who:g[0].who.split('・')[0]+'・'+g.map(function(x){return x.who.split('・')[1]||'';}).filter(function(v,i,a){return v&&a.indexOf(v)===i;}).join('、'),
+      amt:r2(g.reduce(function(s,x){return s+x.amt;},0)),
+      desc:g.length+' 個項目合計：'+g.map(function(x){return '$'+x.amt.toFixed(2);}).join('＋'),
+      svcPart:r2(g.reduce(function(s,x){return s+(x.svcPart||0);},0)),tipPart:r2(g.reduce(function(s,x){return s+(x.tipPart||0);},0)),
+      store:g[0].store,pos:Math.min.apply(null,g.map(function(x){return x.pos;})),posMax:Math.max.apply(null,g.map(function(x){return x.pos;}))};
+    g.forEach(function(x){x.used=true;x.inGroup=true;});
+    L.push(merged);
+    // 合計剛好＝一筆，或＝兩筆 GoDaddy
+    var one=G.find(function(x){return !x.used&&eq(x.amt,merged.amt);});
+    if(one){one.used=merged.used=true;res.push({kind:'combo',l:[merged],g:[one]});return;}
+    var fg=G.filter(function(x){return !x.used;});
+    for(var a=0;a<fg.length&&!merged.used;a++)for(var b=a+1;b<fg.length&&!merged.used;b++) if(eq(fg[a].amt+fg[b].amt,merged.amt)){fg[a].used=fg[b].used=merged.used=true;res.push({kind:'split',l:[merged],g:[fg[a],fg[b]]});}
+  });
   // 時間窗：每日記帳是照結帳順序打的，所以用「前後已經對上的客人」在 GoDaddy 的時間，
   //   推算沒對上的這位大概是幾點結帳，只跟那個時段（前後多 90 分鐘）的 GoDaddy 交易配對
   var tmin=function(t){var mm=String(t||'').match(/(\d{1,2}):(\d{2})\s*([AP])M/i);if(!mm)return null;var h=parseInt(mm[1],10)%12;if(mm[3].toUpperCase()==='P')h+=12;return h*60+parseInt(mm[2],10);};
@@ -2579,8 +2598,9 @@ function matchGdTxns(ledger,gd){
     var gt=tmin(g.time); if(gt===null)return true;
     var prev=null,next=null;
     anchors.forEach(function(a){ if(a.store!==l.store)return;
+      var hi=l.posMax!==undefined?l.posMax:l.pos;
       if(a.pos<l.pos&&(prev===null||a.t>prev))prev=a.t;
-      if(a.pos>l.pos&&(next===null||a.t<next))next=a.t; });
+      if(a.pos>hi&&(next===null||a.t<next))next=a.t; });
     return (prev===null||gt>=prev-90)&&(next===null||gt<=next+90);
   };
   // ④ 剩下的：有線索（GoDaddy 小費＝記帳刷卡小費，或 GoDaddy 服務費＝記帳服務費）或金額差不到 25%，才當成同一筆「金額不同」；
@@ -2590,11 +2610,11 @@ function matchGdTxns(ledger,gd){
     if(!inWindow(l,g))return;
     var df=Math.abs(l.amt-g.amt);
     var clue=(l.tipPart>0&&eq(g.tip,l.tipPart))||(l.svcPart>0&&eq(g.sale,l.svcPart));
-    if(clue||df<=Math.max(l.amt,g.amt)*0.25)pairs.push({l:l,g:g,df:df,clue:clue});
+    if(clue||df<=Math.max(l.amt,g.amt)*(l.merged?0.4:0.25))pairs.push({l:l,g:g,df:df,clue:clue});
   }); });
   pairs.sort(function(a,b){return (b.clue-a.clue)||(a.df-b.df);});
   pairs.forEach(function(p){ if(p.l.used||p.g.used)return; p.l.used=p.g.used=true; res.push({kind:'diff',l:[p.l],g:[p.g],delta:r2(p.g.amt-p.l.amt)}); });
-  L.forEach(function(l){ if(!l.used)res.push({kind:'onlyL',l:[l],g:[],delta:r2(-l.amt)}); });
+  L.forEach(function(l){ if(!l.used&&!l.inGroup)res.push({kind:'onlyL',l:[l],g:[],delta:r2(-l.amt)}); });
   G.forEach(function(g){ if(!g.used)res.push({kind:'onlyG',l:[],g:[g],delta:r2(g.amt)}); });
   return res;
 }
@@ -2623,6 +2643,12 @@ function renderGdMatchHtml(d,dGD){
     probs.forEach(function(r){
       var tip='', left='', right='';
       if(r.kind==='diff'){ left=lLbl(r.l[0]); right=gLbl(r.g[0]);
+        var g0=r.g[0], l0=r.l[0];
+        if(g0.sale>0&&(l0.svcPart>0||l0.tipPart>0)){
+          var ds=r2(g0.sale-(l0.amt-(l0.tipPart||0))), dt=r2((g0.tip||0)-(l0.tipPart||0));
+          right+='<div style="font-size:10px;color:var(--faint)">GoDaddy 服務 $'+g0.sale.toFixed(2)+'＋小費 $'+(g0.tip||0).toFixed(2)+'　vs　記帳 服務 $'+r2(l0.amt-(l0.tipPart||0)).toFixed(2)+'＋小費 $'+(l0.tipPart||0).toFixed(2)
+            +'<br>→ 服務差 '+sgnMoney(ds)+'、小費差 '+sgnMoney(dt)+'</div>';
+        }
         tip=r.delta<0?'GoDaddy 少刷 $'+Math.abs(r.delta).toFixed(2)+'：可能小費給現金、有 $'+Math.abs(r.delta).toFixed(2)+' 是 ClassPass（請點 CP）／禮品卡，或記帳金額寫錯':'GoDaddy 多刷 $'+r.delta.toFixed(2)+'：可能記帳金額寫少，或小費記成現金但其實刷卡';}
       else if(r.kind==='onlyL'){ left=lLbl(r.l[0]); right='<span style="color:var(--faint)">GoDaddy 找不到</span>';
         var smaller=probs.filter(function(x){return x.kind==='onlyG'&&x.g[0].amt>0&&x.g[0].amt<r.l[0].amt;}).map(function(x){return x.g[0];});
