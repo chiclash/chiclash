@@ -2353,17 +2353,40 @@ function gdExplainStatus(d){
   res.done=res.any&&res.all&&items.length>0;
   return res;
 }
-function addGdExplain(d,f){gdExplainList(d).push({f:f||'other',amt:'',why:''});saveOnly();buildGDTable();}
-function updGdExplain(d,i,k,v){var l=gdExplainList(d);if(!l[i])return;l[i][k]=v;saveOnly();buildGDTable();}
+// 新增一項時，方向（多/少）預設跟「還沒說明的差額」同方向
+function addGdExplain(d,f){
+  var st=gdExplainStatus(d), left=st.rows[f||'other']?st.rows[f||'other'].left:0;
+  gdExplainList(d).push({f:f||'other',amt:'',why:'',sign:left<0?-1:1});saveOnly();buildGDTable();
+}
+function updGdExplain(d,i,k,v){
+  var l=gdExplainList(d);if(!l[i])return;
+  if(k==='amt'){
+    // 金額欄只打數字；正負由「多／少」按鈕決定（直接打負號也可以）
+    var n=parseFloat(String(v).replace(/[$,\s]/g,''));
+    if(isNaN(n)){l[i].amt='';}
+    else{
+      var sg=n<0?-1:(l[i].sign||(gv(l[i].amt)<0?-1:1));
+      l[i].sign=sg; l[i].amt=String(Math.round(Math.abs(n)*100)/100*sg);
+    }
+  } else l[i][k]=v;
+  saveOnly();buildGDTable();
+}
+function setGdExplainSign(d,i,sg){
+  var l=gdExplainList(d);if(!l[i])return;
+  l[i].sign=sg; if(l[i].amt!=='')l[i].amt=String(Math.abs(gv(l[i].amt))*sg);
+  saveOnly();buildGDTable();
+}
+window.setGdExplainSign=setGdExplainSign;
 function delGdExplain(d,i){gdExplainList(d).splice(i,1);saveOnly();buildGDTable();}
 window.addGdExplain=addGdExplain;window.updGdExplain=updGdExplain;window.delGdExplain=delGdExplain;
 function renderGdExplainHtml(d,st){
   var esc=function(v){return String(v||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/"/g,'&quot;');};
   var names={other:'Square 刷卡（Other）',cash:'Square 現金（Cash）',gd:'GoDaddy 實收'};
   var notes={other:'Square 記錄的問題，不代表少收錢',cash:'Square 記錄的問題，不代表少收錢',gd:'這一欄才是實際收到的錢'};
+  var who={other:'Square',cash:'Square',gd:'GoDaddy'};
   var html='<div style="grid-column:1 / -1;margin-top:6px;background:var(--white);border:1px solid '+(st.done?'var(--ok)':'var(--border)')+';border-radius:8px;padding:8px 12px">';
   html+='<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px"><span style="font-size:11.5px;font-weight:700;color:'+(st.done?'var(--ok)':'var(--text)')+'">'+(st.done?'✓ 差額已全部說明':'📋 差額說明')+'</span>'
-    +'<span style="font-size:10px;color:var(--faint)">每一欄的說明加起來＝那一欄的差額，就會自動變綠色</span></div>';
+    +'<span style="font-size:10px;color:var(--faint)">每一項先選「多」或「少」（跟每日記帳比），再填金額；全部說明完會自動變綠色</span></div>';
   ['other','cash','gd'].forEach(function(k){
     var r=st.rows[k];
     var its=st.items.map(function(x,i){return {x:x,i:i};}).filter(function(o){return o.x.f===k;});
@@ -2371,8 +2394,12 @@ function renderGdExplainHtml(d,st){
     html+='<div style="margin-top:6px;border-top:1px dashed var(--border);padding-top:6px">'
       +'<div style="display:flex;justify-content:space-between;font-size:12px;font-weight:700"><span>'+names[k]+' <span style="font-weight:400;font-size:10px;color:var(--faint)">（'+notes[k]+'）</span></span><span style="color:'+(Math.abs(r.left)<0.01?'var(--ok)':'var(--warn)')+'">差 '+sgnMoney(r.diff)+'</span></div>';
     its.forEach(function(o){
+      var sg=o.x.sign||(gv(o.x.amt)<0?-1:1);
+      var absV=o.x.amt===''?'':Math.abs(gv(o.x.amt));
+      var btn=function(v,label){var on=sg===v;return '<button onclick="setGdExplainSign('+d+','+o.i+','+v+')" style="padding:3px 8px;font-size:11px;font-weight:700;cursor:pointer;font-family:inherit;border:1px solid '+(on?(v>0?'#1656A0':'var(--warn)'):'var(--border)')+';background:'+(on?(v>0?'#EAF1FB':'var(--warn-bg)'):'var(--white)')+';color:'+(on?(v>0?'#1656A0':'var(--warn)'):'var(--faint)')+';border-radius:'+(v>0?'5px 0 0 5px':'0 5px 5px 0')+'">'+label+'</button>';};
       html+='<div style="display:flex;gap:6px;align-items:center;margin-top:4px">'
-        +'<input type="text" inputmode="decimal" value="'+esc(o.x.amt)+'" placeholder="例 -150" onchange="updGdExplain('+d+','+o.i+',\'amt\',this.value)" style="width:80px;border:1px solid var(--border);border-radius:5px;padding:3px 6px;font-size:12px;font-family:inherit;text-align:right">'
+        +'<span style="display:inline-flex">'+btn(1,who[k]+'多')+btn(-1,who[k]+'少')+'</span>'
+        +'<input type="text" inputmode="decimal" value="'+esc(absV)+'" placeholder="金額" onchange="updGdExplain('+d+','+o.i+',\'amt\',this.value)" style="width:72px;border:1px solid var(--border);border-radius:5px;padding:3px 6px;font-size:12px;font-family:inherit;text-align:right">'
         +'<input type="text" value="'+esc(o.x.why)+'" placeholder="原因，例：iPad 賣卡沒在 Square 結帳" onchange="updGdExplain('+d+','+o.i+',\'why\',this.value)" style="flex:1;border:1px solid var(--border);border-radius:5px;padding:3px 8px;font-size:12px;font-family:inherit">'
         +'<button onclick="delGdExplain('+d+','+o.i+')" style="border:none;background:none;color:var(--faint);cursor:pointer;font-size:13px">✕</button></div>';
     });
