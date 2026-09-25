@@ -2011,7 +2011,7 @@ input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-
     merged.sr = mergeDailyStore(base.sr, other.sr, 'sr');
     merged.gd = mergeDailyStore(base.gd, other.gd, 'gd');
     merged.gc_cards = mergeArrayById(base.gc_cards, other.gc_cards);
-    const safeKeys = ['staffPay','payroll','sqNameMap','tipConfirmed','tipSplitState','reviewSel','reviews','att','penalties','bnkBal','cdManual','tipSchedule','memberItems','members','memberSaleRewards','memberSaleRewardSel','gdDayOk','gdExplain','gdTxns'];
+    const safeKeys = ['staffPay','payroll','sqNameMap','tipConfirmed','tipSplitState','reviewSel','reviews','att','penalties','bnkBal','cdManual','tipSchedule','memberItems','members','memberSaleRewards','memberSaleRewardSel','gdDayOk','gdExplain','gdTxns','sqTxns'];
     safeKeys.forEach(function(key){
       if(other[key] !== undefined && base[key] === undefined){
         merged[key] = other[key];
@@ -2502,7 +2502,7 @@ function ledgerCardItems(d){
   ['mv','sr'].forEach(function(store){
     var sName=store==='mv'?'MV':'SR';
     (sDay(store,d).clients||[]).forEach(function(c,ci){
-      var svc=gv(c.svc),tip=gv(c.tip),card=0,parts=[],svcPart=0,tipPart=0;
+      var svc=gv(c.svc),tip=gv(c.tip),card=0,parts=[],svcPart=0,tipPart=0,prodPart=0;
       var tp=c.tipPay||'card';
       if(c.pay==='gc'){
         var gcA=resolveGcAmt(c); noGD.gc+=gcA; if(gcA>0)noGD.gcN++;
@@ -2527,10 +2527,10 @@ function ledgerCardItems(d){
         if(usedProd[pi]||!belongs||p.date!==dateStr||!c.clientName||p.client!==c.clientName)return;
         usedProd[pi]=true;
         if(p.pay==='cash'){noGD.cash+=gv(p.amt);parts.push('產品 '+(p.name||'')+' $'+gv(p.amt).toFixed(2)+' 現金');}
-        else {card+=gv(p.amt);parts.push('產品刷卡 '+(p.name||'')+' $'+gv(p.amt).toFixed(2));}
+        else {card+=gv(p.amt);prodPart+=gv(p.amt);parts.push('產品刷卡 '+(p.name||'')+' $'+gv(p.amt).toFixed(2));}
       });
       card=r2(card);
-      if(card>0) items.push({label:(c.clientName||'（沒填名字）'),who:sName+(c.tech?'・'+c.tech:''),amt:card,desc:parts.join('＋'),svcPart:svcPart,tipPart:tipPart,store:store,pos:ci});
+      if(card>0) items.push({label:(c.clientName||'（沒填名字）'),who:sName+(c.tech?'・'+c.tech:''),amt:card,desc:parts.join('＋'),svcPart:svcPart,tipPart:tipPart,prodPart:r2(prodPart),store:store,pos:ci});
     });
     // 沒掛在客人身上的產品
     prods.forEach(function(p,pi){
@@ -2607,6 +2607,17 @@ function matchGdTxns(ledger,gd){
       if(a.pos>hi&&(next===null||a.t<next))next=a.t; });
     return (prev===null||gt>=prev-90)&&(next===null||gt<=next+90);
   };
+  // ③¾ 一位客人分兩次刷，但合計跟記帳不一樣：其中一筆剛好＝產品金額，或另一筆的小費＝記帳小費，就當成同一位客人
+  L.forEach(function(l){ if(l.used||l.inGroup)return;
+    var fg=G.filter(function(x){return !x.used&&x.amt>0&&inWindow(l,x);});
+    var best=null;
+    for(var a=0;a<fg.length;a++)for(var b=0;b<fg.length;b++){ if(a===b)continue;
+      var ga=fg[a],gb=fg[b],sum=ga.amt+gb.amt,df=Math.abs(sum-l.amt);
+      var clue=(l.prodPart>0&&eq(ga.amt,l.prodPart))&&((l.tipPart>0&&eq(gb.tip,l.tipPart))||df<=l.amt*0.25);
+      if(clue&&df<=l.amt*0.25&&(!best||df<best.df))best={ga:ga,gb:gb,df:df};
+    }
+    if(best){best.ga.used=best.gb.used=l.used=true;res.push({kind:'diff',l:[l],g:[best.ga,best.gb],delta:r2(best.ga.amt+best.gb.amt-l.amt),splitProd:true});}
+  });
   // ④ 剩下的：有線索（GoDaddy 小費＝記帳刷卡小費，或 GoDaddy 服務費＝記帳服務費）或金額差不到 25%，才當成同一筆「金額不同」；
   //    不確定的就分開列成「只在記帳／只在 GoDaddy」，避免配錯讓人誤會
   var pairs=[];
@@ -2638,6 +2649,7 @@ function renderGdMatchHtml(d,dGD){
   var sumL=r2(led.items.reduce(function(s,x){return s+x.amt;},0)), sumG=r2(txns.reduce(function(s,x){return s+x.amt;},0));
   var gLbl=function(g){return g.time+' '+(g.amt<0?'-$'+Math.abs(g.amt).toFixed(2)+'（取消）':'$'+g.amt.toFixed(2))+(g.tip>0?'（含小費 $'+g.tip.toFixed(2)+'）':'')+(g.last4?' 卡 '+g.last4:'');};
   var lLbl=function(l){return '<b>'+esc(l.label)+'</b> <span style="color:var(--faint);font-size:10px">'+esc(l.who)+'</span> $'+l.amt.toFixed(2)+'<div style="font-size:10px;color:var(--faint)">'+esc(l.desc)+'</div>';};
+  var eq2=function(a,b){return Math.abs(a-b)<0.005;};
   var probs=res.filter(function(r){return r.kind==='diff'||r.kind==='onlyL'||r.kind==='onlyG';});
   var oks=res.filter(function(r){return r.kind==='ok'||r.kind==='combo'||r.kind==='split'||r.kind==='void';});
   var totalDelta=r2(probs.reduce(function(s,r){return s+r.delta;},0));
@@ -2646,7 +2658,13 @@ function renderGdMatchHtml(d,dGD){
     html+='<div style="font-size:12px;font-weight:700;color:var(--warn);margin-bottom:4px">⚠ 對不上的 '+probs.length+' 筆（加起來 '+sgnMoney(totalDelta)+'）</div>';
     probs.forEach(function(r){
       var tip='', left='', right='';
-      if(r.kind==='diff'){ left=lLbl(r.l[0]); right=gLbl(r.g[0]);
+      if(r.kind==='diff'&&r.g.length>1){ left=lLbl(r.l[0]); right=r.g.map(gLbl).join('<br>')+'<div style="font-size:10px;color:var(--faint)">分兩次刷，合計 $'+r2(r.g[0].amt+r.g[1].amt).toFixed(2)+'</div>';
+        var sv=r.g[1], l1=r.l[0];
+        tip='這位客人產品一筆（$'+r.g[0].amt.toFixed(2)+'）、服務一筆（$'+sv.amt.toFixed(2)+'），合計 GoDaddy '+(r.delta>0?'多':'少')+' $'+Math.abs(r.delta).toFixed(2);
+        if(sv.sale>0&&l1.svcPart>0&&!eq2(sv.sale,l1.svcPart))tip+='：GoDaddy 服務費刷 $'+sv.sale.toFixed(2)+'，記帳寫 $'+l1.svcPart.toFixed(2)+' → 請確認服務金額';
+        if(sv.tip>=0&&l1.tipPart>=0&&!eq2(sv.tip,l1.tipPart))tip+='；小費 GoDaddy $'+sv.tip.toFixed(2)+'、記帳 $'+l1.tipPart.toFixed(2);
+      }
+      else if(r.kind==='diff'){ left=lLbl(r.l[0]); right=gLbl(r.g[0]);
         var g0=r.g[0], l0=r.l[0];
         if(g0.sale>0&&(l0.svcPart>0||l0.tipPart>0)){
           var ds=r2(g0.sale-(l0.amt-(l0.tipPart||0))), dt=r2((g0.tip||0)-(l0.tipPart||0));
@@ -2701,6 +2719,107 @@ function renderGdMatchHtml(d,dGD){
   return html;
 }
 window.renderGdMatchHtml=renderGdMatchHtml;
+
+// ════════════ Square 逐筆比對 ════════════
+// 把 Square「Transactions」列表整頁複製貼上，逐筆對每日記帳（每位客人結帳總額＝服務＋小費＋加購＋一起買的產品）
+var _sqMatchOpen={};
+function parseSqTxnPaste(text){
+  var t=String(text||'').replace(/\u00a0/g,' ');
+  var re=/(\d{1,2}:\d{2}\s*[ap]m)\s+([\s\S]*?)\$(-?[\d,]+\.\d{2})/gi, out=[], m;
+  while((m=re.exec(t))!==null){
+    var amt=parseFloat(m[3].replace(/,/g,'')); if(!(amt>0))continue;
+    var desc=m[2].replace(/\s+/g,' ').trim();
+    out.push({time:m[1].replace(/\s+/,' ').toUpperCase(),amt:r2(amt),sale:0,tip:0,last4:'',desc:desc.slice(0,80),store:/SAN RAFAEL/i.test(desc)?'SR':'MV'});
+  }
+  return out;
+}
+function sqTxnsForDay(d){return (_D.sqTxns&&_D.sqTxns[mk()]&&_D.sqTxns[mk()][d])||null;}
+function saveSqTxnPaste(d){
+  var ta=document.getElementById('sqpaste-'+d);if(!ta)return;
+  var list=parseSqTxnPaste(ta.value);
+  if(!list.length){alert('看不到 Square 交易。請在 Square「Transactions」頁，從第一筆的時間拖曳選到最後一筆的金額，複製後貼上。');return;}
+  if(!_D.sqTxns)_D.sqTxns={}; if(!_D.sqTxns[mk()])_D.sqTxns[mk()]={};
+  _D.sqTxns[mk()][d]=list; _sqMatchOpen[d]=true; saveOnly(); buildGDTable();
+}
+function clearSqTxnPaste(d){ if(_D.sqTxns&&_D.sqTxns[mk()])delete _D.sqTxns[mk()][d]; _sqMatchOpen[d]=true; saveOnly(); buildGDTable(); }
+function toggleSqMatch(d){ _sqMatchOpen[d]=!_sqMatchOpen[d]; buildGDTable(); }
+window.saveSqTxnPaste=saveSqTxnPaste;window.clearSqTxnPaste=clearSqTxnPaste;window.toggleSqMatch=toggleSqMatch;
+// 每日記帳裡「Square 應該有」的每一筆：每位客人結帳總額（不管刷卡、現金、ClassPass、禮品卡）
+function ledgerSquareItems(d){
+  var mo=mk(), dateStr=mo+'-'+String(d).padStart(2,'0'), items=[], ipad=0, ipadList=[];
+  var prods=(_D.products&&_D.products[mo])||[], usedProd={};
+  ['mv','sr'].forEach(function(store){
+    var sName=store==='mv'?'MV':'SR';
+    (sDay(store,d).clients||[]).forEach(function(c,ci){
+      var svc=gv(c.svc),tip=gv(c.tip),amt=svc+tip,parts=[];
+      if(c.cp){parts.push('ClassPass $'+svc.toFixed(2));if(gv(c.cpTopup)>0){amt+=gv(c.cpTopup);parts.push('加購 $'+gv(c.cpTopup).toFixed(2));}}
+      else if(c.pay==='gc')parts.push('禮品卡 $'+svc.toFixed(2)+(gv(c.topup)>0?'（含補差額 $'+gv(c.topup).toFixed(2)+'）':''));
+      else parts.push('服務 $'+svc.toFixed(2)+(c.pay==='cash'?' 現金':c.pay==='venmo'?' Venmo':''));
+      if(tip>0)parts.push('小費 $'+tip.toFixed(2)+((c.tipPay||'card')==='cash'?' 現金':(c.tipPay==='gc'?' 禮品卡':'')));
+      var prodPart=0;
+      prods.forEach(function(p,pi){ var belongs=p.store?(p.store===store):(store==='mv');
+        if(usedProd[pi]||!belongs||p.date!==dateStr||!c.clientName||p.client!==c.clientName)return;
+        usedProd[pi]=true; amt+=gv(p.amt); prodPart+=gv(p.amt); parts.push('產品 '+(p.name||'')+' $'+gv(p.amt).toFixed(2)); });
+      amt=r2(amt);
+      if(amt>0)items.push({label:c.clientName||'（沒填名字）',who:sName+(c.tech?'・'+c.tech:''),amt:amt,desc:parts.join('＋'),svcPart:0,tipPart:tip,prodPart:r2(prodPart),store:store,pos:ci});
+    });
+    prods.forEach(function(p,pi){ var belongs=p.store?(p.store===store):(store==='mv');
+      if(usedProd[pi]||!belongs||p.date!==dateStr)return; usedProd[pi]=true;
+      if(gv(p.amt)>0)items.push({label:'產品 '+(p.name||''),who:sName+(p.staff?'・'+p.staff:''),amt:r2(gv(p.amt)),desc:'產品'}); });
+    (_D.gc_cards||[]).forEach(function(g){ if(g.store===store&&g.date===dateStr&&(g.amt||0)>0)items.push({label:'賣禮品卡 '+(g.code||''),who:sName,amt:r2(g.amt),desc:'店裡登記的禮品卡'}); });
+    (window._gcFbAll||[]).forEach(function(g){ if(g.store===store&&g.date===dateStr){ipad+=g.amount||0;ipadList.push((g.code||'')+' $'+(g.amount||0).toFixed(2));} });
+  });
+  return {items:items,ipad:r2(ipad),ipadList:ipadList};
+}
+function renderSqMatchHtml(d){
+  var open=!!_sqMatchOpen[d], txns=sqTxnsForDay(d);
+  var esc=function(v){return String(v||'').replace(/&/g,'&amp;').replace(/</g,'&lt;');};
+  var btnLbl=txns?('🔍 Square 逐筆比對（已貼 '+txns.length+' 筆）'):'🔍 Square 逐筆比對（貼上 Square 交易，自動找出 Other 差在哪）';
+  var html='<div style="grid-column:1 / -1;margin-top:8px"><button onclick="toggleSqMatch('+d+')" style="background:#EBF5F0;border:1.5px solid var(--ok);color:var(--ok);font-size:12.5px;font-weight:700;cursor:pointer;padding:6px 14px;border-radius:8px;font-family:inherit">'+(open?'▾ ':'▸ ')+btnLbl+'</button>';
+  if(!open)return html+'</div>';
+  html+='<div style="background:var(--white);border:1px solid #BFE0CE;border-radius:8px;padding:10px 12px;margin-top:4px">';
+  if(!txns){
+    return html+'<div style="font-size:11.5px;color:var(--sub);line-height:1.7;margin-bottom:6px">到 Square →「Transactions」，選這一天（兩家店都要，Location 選 All），<b>從第一筆的時間拖曳選到最後一筆的金額</b>，複製後貼在下面，按「開始比對」。</div>'
+      +'<textarea id="sqpaste-'+d+'" placeholder="6:50 pm  Chair Massage (30 Mins) Chic Lash Boutique ( SAN RAFAEL )  $55.00 ..." style="width:100%;min-height:90px;box-sizing:border-box;border:1px solid var(--border);border-radius:6px;padding:6px 8px;font-size:11px;font-family:monospace"></textarea>'
+      +'<button onclick="saveSqTxnPaste('+d+')" style="margin-top:6px;padding:5px 14px;border-radius:6px;border:none;background:var(--ok);color:#fff;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit">開始比對</button></div></div>';
+  }
+  var led=ledgerSquareItems(d), res=matchGdTxns(led.items,txns);
+  var sumL=r2(led.items.reduce(function(s,x){return s+x.amt;},0)), sumS=r2(txns.reduce(function(s,x){return s+x.amt;},0));
+  var sLbl=function(g){return g.time+' <b>$'+g.amt.toFixed(2)+'</b> <span style="font-size:10px;color:var(--faint)">'+g.store+' '+esc(g.desc)+'</span>';};
+  var lLbl=function(l){return '<b>'+esc(l.label)+'</b> <span style="color:var(--faint);font-size:10px">'+esc(l.who)+'</span> $'+l.amt.toFixed(2)+'<div style="font-size:10px;color:var(--faint)">'+esc(l.desc)+'</div>';};
+  var probs=res.filter(function(r){return r.kind==='diff'||r.kind==='onlyL'||r.kind==='onlyG';});
+  var oks=res.filter(function(r){return r.kind!=='diff'&&r.kind!=='onlyL'&&r.kind!=='onlyG';});
+  var totalDelta=r2(probs.reduce(function(s,r){return s+r.delta;},0));
+  if(probs.length){
+    html+='<div style="font-size:12px;font-weight:700;color:var(--warn);margin-bottom:4px">⚠ 對不上的 '+probs.length+' 筆（Square 比記帳 '+sgnMoney(totalDelta)+'）</div>';
+    probs.forEach(function(r){
+      var left,right,tip,l=r.l[0];
+      if(r.kind==='diff'){ left=lLbl(l); right=r.g.map(sLbl).join('<br>');
+        tip=(l.tipPart>0&&Math.abs(r.delta+l.tipPart)<0.005)?'Square 少了剛好小費 $'+l.tipPart.toFixed(2)+'：Square 沒把小費記進去（小費可能給現金，或刷卡時沒輸入）'
+          :(l.prodPart>0&&Math.abs(r.delta+l.prodPart)<0.005)?'Square 少了剛好產品 $'+l.prodPart.toFixed(2)+'：產品在 Square 另外結帳，或沒結'
+          :'Square '+(r.delta>0?'多':'少')+' $'+Math.abs(r.delta).toFixed(2)+'：Square 結帳金額跟記帳不一樣，確認哪邊寫錯';}
+      else if(r.kind==='onlyL'){ left=lLbl(l); right='<span style="color:var(--faint)">Square 找不到</span>';
+        tip='Square 沒有這筆：可能沒在 Square 結帳、跟別人合併結帳，或 Square 記成 $0'; }
+      else { left='<span style="color:var(--faint)">記帳找不到</span>'; right=sLbl(r.g[0]);
+        tip='Square 有、記帳沒有：可能漏記客人／產品，或 Square 多結了'; }
+      html+='<div style="display:grid;grid-template-columns:1fr 1fr 90px;gap:8px;align-items:start;padding:6px 0;border-top:1px dashed var(--border);font-size:11.5px">'
+        +'<div>'+left+'</div><div>'+right+'</div><div style="text-align:right;font-weight:700;color:var(--warn)">'+sgnMoney(r.delta)+'</div>'
+        +'<div style="grid-column:1 / -1;font-size:10.5px;color:var(--tip)">💡 '+tip+'</div></div>';
+    });
+  } else html+='<div style="font-size:12px;font-weight:700;color:var(--ok)">✓ 每一筆都對上了</div>';
+  html+='<div style="margin-top:8px;padding:8px 10px;background:var(--bg);border-radius:6px;font-size:11.5px;line-height:1.8">'
+    +'每日記帳（Square 應該有）<b>$'+sumL.toFixed(2)+'</b>　→　Square 明細加總 <b>$'+sumS.toFixed(2)+'</b>　＝　差 <b style="color:'+(Math.abs(sumS-sumL)<0.01?'var(--ok)':'var(--warn)')+'">'+sgnMoney(r2(sumS-sumL))+'</b>'
+    +(probs.length?'　（就是上面 ⚠ 加起來 ✓）':'')+'</div>';
+  if(led.ipad>0)html+='<div style="font-size:10.5px;color:var(--sub);margin-top:6px">ℹ iPad 賣的禮品卡不會出現在 Square，已經自動扣掉：$'+led.ipad.toFixed(2)+'（'+esc(led.ipadList.join('、'))+'）→ 所以 Square Other 會比記帳少這個金額</div>';
+  html+='<details style="margin-top:6px"><summary style="font-size:11px;color:var(--ok);cursor:pointer">✓ 對上的 '+oks.length+' 組（點開看）</summary>';
+  oks.forEach(function(r){
+    var tag=r.kind==='combo'?'合併結帳':r.kind==='split'?'分兩次結':'';
+    html+='<div style="display:grid;grid-template-columns:1fr 1fr 90px;gap:8px;padding:4px 0;border-top:1px dashed var(--border);font-size:11px;color:var(--sub)">'
+      +'<div>'+(r.l.length?r.l.map(lLbl).join(''):'—')+'</div><div>'+r.g.map(sLbl).join('<br>')+'</div><div style="text-align:right;color:var(--ok)">✓ '+tag+'</div></div>';
+  });
+  return html+'</details><div style="margin-top:6px;text-align:right"><button onclick="clearSqTxnPaste('+d+')" style="border:1px solid var(--border);background:none;border-radius:5px;padding:2px 10px;font-size:10.5px;color:var(--sub);cursor:pointer;font-family:inherit">清除重貼</button></div></div></div>';
+}
+window.renderSqMatchHtml=renderSqMatchHtml;
 
 function gdDaySig(d){return JSON.stringify([gdRowDiffs(d),sqManualDiffs(d)]);}
 function isGdDayConfirmed(d){
@@ -4437,7 +4556,8 @@ function buildGDTable(){
       '</div>'+
       (hint&&!exSt.done?'<div style="grid-column:2 / -1;font-size:10.5px;color:var(--tip);margin-top:2px">💡 '+hint+'</div>':'')+
       ((hasDiff||exSt.items.length)?renderGdExplainHtml(d,exSt):'')+
-      ((hasBook||gdTxnsForDay(d))?renderGdMatchHtml(d,dGD):'');
+      ((hasBook||gdTxnsForDay(d))?renderGdMatchHtml(d,dGD):'')+
+      ((hasBook||sqTxnsForDay(d))?renderSqMatchHtml(d):'');
     tbl.appendChild(row);
 
     // 「Square自報快速核對」：不用上傳CSV，直接把Square後台當天顯示的刷卡/現金營收打進來，
