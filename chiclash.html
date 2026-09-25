@@ -2609,11 +2609,15 @@ function matchGdTxns(ledger,gd){
   };
   // ③¾ 一位客人分兩次刷，但合計跟記帳不一樣：其中一筆剛好＝產品金額，或另一筆的小費＝記帳小費，就當成同一位客人
   L.forEach(function(l){ if(l.used||l.inGroup)return;
-    var fg=G.filter(function(x){return !x.used&&x.amt>0&&inWindow(l,x);});
+    // 不先用時間窗篩（每日記帳不一定照時間順序打）；「產品金額一模一樣＋小費一模一樣」這種強線索直接配，
+    // 只有「產品一樣但小費對不上」這種弱線索才要求時間要在合理範圍
+    var fg=G.filter(function(x){return !x.used&&x.amt>0;});
     var best=null;
     for(var a=0;a<fg.length;a++)for(var b=0;b<fg.length;b++){ if(a===b)continue;
       var ga=fg[a],gb=fg[b],sum=ga.amt+gb.amt,df=Math.abs(sum-l.amt);
-      var clue=(l.prodPart>0&&eq(ga.amt,l.prodPart))&&((l.tipPart>0&&eq(gb.tip,l.tipPart))||df<=l.amt*0.25);
+      var strong=l.prodPart>0&&eq(ga.amt,l.prodPart)&&l.tipPart>0&&eq(gb.tip,l.tipPart);
+      var weak=l.prodPart>0&&eq(ga.amt,l.prodPart)&&df<=l.amt*0.25&&inWindow(l,ga)&&inWindow(l,gb);
+      var clue=strong||weak;
       if(clue&&df<=l.amt*0.25&&(!best||df<best.df))best={ga:ga,gb:gb,df:df};
     }
     if(best){best.ga.used=best.gb.used=l.used=true;res.push({kind:'diff',l:[l],g:[best.ga,best.gb],delta:r2(best.ga.amt+best.gb.amt-l.amt),splitProd:true});}
