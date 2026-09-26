@@ -2437,8 +2437,18 @@ function renderGdExplainHtml(d,st){
         +'<input type="text" value="'+esc(o.x.why)+'" placeholder="原因，例：iPad 賣卡沒在 Square 結帳" onchange="updGdExplain('+d+','+o.i+',\'why\',this.value)" style="flex:1;border:1px solid var(--border);border-radius:5px;padding:3px 8px;font-size:12px;font-family:inherit">'
         +'<button onclick="delGdExplain('+d+','+o.i+')" style="border:none;background:none;color:var(--faint);cursor:pointer;font-size:13px">✕</button></div>';
     });
+    // Other 欄：這天有 iPad 賣的禮品卡（一定不在 Square）→ 提供一鍵填入
+    var ipadBtn='';
+    if(k==='other'){
+      var dStr=mk()+'-'+String(d).padStart(2,'0'), ipadAmt=0, ipadCodes=[];
+      (window._gcFbAll||[]).forEach(function(g){ if(g.date===dStr){ipadAmt+=g.amount||0;ipadCodes.push(g.code||'');} });
+      ipadAmt=r2(ipadAmt);
+      var already=its.some(function(o){return Math.abs(gv(o.x.amt)+ipadAmt)<0.005;});
+      if(ipadAmt>0&&!already&&r.left<=-ipadAmt+0.005)
+        ipadBtn='<button onclick="addGdExplain('+d+',\'other\','+(-ipadAmt)+',\'iPad 賣禮品卡 '+ipadCodes.join('、')+' 沒進 Square\')" style="border:1px solid var(--tip);background:#FFF8EC;border-radius:5px;padding:2px 10px;font-size:11px;font-weight:700;cursor:pointer;font-family:inherit;color:var(--tip);margin-left:6px">💡 一鍵填入：Square 少 $'+ipadAmt.toFixed(2)+'（iPad 賣卡）</button>';
+    }
     html+='<div style="display:flex;justify-content:space-between;align-items:center;margin-top:4px;font-size:11px">'
-      +'<button onclick="addGdExplain('+d+',\''+k+'\')" style="border:1px dashed var(--border);background:none;border-radius:5px;padding:2px 8px;font-size:11px;cursor:pointer;font-family:inherit;color:var(--sub)">＋ 加一個原因</button>'
+      +'<span><button onclick="addGdExplain('+d+',\''+k+'\')" style="border:1px dashed var(--border);background:none;border-radius:5px;padding:2px 8px;font-size:11px;cursor:pointer;font-family:inherit;color:var(--sub)">＋ 加一個原因</button>'+ipadBtn+'</span>'
       +(Math.abs(r.left)<0.01?'<span style="color:var(--ok);font-weight:700">✓ 已說明清楚</span>':'<span style="color:var(--warn);font-weight:700">還有 '+sgnMoney(r.left)+' 沒說明</span>')
       +'</div></div>';
   });
