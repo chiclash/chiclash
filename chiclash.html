@@ -717,13 +717,13 @@ input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-
   </div>
   <div class="gd-banner neutral" id="gd-banner">
     <div class="gdb-icon" id="gdb-icon">💳</div>
-    <div class="gdb-body"><div class="gdb-title" id="gdb-title">GoDaddy 對帳狀況</div><div class="gdb-desc" id="gdb-desc">填入每日 GoDaddy 實收後自動對帳</div>
-      <div style="margin-top:4px;font-size:11px;color:var(--faint)">手續費請到下方「GoDaddy 對帳」頁面的逐日表格填（每次撥款各自扣一筆，不是月底一次扣）</div>
+    <div class="gdb-body"><div class="gdb-title" id="gdb-title">GoDaddy 本月撥款</div><div class="gdb-desc" id="gdb-desc">填入每日 GoDaddy 實收後自動加總</div>
+      <div style="margin-top:4px;font-size:11px;color:var(--faint)">每天的逐筆對帳請看下方「GoDaddy 對帳」頁</div>
     </div>
     <div class="gdb-nums">
-      <div class="gdn"><div class="gdn-l">應收</div><div class="gdn-v" id="gdb-due">—</div></div>
-      <div class="gdn"><div class="gdn-l">實收</div><div class="gdn-v" id="gdb-act">—</div></div>
-      <div class="gdn"><div class="gdn-l">差異</div><div class="gdn-v" id="gdb-diff">—</div></div>
+      <div class="gdn"><div class="gdn-l">GoDaddy 實收</div><div class="gdn-v" id="gdb-act">—</div></div>
+      <div class="gdn"><div class="gdn-l">手續費</div><div class="gdn-v" id="gdb-fee" style="color:var(--warn)">—</div></div>
+      <div class="gdn"><div class="gdn-l">實際入帳</div><div class="gdn-v" id="gdb-net" style="color:var(--ok)">—</div></div>
     </div>
   </div>
   <div class="rev-card">
@@ -3679,15 +3679,18 @@ function updateAll(){
   const rawDiff=actDays>0?Math.round((act-exp)*100)/100:null;
   const diff=rawDiff!==null?Math.round((rawDiff+totalAdj)*100)/100:null;
 
-  s('gdb-due',exp?$f(exp):'—');s('gdb-act',act?$f(act):'—');
-  const bdEl=document.getElementById('gdb-diff');
-  if(bdEl){bdEl.textContent=diff!==null?(diff>=0?'+':'')+$f(diff):'—';bdEl.style.color=diff===null?'var(--text)':Math.abs(diff)<0.01?'var(--ok)':'var(--warn)';}
+  // 總覽只顯示「實收／手續費／實際入帳」，不顯示應收差異（差異的原因都在 GoDaddy 對帳頁逐日說明）
+  var netIn=Math.round((act-totalFee)*100)/100;
+  s('gdb-act',actDays?$f(act):'—');
+  s('gdb-fee',totalFee>0?'-'+$f(totalFee):'—');
+  s('gdb-net',actDays?$f(netIn):'—');
   const banner=document.getElementById('gd-banner');
   const badge=document.getElementById('gd-badge');
-  var periodFeeNote=totalFee>0?`（本月手續費合計 $${totalFee.toFixed(2)}，另外列，不影響對帳）`:'';
-  if(diff===null){banner.className='gd-banner neutral';document.getElementById('gdb-icon').textContent='💳';document.getElementById('gdb-title').textContent='GoDaddy 對帳狀況';document.getElementById('gdb-desc').textContent='填入每日 GoDaddy 實收後自動對帳';if(badge)badge.style.display='none';}
-  else if(Math.abs(diff)<0.01){banner.className='gd-banner ok';document.getElementById('gdb-icon').textContent='✅';document.getElementById('gdb-title').textContent='GoDaddy 對帳正常';document.getElementById('gdb-desc').textContent=`已填 ${actDays} 天，完全相符${periodFeeNote}`;if(badge)badge.style.display='none';}
-  else{banner.className='gd-banner warn';document.getElementById('gdb-icon').textContent='⚠️';document.getElementById('gdb-title').textContent=`GoDaddy 差異 ${(diff>=0?'+':'')+$f(diff)}`;document.getElementById('gdb-desc').textContent=(diff<0?'GoDaddy 少給了，請至對帳頁核對':'GoDaddy 多給了，可能有跨天結算')+periodFeeNote;if(badge)badge.style.display='';}
+  banner.className='gd-banner neutral';
+  document.getElementById('gdb-icon').textContent='💳';
+  document.getElementById('gdb-title').textContent=actDays?('GoDaddy 本月撥款 '+$f(act)):'GoDaddy 本月撥款';
+  document.getElementById('gdb-desc').textContent=actDays?('已填 '+actDays+' 天｜手續費 '+$f(totalFee)+'｜實際入帳 '+$f(netIn)):'填入每日 GoDaddy 實收後自動加總';
+  if(badge)badge.style.display='none';
 
   // ── 當月各店支出（從收支記帳讀取）──
   const mk2str = mk2();
@@ -7029,6 +7032,29 @@ function getTipConfirmed(store,d){
 
 // 某一天「實際要發」的小費：有按過「確認分配」就用確認的；還沒確認的日子，
 // 用畫面上的預設（有存過平分選擇就照選擇，沒有就歸該筆的技師），不會因為忘了按確認就整天小費從薪資報表消失。
+
+// ── 小費預設分給誰（沒手動改過的時候用）──
+// 技師本人＋員工管理裡勾選的「一起平分的夥伴」中，客人結帳那個時間有打卡在班的人。
+// 手動在小費分配頁改過的，一律以手動的為準。
+function defaultTipNames(c,dateStr){
+  var tech=Array.isArray(c.staff)&&c.staff.length>0?c.staff[0]:(c.tech||'');
+  if(!tech)return [];
+  var cfg=(typeof staffPayCfg==='function')?staffPayCfg(tech):{};
+  if(cfg.bonusType!=='minTipPooled')return [tech];
+  var partners=(cfg.bonusGroup||'').split(',').map(function(n){return n.trim();}).filter(function(n){return n&&n!==tech;});
+  var att=(typeof attData==='function')?attData():{records:{}};
+  var t=String(c.time||'').slice(0,5);
+  var onShift=function(name){
+    var rec=((att.records||{})[name]||[]).find(function(r){return r.date===dateStr;});
+    if(!rec||!rec.startTime)return false;           // 當天沒打卡 → 不分
+    if(!t)return true;                               // 客人沒有時間 → 當天有上班就算
+    var st=String(rec.startTime).slice(0,5), en=String(rec.endTime||'23:59').slice(0,5);
+    return t>=st&&t<=en;                             // 客人結帳時間在他的上班時間內
+  };
+  return [tech].concat(partners.filter(onShift));
+}
+window.defaultTipNames=defaultTipNames;
+
 function getEffectiveTipDay(mo,d){
   var conf=(_D.tipConfirmed&&_D.tipConfirmed[mo])||{};
   var mvC=conf.mv&&conf.mv[d], srC=conf.sr&&conf.sr[d];
@@ -7043,10 +7069,7 @@ function getEffectiveTipDay(mo,d){
     day.clients.forEach(function(c,ci){
       var tip=gv(c.tip); if(!tip)return;
       var names=splitState[store+'_'+ci];
-      if(!names||!names.length){
-        var tech=Array.isArray(c.staff)&&c.staff.length>0?c.staff[0]:(c.tech||'');
-        names=tech?[tech]:[];
-      }
+      if(!names||!names.length) names=defaultTipNames(c,mo+'-'+String(d).padStart(2,'0'));
       names=names.filter(function(n,i){return names.indexOf(n)===i;}).sort();
       if(!names.length)return;
       var shares=splitEven(tip,names);
@@ -7245,10 +7268,8 @@ function buildTipDayBody(d){
       if(savedSplitState[txnKey]&&savedSplitState[txnKey].length){
         tipSplitSel[splitKey][txnKey]=new Set(savedSplitState[txnKey]);
       }else{
-        // Auto-select if client has exactly one tech
-        var autoSet=new Set();
-        if(cl.tech) autoSet.add(cl.tech);
-        tipSplitSel[splitKey][txnKey]=autoSet;
+        // 沒手動改過：技師＋員工管理勾選的夥伴中，結帳時有打卡在班的人
+        tipSplitSel[splitKey][txnKey]=new Set(defaultTipNames(cl.c,dateStr));
       }
     }
   });
@@ -7495,15 +7516,17 @@ function resyncMonthTipConfirmed(){
       if(!dayData)return;
       (dayData.clients||[]).forEach(function(c,ci){
         if(!gv(c.tip))return;
-        allClients.push({store:store,idx:ci,tip:gv(c.tip),tipPay:c.tipPay||'card'});
+        allClients.push({store:store,idx:ci,tip:gv(c.tip),tipPay:c.tipPay||'card',c:c});
       });
     });
     var splitState=getTipSplitStateDay(mo,d);
+    var dStrR=mo+'-'+String(d).padStart(2,'0');
     var totalsByStore={mv:{card:{},cash:{}},sr:{card:{},cash:{}}};
     allClients.forEach(function(cl){
       var txnKey=cl.store+'_'+cl.idx;
       var selArr=splitState[txnKey];
-      if(!selArr||!selArr.length)return;
+      if(!selArr||!selArr.length)selArr=defaultTipNames(cl.c,dStrR); // 沒手動選過 → 用預設（技師＋在班夥伴）
+      if(!selArr.length)return;
       var uniq=selArr.filter(function(n,i){return selArr.indexOf(n)===i;}).sort();
       var shares=splitEven(cl.tip,uniq);
       var bucket=totalsByStore[cl.store];
@@ -8238,7 +8261,8 @@ function buildStaffReportData(){
 
   // Pre-calculate group bonus pairs to avoid double-counting
   // For each pair (A,B) with group bonus, calculate once
-  var groupBonusMap={}; // name -> total boss supplement
+  var groupBonusMap={}; // pairKey -> 兩人都有上班的日子，老闆補款合計（兩人平分）
+  var groupSoloMap={};  // name -> 夥伴請假的日子，自己一個人的補款（補到門檻的一半，全部歸自己）
   staffList.forEach(function(name){
     var cfg=staffPayCfg(name);
     if(cfg.bonusType!=='group'||!cfg.bonusGroup) return;
@@ -8269,7 +8293,17 @@ function buildStaffReportData(){
           if(ct===partner)svcB+=amt;
         });
       });
-      var commSum=Math.round((svcA*rate1+svcB*rate2)*100)/100;
+      var commA=Math.round(svcA*rate1*100)/100, commB=Math.round(svcB*rate2*100)/100;
+      var commSum=Math.round((commA+commB)*100)/100;
+      var leaveA=isDateOnLeave(name,dateStr), leaveB=isDateOnLeave(partner,dateStr);
+      if(leaveA&&leaveB) continue; // 兩人都請假
+      if(leaveA||leaveB){
+        // 有一人請假：上班的那位只補到門檻的一半（例如 $160 → $80），補款全部歸他
+        var worker=leaveA?partner:name, wComm=leaveA?commB:commA;
+        var solo=Math.max(0,Math.round((thresh/2-wComm)*100)/100);
+        groupSoloMap[worker]=Math.round(((groupSoloMap[worker]||0)+solo)*100)/100;
+        continue;
+      }
       if(svcA>0||svcB>0) total=Math.round((total+Math.max(0,thresh-commSum))*100)/100;
     }
     groupBonusMap[pairKey]=Math.round(total*100)/100;
@@ -8367,67 +8401,44 @@ function buildStaffReportData(){
       bossSupp=Math.round(perTxnSupp*100)/100;
       if(bossSupp>0)bossSuppLabel='逐筆小費不足 '+(cfg.bonusThreshold||15)+'%（ClassPass固定15%）補差額';
     } else if(cfg.bonusType==='minTipPooled'){
-      var tipPct2=(cfg.bonusThreshold||15)/100;
-      var poolPartners=(cfg.bonusGroup||'').split(',').map(function(n){return n.trim();}).filter(Boolean);
-      var allPoolMembers=[name].concat(poolPartners);
-      var y3=cur.getFullYear(),m3c=cur.getMonth();
+      // 小費在「小費分配頁」已經逐筆分好（技師＋員工管理勾選的夥伴、結帳時有打卡在班的人；手動改過的以手動為準），
+      // 這裡直接用分好的結果（totalTip），不再整天重新平分一次，兩邊數字才會一樣。
+      // 老闆補款：每一筆小費不足 X% 的差額，跟那一筆小費分給「同一組人」。
+      var y3=cur.getFullYear(),m3c=cur.getMonth(),mo3=mk();
       var days3=new Date(y3,m3c+1,0).getDate();
-
-      // 逐日計算：每一天只在「當天真的有打卡上班」的成員之間平分當天的小費池
-      // （不再是整月加總後固定除以全部人數，避免沒上班的日子也被算進去）
-      var myPooledTotal=0, myTopupTotal=0;
+      var mySupp=0;
       for(var d3=1;d3<=days3;d3++){
-        var dateStr3=y3+'-'+String(m3c+1).padStart(2,'0')+'-'+String(d3).padStart(2,'0');
-
-        // 當天每人的老闆補款（小費不足服務費%的差額）
-        var topupDay={};
-        allPoolMembers.forEach(function(member){
-          var t=0;
-          ['mv','sr'].forEach(function(store){
-            mergeClientTxns(sDay(store,d3).clients).forEach(function(mc){
-              if(mc.techName!==member)return;
-              if(mc.svc<=0)return;
-              if(mc.cashTipOk)return; // 已標記現金已收
-              var minT=cpMinTip(mc,tipPct2); // ClassPass客人：門檻=svc×0.30（等於原價15%）
-              if(mc.tip<minT)t=Math.round((t+Math.round((minT-mc.tip)*100)/100)*100)/100;
-            });
+        var dateStr3=mo3+'-'+String(d3).padStart(2,'0');
+        var splitState3=getTipSplitStateDay(mo3,d3);
+        ['mv','sr'].forEach(function(store){
+          var cls=sDay(store,d3).clients||[];
+          mergeClientTxns(cls).forEach(function(mc){
+            if(!mc.techName||mc.svc<=0||mc.cashTipOk)return;
+            var tcfg=staffPayCfg(mc.techName);
+            if(tcfg.bonusType!=='minTipPooled')return;
+            var minT=cpMinTip(mc,(tcfg.bonusThreshold||15)/100);
+            if(!(mc.tip<minT))return;
+            var supp=Math.round((minT-mc.tip)*100)/100;
+            var c0=cls[mc.originalIdx]||{};
+            var sel=splitState3[store+'_'+mc.originalIdx];
+            if(!sel||!sel.length)sel=defaultTipNames(c0,dateStr3);
+            sel=sel.filter(function(n,i){return sel.indexOf(n)===i;}).sort();
+            if(sel.indexOf(name)<0)return;
+            mySupp=r2(mySupp+(splitEven(supp,sel)[name]||0));
           });
-          topupDay[member]=Math.round(t*100)/100;
         });
-
-        // 當天實際有打卡上班的成員
-        var workedToday=allPoolMembers.filter(function(m){return workedOnDate(m,dateStr3);});
-        if(!workedToday.length) workedToday=allPoolMembers.slice(); // 沒有任何人有打卡記錄時，保守 fallback 為全體平分，避免小費憑空消失
-
-        // 當天池子總額：所有夥伴當天已確認小費 + 補款
-        var dayPoolTotal=0;
-        allPoolMembers.forEach(function(member){
-          dayPoolTotal+=confirmedTipMemberDay(member,d3)+(topupDay[member]||0);
-        });
-
-        var wtSorted=workedToday.slice().sort();
-        if(workedToday.indexOf(name)>=0) myPooledTotal=r2(myPooledTotal+(splitEven(dayPoolTotal,wtSorted)[name]||0));
-
-        // 老闆補款也依同樣方式平分（顯示用：自己分到的補款份額，而非自己原始未平分的補款金額）
-        var dayTopupTotal=0;
-        allPoolMembers.forEach(function(member){dayTopupTotal+=topupDay[member]||0;});
-        if(workedToday.indexOf(name)>=0) myTopupTotal=r2(myTopupTotal+(splitEven(dayTopupTotal,wtSorted)[name]||0));
       }
-
-      bossSupp=Math.round(myTopupTotal*100)/100;
-      if(bossSupp>0||myPooledTotal>0)
-        bossSuppLabel='小費補款後，依當天實際打卡上班的夥伴平分（'+poolPartners.join('、')+'）';
-
-      pooledTipVal=Math.round(myPooledTotal*100)/100;
+      bossSupp=Math.round(mySupp*100)/100;
+      if(bossSupp>0)bossSuppLabel='逐筆小費不足 '+(cfg.bonusThreshold||15)+'%（ClassPass固定15%）老闆補差額，跟那筆小費分給同一組人';
     } else if(cfg.bonusType==='group'&&cfg.bonusGroup){
       var pairKey=[name,cfg.bonusGroup].sort().join('|');
-      bossSupp=splitEven(groupBonusMap[pairKey]||0,pairKey.split('|'))[name]||0; // 兩人平分，零頭照名字順序，加總剛好
+      bossSupp=Math.round(((splitEven(groupBonusMap[pairKey]||0,pairKey.split('|'))[name]||0)+(groupSoloMap[name]||0))*100)/100; // 兩人都上班的日子平分＋夥伴請假日自己的補款
       bossSuppLabel='與 '+cfg.bonusGroup+' 合計抽成不足 $'+(cfg.bonusThreshold||160);
     }
 
     var adj=reportAdjs()[name]||0;
     var effectiveTip=pooledTipVal!==undefined?pooledTipVal:totalTip;
-    var bossSuppForGrand=(cfg.bonusType==='minTipPooled')?0:bossSupp;
+    var bossSuppForGrand=bossSupp; // 平分型的補款現在另外列（小費用分配頁分好的），也要算進總額
     // 產品抽成 15%
     var prodComm=Math.round((((_D.products&&_D.products[mk()])||[]).filter(function(p){return p.staff===name;}).reduce(function(s,p){return s+((p.comm!==''&&p.comm!==undefined&&p.comm!==null&&!isNaN(parseFloat(p.comm)))?parseFloat(p.comm):(gv(p.amt)*0.15));},0))*100)/100;
     // 會員卡免費兌換技師抽成（固定金額，不算營業額）
@@ -10092,6 +10103,7 @@ function exportReconReport(){
       +'</tr>';
   }
   var totalDiff=Math.round((totalAct-totalDue)*100)/100;
+  var rptFee=0; for(var fd=1;fd<=days;fd++) rptFee+=gv(getGDFee(fd)); rptFee=Math.round(rptFee*100)/100;
 
   // ── 逐日交易明細（單一分店）──
   function storeDetailHTML(store,labelZh){
@@ -10199,9 +10211,9 @@ function exportReconReport(){
 
     +'<div class="sec-title">GoDaddy 對帳（現金流，非營業額）</div>'
     +'<div class="sum-grid">'
-      +'<div class="sum-box"><div class="sum-l">本月應收（依每日記帳反推）</div><div class="sum-v">$'+totalDue.toFixed(2)+'</div></div>'
-      +'<div class="sum-box"><div class="sum-l">本月實收（手動填入的撥款）</div><div class="sum-v">$'+totalAct.toFixed(2)+'</div></div>'
-      +'<div class="sum-box"><div class="sum-l">差異</div><div class="sum-v" style="color:'+(Math.abs(totalDiff)<0.01?'#1A7A45':'#B83010')+'">'+(totalDiff>=0?'+':'')+'$'+totalDiff.toFixed(2)+'</div></div>'
+      +'<div class="sum-box"><div class="sum-l">GoDaddy 本月實收（撥款，未扣手續費）</div><div class="sum-v">$'+totalAct.toFixed(2)+'</div></div>'
+      +'<div class="sum-box"><div class="sum-l">手續費</div><div class="sum-v" style="color:#B83010">-$'+rptFee.toFixed(2)+'</div></div>'
+      +'<div class="sum-box"><div class="sum-l">實際入帳</div><div class="sum-v" style="color:#1A7A45">$'+(Math.round((totalAct-rptFee)*100)/100).toFixed(2)+'</div></div>'
     +'</div>'
 
     +'<div class="sec-title">當月支出</div>'
@@ -10368,6 +10380,17 @@ function addLeave(name){
   renderOneStaffCard(name);
   renderAttSummary();
 }
+// 薪資頁直接點「請假」：只影響那一天，不需要打卡
+function prToggleLeave(name,date){
+  var arr=getStaffLeave(name);
+  var idx=arr.findIndex(function(l){return l.start===date&&l.end===date;});
+  if(idx>=0){arr.splice(idx,1);}
+  else if(isDateOnLeave(name,date)){alert(name+' 這天是在一段連續請假裡，請到「員工管理」的請假登記修改。');return;}
+  else arr.push({start:date,end:date,note:'薪資頁標記'});
+  saveOnly();
+  renderPayrollPage();
+}
+window.prToggleLeave=prToggleLeave;
 function delLeave(name,idx){
   var arr=getStaffLeave(name);
   if(!confirm('確定刪除這筆請假紀錄嗎？'))return;
@@ -13868,7 +13891,19 @@ function renderPayrollPage() {
     var lc=Math.round(r.lucy_net*rate*100)/100;
     var ltc=Math.round(r.luter_net*rate*100)/100;
     var ct=Math.round((lc+ltc)*100)/100;
-    var boss=isWk?0:Math.max(0,Math.round((thresh-ct)*100)/100);
+    // 請假：員工管理的請假登記。有一人請假 → 上班的那位只補到門檻的一半
+    var lucyName=(_D.staff||[]).find(function(n){return n.indexOf('Lucy')>=0;})||'Lucy';
+    var luterName=(_D.staff||[]).find(function(n){return n.indexOf('Luter')>=0;})||'Luter';
+    var lucyOff=isDateOnLeave(lucyName,r.date), luterOff=isDateOnLeave(luterName,r.date);
+    var boss;
+    if(isWk||(lucyOff&&luterOff)) boss=0;
+    else if(lucyOff) boss=Math.max(0,Math.round((thresh/2-ltc)*100)/100);
+    else if(luterOff) boss=Math.max(0,Math.round((thresh/2-lc)*100)/100);
+    else boss=Math.max(0,Math.round((thresh-ct)*100)/100);
+    var escN=function(n){return String(n).replace(/'/g,"\\'");};
+    var leaveBtn=function(nm,label,off){return '<button onclick="prToggleLeave(\''+escN(nm)+'\',\''+r.date+'\')" title="'+(off?'取消請假':'標記這天請假')+'" style="margin-left:4px;padding:0 6px;font-size:10px;border-radius:8px;cursor:pointer;font-family:inherit;border:1px solid '+(off?'#B45309':'var(--border)')+';background:'+(off?'#FFF3E0':'transparent')+';color:'+(off?'#B45309':'var(--faint)')+'">'+(off?'🏖 ':'')+label+'休</button>';};
+    var leaveBtns=isWk?'':'<div style="margin-top:2px">'+leaveBtn(lucyName,'Lucy',lucyOff)+leaveBtn(luterName,'Luter',luterOff)+'</div>';
+    var leaveTag=lucyOff||luterOff?'<span style="font-size:10px;margin-left:6px;padding:1px 6px;border-radius:8px;background:#FFF3E0;color:#B45309;font-weight:600">🏖 '+(lucyOff&&luterOff?'兩人請假':(lucyOff?'Lucy':'Luter')+' 請假・補到 $'+(thresh/2).toFixed(0))+'</span>':'';
     var adj=getAdj(r.date);
     lnS+=r.lucy_net;ltS+=r.lucy_tip;lcS+=lc;laS+=adj.lucy;
     lutnS+=r.luter_net;lutS+=r.luter_tip;lutcS+=ltc;lutaS+=adj.luter;
@@ -13883,7 +13918,7 @@ function renderPayrollPage() {
     tr.innerHTML=
       '<td style="padding:7px 12px;font-size:12px;white-space:nowrap">'+
         '<span style="color:'+(isWk?'var(--warn)':'var(--sub)')+'">'+r.date.slice(5)+'</span>'+
-        '<span style="font-size:10px;margin-left:5px;color:'+(isWk?'var(--warn)':'var(--faint)')+'">'+(isWk?'★ ':'')+'週'+dowLabel+'</span>'+
+        '<span style="font-size:10px;margin-left:5px;color:'+(isWk?'var(--warn)':'var(--faint)')+'">'+(isWk?'★ ':'')+'週'+dowLabel+'</span>'+leaveTag+leaveBtns+
       '</td>'+
       '<td style="padding:7px 12px;text-align:right;font-family:monospace;color:#5E35B1">$'+r.lucy_net.toFixed(2)+'</td>'+
       '<td style="padding:7px 12px;text-align:right;font-family:monospace;color:var(--sub)">$'+r.lucy_tip.toFixed(2)+'</td>'+
