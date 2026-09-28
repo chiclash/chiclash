@@ -2011,7 +2011,7 @@ input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-
     merged.sr = mergeDailyStore(base.sr, other.sr, 'sr');
     merged.gd = mergeDailyStore(base.gd, other.gd, 'gd');
     merged.gc_cards = mergeArrayById(base.gc_cards, other.gc_cards);
-    const safeKeys = ['staffPay','payroll','sqNameMap','tipConfirmed','tipSplitState','reviewSel','reviews','att','penalties','bnkBal','cdManual','tipSchedule','memberItems','members','memberSaleRewards','memberSaleRewardSel','gdDayOk','gdExplain','gdTxns','sqTxns'];
+    const safeKeys = ['staffPay','payroll','sqNameMap','tipConfirmed','tipSplitState','reviewSel','reviews','att','penalties','bnkBal','cdManual','tipSchedule','memberItems','members','memberSaleRewards','memberSaleRewardSel','gdDayOk','gdExplain','gdTxns','sqTxns','_ipadSqMigDone'];
     safeKeys.forEach(function(key){
       if(other[key] !== undefined && base[key] === undefined){
         merged[key] = other[key];
@@ -2090,6 +2090,7 @@ input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-
         merged._savedAt = cloudTs;
         window._D = merged;
         try { localStorage.setItem('rev19', JSON.stringify(merged)); } catch(e2) {}
+        if (typeof window.migrateIpadSq === 'function') window.migrateIpadSq();
         if (typeof renderAll === 'function') renderAll();
         setSyncStatus('✓ 已同步其他裝置的更新', '#1A7A45');
         setTimeout(function(){ setSyncStatus('✓ 資料已同步', '#1A7A45'); }, 2500);
@@ -2121,6 +2122,7 @@ input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-
             time:(function(v){var t=String(v||'');if(t.indexOf('T')<0)return '';var dd=new Date(t);return isNaN(dd.getTime())?'':dd.toLocaleTimeString('en-US',{timeZone:'America/Los_Angeles',hour:'numeric',minute:'2-digit'});})(g.issuedAt)
           };
         });
+      if (typeof window.migrateIpadSq === 'function') window.migrateIpadSq(); // 一次性：舊的「iPad 賣卡沒進 Square」說明自動清掉
       if (typeof renderAll === 'function') renderAll(); // 重新算一次，把剛載入的 iPad 禮品卡銷售額補進月營業額
     }catch(e){ console.warn('載入 iPad 禮品卡銷售記錄失敗（月營業額可能少算 iPad 賣出的禮品卡）：', e); }
   })();
@@ -2248,6 +2250,20 @@ function splitEven(total,names){
   return res;
 }
 function r2(n){return Math.round((n||0)*100)/100;}
+// 分小費：刷卡小費分到「分」；現金小費分到「整數元」（現金沒辦法給幾毛錢），
+// 除不盡的 1 元先給做這位客人的技師，再照名字順序；小數的零頭（如 $20.50 的 50 分）也給技師。
+function splitTip(tip,names,isCash,tech){
+  var list=(names||[]).slice().sort();
+  if(tech&&list.indexOf(tech)>=0){list.splice(list.indexOf(tech),1);list.unshift(tech);}
+  if(!isCash)return splitEven(tip,list);
+  var res={}; if(!list.length)return res;
+  var dollars=Math.floor(Math.round((tip||0)*100)/100), cents=r2((tip||0)-dollars);
+  var base=Math.floor(dollars/list.length), rem=dollars-base*list.length;
+  list.forEach(function(n,i){res[n]=base+(i<rem?1:0);});
+  if(cents>0)res[list[0]]=r2(res[list[0]]+cents);
+  return res;
+}
+function tipTechOf(c){return c?(Array.isArray(c.staff)&&c.staff.length>0?c.staff[0]:(c.tech||'')):'';}
 function sgnMoney(x){return (x>=0?'+$':'-$')+Math.abs(x).toFixed(2);} // 金額加正負號：+$20.00 / -$20.00
 
 // 合併同天同技師同客人的多筆記錄：服務費加總，小費加總，任一筆有cashTipOk就標記
@@ -2824,7 +2840,7 @@ function renderSqMatchHtml(d){
   html+='<div style="margin-top:8px;padding:8px 10px;background:var(--bg);border-radius:6px;font-size:11.5px;line-height:1.8">'
     +'每日記帳（Square 應該有）<b>$'+sumL.toFixed(2)+'</b>　→　Square 明細加總 <b>$'+sumS.toFixed(2)+'</b>　＝　差 <b style="color:'+(Math.abs(sumS-sumL)<0.01?'var(--ok)':'var(--warn)')+'">'+sgnMoney(r2(sumS-sumL))+'</b>'
     +(probs.length?'　（就是上面 ⚠ 加起來 ✓）':'')+'</div>';
-  if(led.ipad>0)html+='<div style="font-size:10.5px;color:var(--sub);margin-top:6px">ℹ iPad 賣的禮品卡不會出現在 Square，已經自動扣掉：$'+led.ipad.toFixed(2)+'（'+esc(led.ipadList.join('、'))+'）→ 所以 Square Other 會比記帳少這個金額</div>';
+  if(led.ipad>0)html+='<div style="font-size:10.5px;color:var(--sub);margin-top:6px">ℹ iPad 賣的禮品卡不會出現在 Square，已經自動扣掉：$'+led.ipad.toFixed(2)+'（'+esc(led.ipadList.join('、'))+'）（系統已經自動從 Square 應收扣掉，不用寫說明）</div>';
   html+='<details style="margin-top:6px"><summary style="font-size:11px;color:var(--ok);cursor:pointer">✓ 對上的 '+oks.length+' 組（點開看）</summary>';
   oks.forEach(function(r){
     var tag=r.kind==='combo'?'合併結帳':r.kind==='split'?'分兩次結':'';
@@ -2834,6 +2850,59 @@ function renderSqMatchHtml(d){
   return html+'</details><div style="margin-top:6px;text-align:right"><button onclick="clearSqTxnPaste('+d+')" style="border:1px solid var(--border);background:none;border-radius:5px;padding:2px 10px;font-size:10.5px;color:var(--sub);cursor:pointer;font-family:inherit">清除重貼</button></div></div></div>';
 }
 window.renderSqMatchHtml=renderSqMatchHtml;
+
+// ── 一次性轉換：Square 應收改成自動扣掉 iPad 賣的禮品卡之後，
+//   ① 以前手動寫的「Square 少 $X（iPad 賣卡）」說明變多餘 → 自動刪掉
+//   ② 以前按過「已確認」的日子，差額數字變了 → 自動更新，維持綠色（不用一天一天重按）
+function migrateIpadSq(){
+  // 可以重複跑（別台裝置用舊版存回來的資料也會再被整理一次）：只在「確定是多餘的」情況才動
+  if(!_D)return;
+  if(!Array.isArray(window._gcFbAll))return; // iPad 資料還沒載入，等載入後再跑
+  var months={};
+  Object.keys(_D.gdExplain||{}).forEach(function(m){months[m]=1;});
+  Object.keys(_D.gdDayOk||{}).forEach(function(m){months[m]=1;});
+  var saveCur=new Date(cur.getTime()), changed=false;
+  try{
+  Object.keys(months).forEach(function(mo){
+    var y=parseInt(mo.slice(0,4),10), m=parseInt(mo.slice(5,7),10)-1;
+    if(isNaN(y)||isNaN(m))return;
+    cur=new Date(y,m,1);
+    var days=new Date(y,m+1,0).getDate();
+    for(var d=1;d<=days;d++){
+      var A=calcDay('mv',d), B=calcDay('sr',d);
+      var ipOther=r2(A.ipadCard+A.ipadVenmo+B.ipadCard+B.ipadVenmo), ipCash=r2(A.ipadCash+B.ipadCash);
+      if(ipOther<0.005&&ipCash<0.005)continue;
+      // ② 先用「舊算法」檢查這天原本是不是已確認
+      var wasOk=false;
+      try{ window._sqIncludeIpad=true; wasOk=isGdDayConfirmed(d); } finally { window._sqIncludeIpad=false; }
+      // ① 刪掉多餘的 iPad 說明
+      var list=_D.gdExplain&&_D.gdExplain[mo]&&_D.gdExplain[mo][d];
+      if(list&&list.length){
+        var cards=(window._gcFbAll||[]).filter(function(g){return g.date===mo+'-'+String(d).padStart(2,'0');});
+        // 只有在這一欄「剛好多說明了 iPad 的金額」時才刪（現在的差額已經不含 iPad），避免誤刪真的原因
+        var dropOne=function(f,amt){ if(amt<0.005)return false;
+          var left=gdExplainStatus(d).rows[f].left;
+          if(Math.abs(left-amt)>=0.005)return false;
+          var i=list.findIndex(function(x){return x.f===f&&Math.abs(gv(x.amt)+amt)<0.005;});
+          if(i>=0){list.splice(i,1);changed=true;return true;} return false; };
+        if(!dropOne('other',ipOther)){
+          cards.forEach(function(g){ if(g.payMethod!=='cash')dropOne('other',r2(g.amount||0)); });
+        }
+        if(!dropOne('cash',ipCash)){
+          cards.forEach(function(g){ if(g.payMethod==='cash')dropOne('cash',r2(g.amount||0)); });
+        }
+      }
+      if(wasOk&&!isGdDayConfirmed(d)){
+        if(!_D.gdDayOk)_D.gdDayOk={}; if(!_D.gdDayOk[mo])_D.gdDayOk[mo]={};
+        _D.gdDayOk[mo][d]={sig:gdDaySig(d),at:Date.now()};
+        changed=true;
+      }
+    }
+  });
+  } finally { cur=saveCur; window._sqIncludeIpad=false; }
+  if(changed)saveOnly();
+}
+window.migrateIpadSq=migrateIpadSq;
 
 function gdDaySig(d){return JSON.stringify([gdRowDiffs(d),sqManualDiffs(d)]);}
 function isGdDayConfirmed(d){
@@ -3053,7 +3122,7 @@ function calcDay(s,d){
   // 注意：gcSold 是獨立的第四個桶子（不併進 cardSvc/cashSvc/venmoSvc），因為下面 rev 公式是
   // 「刷卡收入 + 現金收入 + Venmo收入 + 禮品卡銷售」四個桶分開加總——併進去的話 rev 會把這筆錢多算一次。
   const dateStr=mk()+'-'+String(d).padStart(2,'0');
-  let gcSold=0,gcSoldCard=0,gcSoldCash=0,gcSoldVenmo=0;
+  let gcSold=0,gcSoldCard=0,gcSoldCash=0,gcSoldVenmo=0,ipadCard=0,ipadCash=0,ipadVenmo=0;
   (_D.gc_cards||[]).forEach(function(g){
     if(g.store!==s||g.date!==dateStr)return;
     gcSold+=(g.amt||0);
@@ -3064,9 +3133,9 @@ function calcDay(s,d){
     gcSold+=(g.amount||0);
     // iPad 付款方式比店裡手動輸入的多兩種：Venmo 直接算 Venmo；Zelle 目前系統沒有獨立的欄位，暫時併進 Venmo（都是電子轉帳，不是刷卡也不是現金）；
     // 其他沒填或不認得的付款方式，為了不讓這筆錢憑空消失，預設當刷卡處理。
-    if(g.payMethod==='cash')gcSoldCash+=(g.amount||0);
-    else if(g.payMethod==='venmo'||g.payMethod==='zelle')gcSoldVenmo+=(g.amount||0);
-    else gcSoldCard+=(g.amount||0);
+    if(g.payMethod==='cash'){gcSoldCash+=(g.amount||0);ipadCash+=(g.amount||0);}
+    else if(g.payMethod==='venmo'||g.payMethod==='zelle'){gcSoldVenmo+=(g.amount||0);ipadVenmo+=(g.amount||0);}
+    else {gcSoldCard+=(g.amount||0);ipadCard+=(g.amount||0);}
   });
 
   // GoDaddy 應收 = (刷卡服務費 + 刷卡買禮品卡 + 刷卡產品銷售 + 全部刷卡小費含CP小費) × 手續費率
@@ -3086,8 +3155,10 @@ function calcDay(s,d){
   // 賣禮品卡收到的刷卡/現金/Venmo，也是真的會進 Square 當日結算的錢，要另外加回來（gcSoldCard/Cash/Venmo 沒有併進 cardSvc/cashSvc/venmoSvc 本身，避免跟月營業額重複計算）
   // ClassPass 服務費：Square 自己的系統會顯示這筆交易(所以「Square 報告核對」這個比對要算進去)，
   // 但 GoDaddy 永遠不會撥款這筆服務費(平台另外付錢，不會過卡)，所以 GD應收(gdDue)不算——這裡是兩種不同用途的公式，故意不一樣。
-  const calcOther=cardSvc+gcSoldCard+prodSoldCard+cardTip+venmoSvc+gcSoldVenmo+prodSoldVenmo+venmoTip+cpSvc; // card+venmo payments+ClassPass(Square報告看得到)
-  const calcCash=cashSvc+gcSoldCash+prodSoldCash+cashTip;                    // cash payments (including cash tips)
+  // iPad 賣的禮品卡從來不會在 Square 結帳 → Square 應收（Other/Cash）自動扣掉；GoDaddy 應收（gdDue）照樣包含，因為真的有刷卡
+  const sqIpad=(typeof window!=='undefined'&&window._sqIncludeIpad); // 只有舊資料轉換時會暫時設為 true
+  const calcOther=cardSvc+gcSoldCard+prodSoldCard+cardTip+venmoSvc+gcSoldVenmo+prodSoldVenmo+venmoTip+cpSvc-(sqIpad?0:ipadCard+ipadVenmo); // card+venmo payments+ClassPass(Square報告看得到)
+  const calcCash=cashSvc+gcSoldCash+prodSoldCash+cashTip-(sqIpad?0:ipadCash);                    // cash payments (including cash tips)
   const calcGC=gcAmtUsed;                                      // gift card payments
   const calcTip=cardTip+venmoTip;
   const calcTotal=calcOther+calcCash+calcGC;
@@ -3099,7 +3170,7 @@ function calcDay(s,d){
     sqDiff=Math.round((sqTotal>0 ? sqTotal-calcTotal : (sqOther+sqCash+sqGC)-calcTotal)*100)/100;
   }
 
-  return{gcTip,cardSvc,cashSvc,venmoSvc,cpSvc,gcSvc,gcAmtUsed,gcSold,gcSoldCard,gcSoldCash,prodSold,prodSoldCard,prodSoldCash,prodSoldVenmo,cardTip,cashTip,venmoTip,gdDue,rev,
+  return{ipadCard,ipadCash,ipadVenmo,gcTip,cardSvc,cashSvc,venmoSvc,cpSvc,gcSvc,gcAmtUsed,gcSold,gcSoldCard,gcSoldCash,prodSold,prodSoldCard,prodSoldCash,prodSoldVenmo,cardTip,cashTip,venmoTip,gdDue,rev,
     calcOther,calcCash,calcGC,calcTip,calcTotal,sqDiff,hasSq,hasClients};
 }
 
@@ -3285,7 +3356,7 @@ function renderDayGcSales(d){
         +'<span style="margin-left:auto;color:var(--sub)">'+g.pay+'</span>'
         +'<span style="font-weight:700;min-width:70px;text-align:right">$'+g.amt.toFixed(2)+'</span></div>';
     }).join('')
-    +'<div style="font-size:10px;color:var(--faint);margin-top:4px">已算進當日營業額、Square 對帳和 GoDaddy 應收（刷卡的部分）。要修改請到「Gift Card」頁。如果這張卡沒有在 Square 結帳，Square 對帳會剛好差這個金額。</div>'
+    +'<div style="font-size:10px;color:var(--faint);margin-top:4px">已算進當日營業額、Square 對帳和 GoDaddy 應收（刷卡的部分）。要修改請到「Gift Card」頁。iPad 賣的卡本來就不會在 Square，已經自動從 Square 對帳扣掉（GoDaddy 應收照樣包含）。</div>'
     +'</div>';
 }
 
@@ -3839,7 +3910,9 @@ function renderCalDetail(){
       +'<div style="display:flex;justify-content:space-between;font-size:13px;padding:3px 0"><span>產品銷售</span><span style="font-weight:600">$'+prodSold.toFixed(2)+'</span></div>'
       +'<div style="display:flex;justify-content:space-between;font-size:13px;padding:3px 0"><span>ClassPass</span><span style="font-weight:600">$'+cpSvc.toFixed(2)+'</span></div>'
       +'<div style="display:flex;justify-content:space-between;font-size:13.5px;padding:6px 0 0;margin-top:4px;border-top:1.5px solid rgba(0,0,0,.08);font-weight:700"><span>每日總銷售額</span><span>$'+salesGross.toFixed(2)+'</span></div>'
-      +'<div style="font-size:11px;color:var(--faint);padding-top:2px">＝ Square Total Collected（Square 報表 Other＋Cash＋Gift Card 三欄加總）</div>'
+      +(function(){var ip=r2((t.ipadCard||0)+(t.ipadCash||0)+(t.ipadVenmo||0));
+         return ip>0?'<div style="font-size:11px;color:var(--faint);padding-top:2px">Square Total Collected 應該是 $'+r2(salesGross-ip).toFixed(2)+'（iPad 賣的禮品卡 $'+ip.toFixed(2)+' 不會在 Square）</div>'
+                    :'<div style="font-size:11px;color:var(--faint);padding-top:2px">＝ Square Total Collected（Square 報表 Other＋Cash＋Gift Card 三欄加總）</div>';})()
       +'<div style="margin-top:10px;padding-top:10px;border-top:1px dashed rgba(0,0,0,.1)">'
         +'<div style="font-size:10px;font-weight:700;color:var(--sub);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px">往下推算「當天收入」</div>'
         +'<div style="display:flex;justify-content:space-between;font-size:12.5px;padding:2px 0"><span>每日總銷售額</span><span style="font-weight:600">$'+salesGross.toFixed(2)+'</span></div>'
@@ -4491,7 +4564,8 @@ function buildGDTable(){
     var expCash=r2(mvT.calcCash+srT.calcCash);
     var expGD=r2(mvT.gdDue+srT.gdDue);
     var expCP=r2(mvT.cpSvc+srT.cpSvc);
-    var expVenmo=r2(expOther-expGCUsed-expGD-expCP);
+    var expIpad=r2(mvT.ipadCard+srT.ipadCard);
+    var expVenmo=r2(expOther-expGCUsed-expGD-expCP+expIpad);
 
     var sqR=sqReconDay(d);
     var hasSqCard=sqR.card!==''&&sqR.card!==undefined, hasSqCash=sqR.cash!==''&&sqR.cash!==undefined;
@@ -4546,7 +4620,7 @@ function buildGDTable(){
       '<div style="font-size:11px;color:var(--sub);line-height:1.6">'+
         (hasBook?
           'Other <b style="color:#1656A0">$'+expOther.toFixed(2)+'</b>'+
-            ((expVenmo>0.004||expCP>0.004||expGCUsed>0.004)?'<br><span style="font-size:9.5px;color:var(--faint)">＝刷卡 $'+expGD.toFixed(2)+(expVenmo>0.004?'＋Venmo $'+expVenmo.toFixed(2):'')+(expCP>0.004?'＋ClassPass $'+expCP.toFixed(2):'')+(expGCUsed>0.004?'＋禮品卡兌換 $'+expGCUsed.toFixed(2):'')+'</span>':'')+'<br>'+
+            ((expVenmo>0.004||expCP>0.004||expGCUsed>0.004||expIpad>0.004)?'<br><span style="font-size:9.5px;color:var(--faint)">＝刷卡 $'+expGD.toFixed(2)+(expVenmo>0.004?'＋Venmo $'+expVenmo.toFixed(2):'')+(expCP>0.004?'＋ClassPass $'+expCP.toFixed(2):'')+(expGCUsed>0.004?'＋禮品卡兌換 $'+expGCUsed.toFixed(2):'')+(expIpad>0.004?'－iPad賣卡 $'+expIpad.toFixed(2)+'（不在 Square）':'')+'</span>':'')+'<br>'+
           'Cash <b style="color:#1656A0">$'+expCash.toFixed(2)+'</b><br>'+
           '<span style="color:var(--ok);font-weight:600">GoDaddy 應收 $'+expGD.toFixed(2)+'</span>'
         :'<span style="color:var(--faint)">—</span>')+
@@ -7072,8 +7146,8 @@ function getEffectiveTipDay(mo,d){
       if(!names||!names.length) names=defaultTipNames(c,mo+'-'+String(d).padStart(2,'0'));
       names=names.filter(function(n,i){return names.indexOf(n)===i;}).sort();
       if(!names.length)return;
-      var shares=splitEven(tip,names);
       var type=(c.tipPay||'card')==='cash'?'cash':'card';
+      var shares=splitTip(tip,names,type==='cash',tipTechOf(c));
       names.forEach(function(n){out[store][type][n]=r2((out[store][type][n]||0)+shares[n]);});
     });
   });
@@ -7337,7 +7411,7 @@ function buildTipDayBody(d){
 
     // Per-person amount
     var count=selSet.size||1;
-    var shares=splitEven(cl.tip,Array.from(selSet).sort());
+    var shares=splitTip(cl.tip,Array.from(selSet),cl.tipPay==='cash',tipTechOf(cl.c));
     var each=Math.round(cl.tip/count*100)/100;
     var resultStr=selSet.size>1?Object.keys(shares).map(function(n){return n+' $'+shares[n].toFixed(2);}).join('、'):selSet.size===1?'$'+cl.tip.toFixed(2)+' → '+[...selSet][0]:'未分配';
 
@@ -7391,7 +7465,7 @@ function buildTipDayBody(d){
     var txnKey2=cl.store+'_'+cl.idx;
     var selSet=tipSplitSel[splitKey][txnKey2]||new Set();
     if(!selSet.size) return;
-    var shares=splitEven(cl.tip,Array.from(selSet).sort());
+    var shares=splitTip(cl.tip,Array.from(selSet),cl.tipPay==='cash',tipTechOf(cl.c));
     selSet.forEach(function(name){
       if(!totals[name]) totals[name]={card:0,cash:0};
       if(cl.tipPay==='cash') totals[name].cash=r2(totals[name].cash+shares[name]);
@@ -7462,7 +7536,7 @@ function confirmTipTxnSplit(splitKey,d){
     var txnKey=cl.store+'_'+cl.idx;
     var selSet=tipSplitSel[splitKey][txnKey]||new Set();
     if(!selSet.size) return;
-    var shares=splitEven(cl.tip,Array.from(selSet).sort());
+    var shares=splitTip(cl.tip,Array.from(selSet),cl.tipPay==='cash',tipTechOf(cl.c));
     var bucket=totalsByStore[cl.store]||(totalsByStore[cl.store]={card:{},cash:{}});
     selSet.forEach(function(name){
       if(cl.tipPay==='cash'){bucket.cash[name]=r2((bucket.cash[name]||0)+shares[name]);}
@@ -7528,7 +7602,7 @@ function resyncMonthTipConfirmed(){
       if(!selArr||!selArr.length)selArr=defaultTipNames(cl.c,dStrR); // 沒手動選過 → 用預設（技師＋在班夥伴）
       if(!selArr.length)return;
       var uniq=selArr.filter(function(n,i){return selArr.indexOf(n)===i;}).sort();
-      var shares=splitEven(cl.tip,uniq);
+      var shares=splitTip(cl.tip,uniq,cl.tipPay==='cash',tipTechOf(cl.c));
       var bucket=totalsByStore[cl.store];
       uniq.forEach(function(name){
         if(cl.tipPay==='cash'){bucket.cash[name]=r2((bucket.cash[name]||0)+shares[name]);}
