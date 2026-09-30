@@ -12120,8 +12120,10 @@ function renderCDStoreTbl(store,entries,selMonth){
   for(var day=mStart;day<=mEnd;day=cdAddDays(day,1)){
     cdSalesItems(store,day).forEach(function(x){ if(x.tip){tipRows.push({date:day,t:x.t,amt:x.amt,label:x.label||''});return;} ev.push({date:day,t:x.t,o:0,kind:'sale',amt:x.amt,label:x.label||''});});
   }
-  var hiddenIn=0,hiddenWarn=[];
+  var hiddenIn=0,hiddenWarn=[],putIn={}; // putIn[date] = 櫃台記的放入金額清單
+  var hasPutInRecords=cdData().some(function(e){return e.store===store&&e.type==='in'&&dup[e.id]&&e.date>=mStart&&e.date<=mEnd;});
   cdData().forEach(function(e){
+    if(e.store===store&&e.type==='in'&&dup[e.id]&&e.date>=mStart&&e.date<=mEnd)(putIn[e.date]=putIn[e.date]||[]).push({amt:e.amt,used:false});
     if(e.store!==store||e.date<mStart||e.date>mEnd)return;
     if(e.type==='tipout')return; // 小費另外算
     if(e.type==='in'&&dup[e.id]){hiddenIn++; if(dupInfo[e.id]&&dupInfo[e.id]!=='match')hiddenWarn.push(e.date.slice(5)+' '+(e.note||'')+' $'+e.amt.toFixed(2)+'（'+dupInfo[e.id]+'）'); return;}
@@ -12140,13 +12142,32 @@ function renderCDStoreTbl(store,entries,selMonth){
   var timeInput=function(x){ if(!x.e)return ''; var v=cdEntryTime(x.e);
     return '<input type="time" value="'+v+'" title="發生的時間（決定它排在當天哪幾筆收入之間）" onchange="setCDTime('+x.e.id+',this.value)" style="border:1px solid var(--border);border-radius:4px;padding:0 2px;font-size:10px;font-family:inherit;width:74px;'+(x.tKnown?'':'background:var(--warn-bg)')+'">'; };
   var hdr='<div class="cd-row2 cd-hdr"><span>日期</span><span>類型</span><span style="text-align:right">收入/放入</span><span style="text-align:right">取出</span><span style="text-align:right">帳面應有</span><span>說明</span><span></span></div>';
-  var rows=[];
+  var rows=[], noPutSince=0, suspSince=0;
+  var gdOrphan={}; // date -> [金額]：GoDaddy 有刷、每日記帳找不到的
+  if(selMonth===mk()){
+    for(var gd=1;gd<=31;gd++){
+      var tx=gdTxnsForDay(gd); if(!tx)continue;
+      try{
+        var res=matchGdTxns(ledgerCardItems(gd).items,tx);
+        res.forEach(function(r){ if(r.kind==='onlyG'&&r.g[0].amt>0){ var ds=selMonth+'-'+String(gd).padStart(2,'0'); (gdOrphan[ds]=gdOrphan[ds]||[]).push({amt:r.g[0].amt,time:r.g[0].time,used:false}); } });
+      }catch(e){}
+    }
+  }
   if(running!==null)rows.push('<div class="cd-row2" style="background:var(--bg)"><span style="font-size:11px;color:var(--sub)">帶入</span><span style="font-size:11px;font-weight:700;color:'+storeColor+'">上月底帳面</span>'+cell('—','var(--faint)')+cell('—','var(--faint)')+balCell()+'<span style="font-size:11px;color:var(--sub)">'+selMonth.slice(5)+' 月開始</span><span></span></div>');
   ev.forEach(function(x){
     var d5=x.date.slice(5), tm=((x.kind==='sale'||x.kind==='tip')&&x.t&&x.t!=='00:00')?' <span style="color:var(--faint);font-size:10px">'+x.t+'</span>':'';
     if(x.kind==='sale'||x.kind==='tip'){
       if(running!==null)running+=x.amt;
-      rows.push('<div class="cd-row2" style="background:'+(x.kind==='tip'?'#FFF8EC':'#F5FBF5')+'"><span style="font-size:12px">'+d5+tm+'</span><span style="font-size:11px;font-weight:600;color:'+(x.kind==='tip'?'#9A6A10':'var(--ok)')+'">'+(x.kind==='tip'?'💵 平分小費':'💵 現金收入')+'</span>'+cell('+'+$f(x.amt),'var(--ok)')+cell('—','var(--faint)')+balCell()+'<span style="font-size:11px;color:var(--sub)">'+String(x.label).replace(/</g,'&lt;')+'</span><span></span></div>');
+      // 這筆現金，櫃台有沒有記「放入」保險箱？
+      var putTag='';
+      var go=(gdOrphan[x.date]||[]).find(function(g){return !g.used&&Math.abs(g.amt-x.amt)<0.005;});
+      if(go&&x.kind==='sale'){go.used=true;suspSince=r2(suspSince+x.amt);putTag+=' <span style="font-size:10px;color:#1656A0;font-weight:700">💳 GoDaddy '+go.time+' 有一筆 $'+go.amt.toFixed(2)+' 刷卡對不到客人 → 這筆可能其實是刷卡</span>';}
+      if(hasPutInRecords&&x.kind==='sale'){
+        var pi=(putIn[x.date]||[]).find(function(p){return !p.used&&Math.abs(p.amt-x.amt)<0.005;});
+        if(pi){pi.used=true;putTag=' <span style="font-size:10px;color:var(--ok)">✓ 有放入紀錄</span>';}
+        else {putTag=' <span style="font-size:10px;color:var(--warn);font-weight:700">⚠ 櫃台沒記放入</span>'; noPutSince=r2(noPutSince+x.amt);}
+      }
+      rows.push('<div class="cd-row2" style="background:'+(x.kind==='tip'?'#FFF8EC':'#F5FBF5')+'"><span style="font-size:12px">'+d5+tm+'</span><span style="font-size:11px;font-weight:600;color:'+(x.kind==='tip'?'#9A6A10':'var(--ok)')+'">'+(x.kind==='tip'?'💵 平分小費':'💵 現金收入')+'</span>'+cell('+'+$f(x.amt),'var(--ok)')+cell('—','var(--faint)')+balCell()+'<span style="font-size:11px;color:var(--sub)">'+String(x.label).replace(/</g,'&lt;')+putTag+'</span><span></span></div>');
     } else if(x.kind==='in'||x.kind==='out'||x.kind==='expense'||x.kind==='tipout'){
       if(running!==null)running+=(x.kind==='in'?x.amt:-x.amt);
       var lbl=x.kind==='in'?'💰 放入':(x.kind==='out'?'👜 老闆取出':(x.kind==='tipout'?'💵 發平分小費':'🧾 支出')), col=x.kind==='in'?'var(--ok)':(x.kind==='out'?'var(--warn)':(x.kind==='tipout'?'#9A6A10':'var(--sub)'));
@@ -12157,6 +12178,13 @@ function renderCDStoreTbl(store,entries,selMonth){
       if(running!==null){ var df=r2(amt-running), ok=Math.abs(df)<0.01;
         diffHtml='<span style="font-size:12px;color:var(--sub)">帳面應有 '+$f(r2(running))+'</span> <span style="font-size:12px;font-weight:700;padding:1px 8px;border-radius:10px;background:'+(ok?'var(--ok-bg)':'var(--warn-bg)')+';color:'+(ok?'var(--ok)':'var(--warn)')+'">'+(ok?'✓ 相符':(df>0?'多 +'+$f(df):'少 -'+$f(Math.abs(df))))+'</span>';
       } else diffHtml='<span style="font-size:12px;color:var(--sub)">（這個月的起點）</span>';
+      if(running!==null&&hasPutInRecords&&Math.abs(r2(amt-running))>=0.01&&noPutSince>0){
+        diffHtml+='<div style="width:100%;font-size:11px;color:var(--warn);margin-top:4px">🔎 上次點鈔到這次之間，有 '+$f(noPutSince)+' 的現金收入櫃台沒有記「放入」（上面標 ⚠ 的那幾筆）→ 先確認這些現金有沒有真的放進保險箱</div>';
+      }
+      if(running!==null&&Math.abs(r2(amt-running))>=0.01&&suspSince>0){
+        diffHtml+='<div style="width:100%;font-size:11px;color:#1656A0;margin-top:4px">💳 這段期間有 '+$f(suspSince)+' 的「現金」，GoDaddy 那天剛好有同樣金額的刷卡對不到客人（上面標 💳 的）→ 很可能是櫃台把刷卡點成現金，改成刷卡後保險箱就不會算這筆</div>';
+      }
+      noPutSince=0; suspSince=0;
       running=amt;
       var denom=x.kind==='count'?String(x.e.note||'').split(' / ').filter(Boolean).map(function(p){return '<span style="font-size:10px;background:var(--white);border:1px solid var(--border);border-radius:4px;padding:2px 6px;font-weight:600">'+p+'</span>';}).join(' '):'';
       rows.push('<div style="padding:10px 14px;border-bottom:1px solid var(--border);background:var(--bg)"><div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">'
