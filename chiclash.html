@@ -1537,7 +1537,6 @@ input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-
               <option value="in">💵 放入現金</option>
               <option value="out">👆 老闆取出</option>
               <option value="expense">🧾 支出</option>
-              <option value="tipout">💵 發平分小費</option>
             </select>
           </div>
           <div class="cd-ff"><label>金額 ($)</label><input type="text" inputmode="decimal" id="cd-amt-mv" class="cd-field" placeholder="自動加總" min="0" step="0.01" style="width:110px"></div>
@@ -1605,7 +1604,6 @@ input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-
               <option value="in">💵 放入現金</option>
               <option value="out">👆 老闆取出</option>
               <option value="expense">🧾 支出</option>
-              <option value="tipout">💵 發平分小費</option>
             </select>
           </div>
           <div class="cd-ff"><label>金額 ($)</label><input type="text" inputmode="decimal" id="cd-amt-sr" class="cd-field" placeholder="自動加總" min="0" step="0.01" style="width:110px"></div>
@@ -11946,7 +11944,7 @@ function cdDupInIds(store){
       if(hitClient||hitStaff){
         ids[e.id]=true;
         var cl=hitClient&&hitClient.c;
-        info[e.id]=cl?(cl.pay==='cash'?'記帳現金 $'+gv(cl.svc).toFixed(2):(cl.pay==='gc'?'記帳是禮品卡':(cl.cp?'記帳是 ClassPass':'記帳是'+(cl.pay==='venmo'?' Venmo':'刷卡')))):'記帳找不到這筆現金';
+        info[e.id]=cl?(cl.pay==='cash'?'記帳現金是 $'+gv(cl.svc).toFixed(2)+'，金額不同':(cl.pay==='gc'?'記帳是禮品卡':(cl.cp?'記帳是 ClassPass':'記帳是'+(cl.pay==='venmo'?' Venmo':'刷卡')))):'記帳找不到這筆現金';
       }
     });
   });
@@ -12018,10 +12016,10 @@ function cdCompute(store,uptoDate,fromDate){
   }
   if(!start)start=usable[0];
   var dup=cdDupInIds(store).ids;
-  var flows=cdData().filter(function(e){return e.store===store&&(e.type==='out'||e.type==='expense'||e.type==='tipout'||(e.type==='in'&&!dup[e.id]));});
+  var flows=cdData().filter(function(e){return e.store===store&&(e.type==='out'||e.type==='expense'||(e.type==='in'&&!dup[e.id]));});
   var ev=[];
   for(var day=start.date;day<=uptoDate;day=cdAddDays(day,1)){
-    cdSalesItems(store,day).forEach(function(x){ ev.push({date:day,t:x.t,o:0,kind:x.tip?'tip':'sale',amt:x.amt}); });
+    cdSalesItems(store,day).forEach(function(x){ if(x.tip)return; ev.push({date:day,t:x.t,o:0,kind:'sale',amt:x.amt}); }); // 小費另外算，不進保險箱帳面
   }
   flows.forEach(function(f){ if(f.date<start.date||f.date>uptoDate)return; ev.push({date:f.date,t:cdEntryTime(f)||'12:00',o:1,kind:f.type,amt:f.amt,id:f.id||0}); });
   base.forEach(function(b){ if(b===start||b.date<start.date||b.date>uptoDate)return; ev.push({date:b.date,t:b.t,o:2,kind:'base',b:b,id:b.id}); });
@@ -12118,13 +12116,14 @@ function renderCDStoreTbl(store,entries,selMonth){
   var startInMonth=C&&C.start&&C.start.date>=mStart;
   var running=null;
   if(!startInMonth&&C){running=C.atFrom;} // 上個月底的帳面（跟上面摘要同一套起點）
-  var ev=[];
+  var ev=[], tipRows=[];
   for(var day=mStart;day<=mEnd;day=cdAddDays(day,1)){
-    cdSalesItems(store,day).forEach(function(x){ev.push({date:day,t:x.t,o:0,kind:x.tip?'tip':'sale',amt:x.amt,label:x.label||''});});
+    cdSalesItems(store,day).forEach(function(x){ if(x.tip){tipRows.push({date:day,t:x.t,amt:x.amt,label:x.label||''});return;} ev.push({date:day,t:x.t,o:0,kind:'sale',amt:x.amt,label:x.label||''});});
   }
   var hiddenIn=0,hiddenWarn=[];
   cdData().forEach(function(e){
     if(e.store!==store||e.date<mStart||e.date>mEnd)return;
+    if(e.type==='tipout')return; // 小費另外算
     if(e.type==='in'&&dup[e.id]){hiddenIn++; if(dupInfo[e.id]&&dupInfo[e.id]!=='match')hiddenWarn.push(e.date.slice(5)+' '+(e.note||'')+' $'+e.amt.toFixed(2)+'（'+dupInfo[e.id]+'）'); return;}
     var t=cdEntryTime(e);
     if(e.type==='count')ev.push({date:e.date,t:t||'23:59',o:2,kind:'count',e:e,id:e.id||0,tKnown:!!t});
@@ -12176,8 +12175,15 @@ function renderCDStoreTbl(store,entries,selMonth){
   var finalRow='<div style="display:grid;grid-template-columns:50px 120px 90px 90px 90px 1fr 32px;align-items:center;gap:8px;padding:10px 14px;border-top:2px solid '+storeColor+';background:var(--bg)">'
     +'<span style="font-size:11px;color:var(--sub)">目前</span><span style="font-size:12px;font-weight:700;color:'+storeColor+'">📦 帳面應有</span><span></span><span></span>'
     +'<span style="text-align:right;font-size:18px;font-weight:700;color:'+storeColor+'">'+(running===null?'—':$f(r2(running)))+'</span>'
-    +'<span style="font-size:11px;color:var(--sub)">最後一次點鈔（或月初的錢）＋之後每日記帳的現金收入＋平分現金小費＋放入－取出－支出－發平分小費</span><span></span></div>';
-  tbl.innerHTML=hdr+note+(rows.length?rows.join(''):'<div style="text-align:center;padding:24px;font-size:13px;color:var(--faint)">本月尚無記錄</div>')+finalRow;
+    +'<span style="font-size:11px;color:var(--sub)">最後一次點鈔（或月初的錢）＋之後每日記帳的現金收入＋放入－取出－支出（不含小費）</span><span></span></div>';
+  // 要平分的現金小費：另外一張表，不影響保險箱帳面
+  var tipTot=r2(tipRows.reduce(function(t,x){return t+x.amt;},0));
+  var tipHtml=tipRows.length?'<div style="margin-top:14px;border:1px solid #F0DDB0;border-radius:8px;overflow:hidden">'
+    +'<div style="display:flex;justify-content:space-between;padding:8px 14px;background:#FFF8EC;font-size:12px;font-weight:700;color:#9A6A10"><span>💵 要平分的現金小費（另外算，不在上面的保險箱帳面裡）</span><span>共 '+$f(tipTot)+'</span></div>'
+    +tipRows.sort(function(a,b){return (a.date+a.t)<(b.date+b.t)?-1:1;}).map(function(x){
+      return '<div style="display:flex;gap:10px;padding:5px 14px;border-top:1px dashed #F0DDB0;font-size:11.5px"><span style="min-width:74px;color:var(--sub)">'+x.date.slice(5)+(x.t&&x.t!=='00:00'?' '+x.t:'')+'</span><span style="flex:1">'+String(x.label).replace(/</g,'&lt;')+'</span><span style="font-weight:700;color:#9A6A10">'+$f(x.amt)+'</span></div>';
+    }).join('')+'</div>':'';
+  tbl.innerHTML=hdr+note+(rows.length?rows.join(''):'<div style="text-align:center;padding:24px;font-size:13px;color:var(--faint)">本月尚無記錄</div>')+finalRow+tipHtml;
 }
 function setCDTime(id,val){
   var e=cdData().find(function(x){return x.id===id;}); if(!e)return;
@@ -12212,7 +12218,7 @@ function renderCDPage(){
     if(noteEl){
       noteEl.style.display=manualBal!==null?'block':'none';
       noteEl.textContent=manualBal!==null?
-        ('✓ 月初保險箱的錢：$'+manualBal.toFixed(2)+'（從這個月 1 號開始算，加上每日記帳的現金收入、平分現金小費，扣掉取出、支出、發小費）'):'';
+        ('✓ 月初保險箱的錢：$'+manualBal.toFixed(2)+'（從這個月 1 號開始算，加上每日記帳的現金收入，扣掉取出、支出；小費另外算）'):'';
     }
     if(inpEl) inpEl.value = manualBal !== null ? manualBal : '';
     initCDDenoms(store);
