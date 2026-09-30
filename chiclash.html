@@ -12075,6 +12075,92 @@ function calcCDExpectedBalance(store, month){
   return Math.round(running*100)/100;
 }
 
+// ── 幾個月一直對不上：找「有規律」的原因 ──
+// 拿每一次點鈔的差額，跟這段期間的各種金額比（刷卡小費、自己拿的現金小費、平分小費、每位技師的現金服務費…），
+// 如果「少的錢」每次都差不多是某一項的固定比例，那一項就很可能是原因（例如每次都剛好少掉刷卡小費）。
+function cdPeriodAmounts(store,fromDate,toDate){
+  var A={cardTip:0,ownCashTip:0,poolCashTip:0,prodCash:0,gcCash:0,byTech:{},cashTotal:0};
+  for(var day=cdAddDays(fromDate,1);day<=toDate;day=cdAddDays(day,1)){
+    var mo=day.slice(0,7), d=String(parseInt(day.slice(8,10),10));
+    var rec=_D[store]&&_D[store][mo]&&_D[store][mo][d];
+    var st=(_D.tipSplitState&&_D.tipSplitState[mo]&&_D.tipSplitState[mo][d])||{};
+    (rec&&Array.isArray(rec.clients)?rec.clients:[]).forEach(function(c,ci){
+      var tip=gv(c.tip), tp=c.tipPay||'card', tech=tipTechOf(c)||'（沒填技師）';
+      if(tip>0&&tp==='card')A.cardTip+=tip;
+      if(tip>0&&tp==='cash'){
+        var nm=st[store+'_'+ci]; if(!nm||!nm.length)nm=defaultTipNames(c,day);
+        nm=nm.filter(function(n,i){return nm.indexOf(n)===i;});
+        if(nm.length>1)A.poolCashTip+=tip; else A.ownCashTip+=tip;
+      }
+      var cash=0;
+      if(c.pay==='gc'){ if(c.topupPay==='cash')cash+=gv(c.topup); }
+      else if(c.cp){ if(c.cpTopupPay==='cash')cash+=gv(c.cpTopup); }
+      else if(c.pay==='cash')cash+=gv(c.svc);
+      if(cash>0){A.byTech[tech]=(A.byTech[tech]||0)+cash;A.cashTotal+=cash;}
+    });
+    ((_D.products&&_D.products[mo])||[]).forEach(function(p){ var b=p.store?(p.store===store):(store==='mv'); if(b&&p.date===day&&p.pay==='cash')A.prodCash+=gv(p.amt); });
+    (_D.gc_cards||[]).forEach(function(g){ if(g.store===store&&g.date===day&&g.pay==='cash')A.gcCash+=(g.amt||0); });
+    (window._gcFbAll||[]).forEach(function(g){ if(g.store===store&&g.date===day&&g.payMethod==='cash')A.gcCash+=(g.amount||0); });
+  }
+  return A;
+}
+function cdDiagnose(store){
+  var C=cdCompute(store,todayLocal(),'1900-01-01');
+  if(!C)return null;
+  var periods=C.checks.filter(function(x){return x.kind==='count'&&x.from;}).map(function(x){
+    return {from:x.from.date,to:x.date,diff:x.diff,A:cdPeriodAmounts(store,x.from.date,x.date)};
+  });
+  var bad=periods.filter(function(p){return Math.abs(p.diff)>=1;});
+  // 候選原因
+  var cands={'刷卡小費（有人用現金先發？）':function(A){return A.cardTip;},
+             '自己拿的現金小費':function(A){return A.ownCashTip;},
+             '要平分的現金小費':function(A){return A.poolCashTip;},
+             '全部現金收入':function(A){return A.cashTotal;},
+             '現金賣的產品':function(A){return A.prodCash;},
+             '現金賣的禮品卡':function(A){return A.gcCash;}};
+  var techs={}; periods.forEach(function(p){Object.keys(p.A.byTech).forEach(function(t){techs[t]=1;});});
+  Object.keys(techs).forEach(function(t){cands[t+' 的現金客人']=function(A){return A.byTech[t]||0;};});
+  var found=[];
+  if(bad.length>=2){
+    Object.keys(cands).forEach(function(name){
+      var ratios=bad.map(function(p){var v=cands[name](p.A);return v>0?(-p.diff)/v:null;}).filter(function(r){return r!==null;});
+      if(ratios.length<Math.max(2,Math.ceil(bad.length*0.7)))return;
+      var mean=ratios.reduce(function(a,b){return a+b;},0)/ratios.length;
+      if(mean<0.2||mean>1.3)return; // 比例太小或超過 130% 都不合理
+      var sd=Math.sqrt(ratios.reduce(function(a,b){return a+(b-mean)*(b-mean);},0)/ratios.length);
+      var cv=sd/Math.abs(mean);
+      if(cv<0.3)found.push({name:name,pct:Math.round(mean*100),cv:cv,n:ratios.length});
+    });
+    found.sort(function(a,b){return a.cv-b.cv;});
+  }
+  return {periods:periods,bad:bad,found:found};
+}
+function renderCDDiagHtml(store){
+  var R=cdDiagnose(store); if(!R||!R.periods.length)return '';
+  var totalShort=r2(R.bad.reduce(function(t,p){return t+p.diff;},0));
+  var html='<details style="margin-top:10px"><summary style="cursor:pointer;font-size:12px;font-weight:700;color:#1656A0">🔎 一直對不上？看看每次點鈔差多少、有沒有規律（'+R.periods.length+' 次點鈔，'+R.bad.length+' 次對不上，合計 '+sgnMoney(totalShort)+'）</summary>'
+    +'<div style="margin-top:8px;font-size:11.5px">';
+  if(R.found.length){
+    html+='<div style="background:#EAF1FB;border:1px solid #C9DAF0;border-radius:8px;padding:8px 12px;margin-bottom:8px;color:#1656A0;line-height:1.7"><b>💡 找到規律：</b>'
+      +R.found.slice(0,3).map(function(f){return '每次少的錢，大約都是<b>「'+f.name+'」的 '+f.pct+'%</b>（'+f.n+' 次都差不多）';}).join('<br>')
+      +'<div style="color:var(--sub);font-size:10.5px;margin-top:4px">比例接近 100% ＝ 那一項的錢很可能每次都沒進保險箱；接近 50% ＝ 可能有一半被拿走。這只是統計上的線索，請再跟櫃台確認。</div></div>';
+  } else if(R.bad.length>=2){
+    html+='<div style="background:var(--bg);border-radius:8px;padding:8px 12px;margin-bottom:8px;color:var(--sub)">目前看不出固定的規律（不是每次都少掉同一類的錢），比較像是偶爾有人拿錢沒記。建議點鈔點勤一點，縮小範圍。</div>';
+  }
+  html+='<div style="display:grid;grid-template-columns:110px 80px repeat(4,1fr);gap:6px;font-weight:700;color:var(--sub);border-bottom:1px solid var(--border);padding:4px 0"><span>期間</span><span style="text-align:right">點鈔差額</span><span style="text-align:right">現金收入</span><span style="text-align:right">刷卡小費</span><span style="text-align:right">自己拿的現金小費</span><span style="text-align:right">平分現金小費</span></div>';
+  R.periods.slice().reverse().forEach(function(p){
+    var ok=Math.abs(p.diff)<1;
+    html+='<div style="display:grid;grid-template-columns:110px 80px repeat(4,1fr);gap:6px;padding:3px 0;border-bottom:1px dashed var(--border)">'
+      +'<span>'+p.from.slice(5).replace('-','/')+'→'+p.to.slice(5).replace('-','/')+'</span>'
+      +'<span style="text-align:right;font-weight:700;color:'+(ok?'var(--ok)':'var(--warn)')+'">'+(ok?'✓':sgnMoney(p.diff))+'</span>'
+      +'<span style="text-align:right">'+$f(r2(p.A.cashTotal+p.A.prodCash+p.A.gcCash))+'</span>'
+      +'<span style="text-align:right">'+$f(r2(p.A.cardTip))+'</span>'
+      +'<span style="text-align:right">'+$f(r2(p.A.ownCashTip))+'</span>'
+      +'<span style="text-align:right">'+$f(r2(p.A.poolCashTip))+'</span></div>';
+  });
+  return html+'</div></details>';
+}
+
 function renderCDReconPanel(store, selMonth){
   // 本月現金對帳：直接用「點鈔 vs 帳面應有」的結果（跟上面、流水帳同一套算法、同樣照時間排序）
   var panel=document.getElementById('cd-recon-'+store);
@@ -12098,6 +12184,7 @@ function renderCDReconPanel(store, selMonth){
     +'</div>'
     +(bad.length?'<div style="font-size:11px;color:var(--warn);background:var(--warn-bg);border:1px solid var(--warn-bd);border-radius:6px;padding:7px 12px">⚠ '+bad.map(function(x){return x.date.slice(5).replace('-','/')+' 點鈔 '+$f(x.counted)+'，帳面應有 '+$f(x.expected)+'（'+(x.diff>0?'多 +':'少 -')+$f(Math.abs(x.diff))+'）';}).join('<br>⚠ ')+'<br><span style="color:var(--sub)">看下面流水帳那一次點鈔前後的收入、取出，確認時間和金額；每日記帳有沒有漏記或付款方式點錯。</span></div>':'')
     +(!checks.length&&cashRev>0?'<div style="font-size:11px;color:var(--sub);background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:7px 12px">💡 這個月還沒點鈔（或只點了第一次當起點），之後每次點鈔都會自動比對。</div>':'')
+    +renderCDDiagHtml(store)
     +'</div>';
 }
 
