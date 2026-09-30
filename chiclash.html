@@ -719,6 +719,7 @@ input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-
     <div class="gdb-icon" id="gdb-icon">💳</div>
     <div class="gdb-body"><div class="gdb-title" id="gdb-title">GoDaddy 本月撥款</div><div class="gdb-desc" id="gdb-desc">填入每日 GoDaddy 實收後自動加總</div>
       <div style="margin-top:4px;font-size:11px;color:var(--faint)">每天的逐筆對帳請看下方「GoDaddy 對帳」頁</div>
+      <div id="gdb-recon"></div>
     </div>
     <div class="gdb-nums">
       <div class="gdn"><div class="gdn-l">GoDaddy 實收</div><div class="gdn-v" id="gdb-act">—</div></div>
@@ -3762,6 +3763,38 @@ function updateAll(){
   document.getElementById('gdb-title').textContent=actDays?('GoDaddy 本月撥款 '+$f(act)):'GoDaddy 本月撥款';
   document.getElementById('gdb-desc').textContent=actDays?('已填 '+actDays+' 天｜手續費 '+$f(totalFee)+'｜實際入帳 '+$f(netIn)):'填入每日 GoDaddy 實收後自動加總';
   if(badge)badge.style.display='none';
+
+  // ── 跟下面兩店「GoDaddy 對帳金額」為什麼不一樣：逐項對起來 ──
+  (function(){
+    var el=document.getElementById('gdb-recon'); if(!el)return;
+    var expAll=0,pend=0,pendDays=[],rows=[],expl=0,unexpl=0;
+    for(var d=1;d<=days;d++){
+      var e=r2(calcDay('mv',d).gdDue+calcDay('sr',d).gdDue); expAll+=e;
+      var a=gdDay(d).act;
+      if(a===''||a===undefined||a===null){ if(e>0){pend+=e;pendDays.push(d);} continue; }
+      var dd=r2(gv(a)-e); if(Math.abs(dd)<0.01)continue;
+      var items=((_D.gdExplain&&_D.gdExplain[mk()]&&_D.gdExplain[mk()][d])||[]).filter(function(x){return x.f==='gd'&&gv(x.amt)!==0;});
+      var sumI=r2(items.reduce(function(t,x){return t+gv(x.amt);},0));
+      var conf=isGdDayConfirmed(d);
+      var left=conf?0:r2(dd-sumI);
+      expl=r2(expl+dd-left); unexpl=r2(unexpl+left);
+      var why=items.map(function(x){return (x.why||'（沒寫原因）')+' '+sgnMoney(gv(x.amt));}).join('；');
+      if(conf&&!why)why='已確認'+(sqManualDay(d).note?'：'+sqManualDay(d).note:'');
+      rows.push('<div style="display:flex;gap:8px;padding:2px 0;border-top:1px dashed var(--border)"><span style="min-width:44px;color:var(--sub)">'+(cur.getMonth()+1)+'/'+d+'</span><span style="min-width:74px;text-align:right;font-weight:600">'+sgnMoney(dd)+'</span><span style="flex:1;color:'+(Math.abs(left)>=0.01?'var(--warn)':'var(--sub)')+'">'+(why?String(why).replace(/</g,'&lt;'):'')+(Math.abs(left)>=0.01?'　⚠ 還有 '+sgnMoney(left)+' 沒說明':'')+'</span></div>');
+    }
+    expAll=r2(expAll); pend=r2(pend);
+    if(!actDays){el.innerHTML='';return;}
+    var pendLbl=pendDays.length?pendDays.map(function(x){return (cur.getMonth()+1)+'/'+x;}).join('、'):'';
+    el.innerHTML='<details style="margin-top:6px;font-size:11.5px;color:var(--sub)"><summary style="cursor:pointer;color:#1656A0;font-weight:600">為什麼跟下面兩店的「GoDaddy 對帳金額」不一樣？（點開看）</summary>'
+      +'<div style="margin-top:6px;line-height:1.9;background:var(--bg);border-radius:6px;padding:8px 10px">'
+      +'<div style="display:flex;justify-content:space-between"><span>每日記帳算出的刷卡金額（兩店合計，整個月）</span><b>'+$f(expAll)+'</b></div>'
+      +(pend>0?'<div style="display:flex;justify-content:space-between"><span>－ 還沒撥款／還沒填實收的日子（'+pendLbl+'）</span><b>-'+$f(pend)+'</b></div>':'')
+      +(Math.abs(expl)>=0.01?'<div style="display:flex;justify-content:space-between"><span>± 已查明原因的差額（明細如下）</span><b>'+sgnMoney(expl)+'</b></div>':'')
+      +(Math.abs(unexpl)>=0.01?'<div style="display:flex;justify-content:space-between;color:var(--warn)"><span>± 還沒說明的差額</span><b>'+sgnMoney(unexpl)+'</b></div>':'')
+      +'<div style="display:flex;justify-content:space-between;border-top:1px solid var(--border);margin-top:2px;padding-top:2px"><span>＝ GoDaddy 實收</span><b>'+$f(act)+'</b></div>'
+      +(rows.length?'<div style="margin-top:6px;font-size:11px">'+rows.join('')+'</div>':'')
+      +'</div></details>';
+  })();
 
   // ── 當月各店支出（從收支記帳讀取）──
   const mk2str = mk2();
