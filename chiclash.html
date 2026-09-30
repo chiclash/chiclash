@@ -1431,7 +1431,7 @@ input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-
       <div id="boss-diff-mv" style="font-size:11px;font-weight:600;margin-top:4px;text-align:right;color:#888">—</div>
       <div id="boss-expect-basis-mv" style="font-size:9px;color:#aaa;margin-top:2px;text-align:right">—</div>
       <div style="border-top:1px solid var(--mv-bd);margin-top:10px;padding-top:10px;display:flex;gap:6px;align-items:center">
-        <span style="font-size:9px;color:var(--mv);font-weight:600;white-space:nowrap">手動更正餘額</span>
+        <span style="font-size:9px;color:var(--mv);font-weight:600;white-space:nowrap">月初保險箱的錢</span>
         <input type="text" inputmode="decimal" id="cd-manual-mv" step="0.01" placeholder="輸入實際金額…"
           style="flex:1;border:1.5px solid var(--mv-bd);border-radius:6px;padding:5px 8px;font-size:13px;font-weight:700;font-family:monospace;color:var(--mv);background:var(--white);outline:none"
           onchange="cdSaveManual('mv',this.value,document.getElementById('cd-month-sel').value)">
@@ -1471,7 +1471,7 @@ input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-
       <div id="boss-diff-sr" style="font-size:11px;font-weight:600;margin-top:4px;text-align:right;color:#888">—</div>
       <div id="boss-expect-basis-sr" style="font-size:9px;color:#aaa;margin-top:2px;text-align:right">—</div>
       <div style="border-top:1px solid var(--sr-bd);margin-top:10px;padding-top:10px;display:flex;gap:6px;align-items:center">
-        <span style="font-size:9px;color:var(--sr);font-weight:600;white-space:nowrap">手動更正餘額</span>
+        <span style="font-size:9px;color:var(--sr);font-weight:600;white-space:nowrap">月初保險箱的錢</span>
         <input type="text" inputmode="decimal" id="cd-manual-sr" step="0.01" placeholder="輸入實際金額…"
           style="flex:1;border:1.5px solid var(--sr-bd);border-radius:6px;padding:5px 8px;font-size:13px;font-weight:700;font-family:monospace;color:var(--sr);background:var(--white);outline:none"
           onchange="cdSaveManual('sr',this.value,document.getElementById('cd-month-sel').value)">
@@ -1537,6 +1537,7 @@ input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-
               <option value="in">💵 放入現金</option>
               <option value="out">👆 老闆取出</option>
               <option value="expense">🧾 支出</option>
+              <option value="tipout">💵 發平分小費</option>
             </select>
           </div>
           <div class="cd-ff"><label>金額 ($)</label><input type="text" inputmode="decimal" id="cd-amt-mv" class="cd-field" placeholder="自動加總" min="0" step="0.01" style="width:110px"></div>
@@ -1604,6 +1605,7 @@ input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-
               <option value="in">💵 放入現金</option>
               <option value="out">👆 老闆取出</option>
               <option value="expense">🧾 支出</option>
+              <option value="tipout">💵 發平分小費</option>
             </select>
           </div>
           <div class="cd-ff"><label>金額 ($)</label><input type="text" inputmode="decimal" id="cd-amt-sr" class="cd-field" placeholder="自動加總" min="0" step="0.01" style="width:110px"></div>
@@ -11966,7 +11968,15 @@ function cdSalesItems(store,date){ // 這天每一筆進保險箱的現金（含
   var mo=date.slice(0,7), d=String(parseInt(date.slice(8,10),10)), out=[];
   var day=_D[store]&&_D[store][mo]&&_D[store][mo][d];
   var clients=(day&&Array.isArray(day.clients))?day.clients:[];
-  clients.forEach(function(c){
+  var st=(_D.tipSplitState&&_D.tipSplitState[mo]&&_D.tipSplitState[mo][d])||{};
+  clients.forEach(function(c,ci){
+    // 要平分的現金小費（同一筆分給 2 人以上）：先放保險箱，月底再發 → 算進保險箱，但不是營業額；自己拿的現金小費不算
+    var tip=gv(c.tip);
+    if(tip>0&&(c.tipPay||'card')==='cash'){
+      var nm=st[store+'_'+ci]; if(!nm||!nm.length)nm=defaultTipNames(c,date);
+      nm=nm.filter(function(n,i){return nm.indexOf(n)===i;});
+      if(nm.length>1)out.push({t:cdHHMM(c.time)||'00:00',amt:r2(tip),tip:true,label:(c.clientName||'')+'（'+nm.join('、')+' 平分）'});
+    }
     var cash=0;
     if(c.pay==='gc'){ if(c.topupPay==='cash')cash+=gv(c.topup); }
     else if(c.cp){ if(c.cpTopupPay==='cash')cash+=gv(c.cpTopup); }
@@ -11986,11 +11996,10 @@ function cdCompute(store,uptoDate,fromDate){
   cdData().forEach(function(e){ if(e.store===store&&e.type==='count'){ countDates[e.date]=1; base.push({date:e.date,t:cdEntryTime(e)||'23:59',amt:e.amt,id:e.id||0,kind:'count'}); } });
   Object.keys(_D.cdManual||{}).forEach(function(mo){
     var v=_D.cdManual[mo]&&_D.cdManual[mo][store]; if(v===undefined||v===null)return;
-    var amt=(typeof v==='object')?v.amt:v, date=(typeof v==='object'&&v.date)?v.date:cdAddDays(mo+'-01',-1);
+    var amt=(typeof v==='object')?v.amt:v;
     if(amt===null||amt===undefined||isNaN(parseFloat(amt)))return;
-    if(countDates[date])return; // 同一天有實際點鈔 → 以點鈔為準
-    var t=(typeof v==='object'&&v.at)?cdEntryTime({id:v.at,date:date}):'';
-    base.push({date:date,t:t||'23:59',amt:parseFloat(amt),id:9e14-1,kind:'manual'});
+    // 「月初保險箱的錢」＝那個月 1 號一開始的金額（不管是哪天才輸入的）
+    base.push({date:mo+'-01',t:'',amt:parseFloat(amt),id:0,kind:'manual'}); // t 空白＝排在 1 號所有事情之前
   });
   var key=function(x){return x.date+' '+x.t;};
   base.sort(function(a,b){return key(a)<key(b)?-1:key(a)>key(b)?1:a.id-b.id;});
@@ -12001,37 +12010,41 @@ function cdCompute(store,uptoDate,fromDate){
     // 起點：上個月（31 天內）最後一次「實際點鈔」→ 這樣月初第一次點鈔也能比對；
     // 沒有的話（例如之前很久沒點鈔、只有手動餘額）→ 用這個月第一次點鈔／手動餘額當起點，避免拿不完整的舊資料一路累加
     var winStart=cdAddDays(fromDate,-31);
+    var monthManual=usable.find(function(b){return b.kind==='manual'&&b.date===fromDate;});
     var recent=usable.filter(function(b){return b.kind==='count'&&b.date<fromDate&&b.date>=winStart;});
-    start=recent.length?recent[recent.length-1]:(usable.find(function(b){return b.date>=fromDate;})||null);
+    // 有填這個月的「月初保險箱的錢」→ 一律從它開始；沒有才接上個月最後一次點鈔
+    start=monthManual||(recent.length?recent[recent.length-1]:(usable.find(function(b){return b.date>=fromDate;})||null));
     if(!start){ var before=usable.filter(function(b){return b.date<fromDate;}); start=before[before.length-1]; }
   }
   if(!start)start=usable[0];
   var dup=cdDupInIds(store).ids;
-  var flows=cdData().filter(function(e){return e.store===store&&(e.type==='out'||e.type==='expense'||(e.type==='in'&&!dup[e.id]));});
+  var flows=cdData().filter(function(e){return e.store===store&&(e.type==='out'||e.type==='expense'||e.type==='tipout'||(e.type==='in'&&!dup[e.id]));});
   var ev=[];
   for(var day=start.date;day<=uptoDate;day=cdAddDays(day,1)){
-    cdSalesItems(store,day).forEach(function(x){ ev.push({date:day,t:x.t,o:0,kind:'sale',amt:x.amt}); });
+    cdSalesItems(store,day).forEach(function(x){ ev.push({date:day,t:x.t,o:0,kind:x.tip?'tip':'sale',amt:x.amt}); });
   }
   flows.forEach(function(f){ if(f.date<start.date||f.date>uptoDate)return; ev.push({date:f.date,t:cdEntryTime(f)||'12:00',o:1,kind:f.type,amt:f.amt,id:f.id||0}); });
   base.forEach(function(b){ if(b===start||b.date<start.date||b.date>uptoDate)return; ev.push({date:b.date,t:b.t,o:2,kind:'base',b:b,id:b.id}); });
   // 只算起點「之後」發生的事（同一天、時間比起點早的不算）
   ev=ev.filter(function(x){ var kx=key(x), ks=key(start); return kx>ks||(kx===ks&&x.o===2&&(x.id||0)>start.id); });
   ev.sort(function(a,b){ var ka=key(a),kb=key(b); if(ka!==kb)return ka<kb?-1:1; if(a.o!==b.o)return a.o-b.o; return (a.id||0)-(b.id||0); });
-  var running=start.amt, since={sales:0,in:0,out:0,exp:0}, results=[], lastBase=start, atFrom;
+  var running=start.amt, since={sales:0,in:0,out:0,exp:0,tip:0,tipout:0}, results=[], lastBase=start, atFrom;
   ev.forEach(function(x){
     if(fromDate&&atFrom===undefined&&x.date>=fromDate)atFrom=r2(running); // 月初（fromDate 那天開始前）的帳面
     if(x.kind==='sale'){running+=x.amt;since.sales+=x.amt;}
+    else if(x.kind==='tip'){running+=x.amt;since.tip+=x.amt;}
+    else if(x.kind==='tipout'){running-=x.amt;since.tipout+=x.amt;}
     else if(x.kind==='in'){running+=x.amt;since.in+=x.amt;}
     else if(x.kind==='out'){running-=x.amt;since.out+=x.amt;}
     else if(x.kind==='expense'){running-=x.amt;since.exp+=x.amt;}
     else if(x.kind==='base'){
       var exp=r2(running);
       results.push({date:x.b.date,kind:x.b.kind,counted:r2(x.b.amt),expected:exp,diff:r2(x.b.amt-exp),from:lastBase,since:{sales:r2(since.sales),in:r2(since.in),out:r2(since.out),exp:r2(since.exp)}});
-      running=x.b.amt; lastBase=x.b; since={sales:0,in:0,out:0,exp:0};
+      running=x.b.amt; lastBase=x.b; since={sales:0,in:0,out:0,exp:0,tip:0,tipout:0};
     }
   });
   if(atFrom===undefined)atFrom=r2(running);
-  return {atFrom:atFrom,start:start,now:r2(running),last:lastBase,since:{sales:r2(since.sales),in:r2(since.in),out:r2(since.out),exp:r2(since.exp)},checks:results};
+  return {atFrom:atFrom,start:start,now:r2(running),last:lastBase,since:{sales:r2(since.sales),in:r2(since.in),out:r2(since.out),exp:r2(since.exp),tip:r2(since.tip),tipout:r2(since.tipout)},checks:results};
 }
 
 window.cdCompute=cdCompute;
@@ -12107,7 +12120,7 @@ function renderCDStoreTbl(store,entries,selMonth){
   if(!startInMonth&&C){running=C.atFrom;} // 上個月底的帳面（跟上面摘要同一套起點）
   var ev=[];
   for(var day=mStart;day<=mEnd;day=cdAddDays(day,1)){
-    cdSalesItems(store,day).forEach(function(x){ev.push({date:day,t:x.t,o:0,kind:'sale',amt:x.amt,label:x.label||''});});
+    cdSalesItems(store,day).forEach(function(x){ev.push({date:day,t:x.t,o:0,kind:x.tip?'tip':'sale',amt:x.amt,label:x.label||''});});
   }
   var hiddenIn=0,hiddenWarn=[];
   cdData().forEach(function(e){
@@ -12119,10 +12132,8 @@ function renderCDStoreTbl(store,entries,selMonth){
   });
   var manualObj=_D.cdManual&&_D.cdManual[selMonth]&&_D.cdManual[selMonth][store];
   if(manualObj!==undefined&&manualObj!==null){
-    var mAmt=(typeof manualObj==='object')?manualObj.amt:manualObj, mDate=(typeof manualObj==='object'&&manualObj.date)?manualObj.date:cdAddDays(mStart,-1);
-    var sameDayCount=cdData().some(function(e){return e.store===store&&e.type==='count'&&e.date===mDate;});
-    if(!sameDayCount&&mDate>=mStart)ev.push({date:mDate,t:(typeof manualObj==='object'&&manualObj.at)?(cdEntryTime({id:manualObj.at,date:mDate})||'23:59'):'23:59',o:2,kind:'manual',amt:parseFloat(mAmt),id:9e14-1});
-    else if(!sameDayCount&&mDate<mStart)running=parseFloat(mAmt);
+    var mAmt=(typeof manualObj==='object')?manualObj.amt:manualObj;
+    if(!isNaN(parseFloat(mAmt)))ev.push({date:mStart,t:'',o:-1,kind:'manual',amt:parseFloat(mAmt),id:0});
   }
   ev.sort(function(a,b){var ka=key(a),kb=key(b);if(ka!==kb)return ka<kb?-1:1;if(a.o!==b.o)return a.o-b.o;return (a.id||0)-(b.id||0);});
   var cell=function(v,color){return '<span style="text-align:right;'+(color?'color:'+color+';':'')+'">'+v+'</span>';};
@@ -12133,13 +12144,13 @@ function renderCDStoreTbl(store,entries,selMonth){
   var rows=[];
   if(running!==null)rows.push('<div class="cd-row2" style="background:var(--bg)"><span style="font-size:11px;color:var(--sub)">帶入</span><span style="font-size:11px;font-weight:700;color:'+storeColor+'">上月底帳面</span>'+cell('—','var(--faint)')+cell('—','var(--faint)')+balCell()+'<span style="font-size:11px;color:var(--sub)">'+selMonth.slice(5)+' 月開始</span><span></span></div>');
   ev.forEach(function(x){
-    var d5=x.date.slice(5), tm=(x.kind==='sale'&&x.t&&x.t!=='00:00')?' <span style="color:var(--faint);font-size:10px">'+x.t+'</span>':'';
-    if(x.kind==='sale'){
+    var d5=x.date.slice(5), tm=((x.kind==='sale'||x.kind==='tip')&&x.t&&x.t!=='00:00')?' <span style="color:var(--faint);font-size:10px">'+x.t+'</span>':'';
+    if(x.kind==='sale'||x.kind==='tip'){
       if(running!==null)running+=x.amt;
-      rows.push('<div class="cd-row2" style="background:#F5FBF5"><span style="font-size:12px">'+d5+tm+'</span><span style="font-size:11px;font-weight:600;color:var(--ok)">💵 現金收入</span>'+cell('+'+$f(x.amt),'var(--ok)')+cell('—','var(--faint)')+balCell()+'<span style="font-size:11px;color:var(--sub)">'+String(x.label).replace(/</g,'&lt;')+'</span><span></span></div>');
-    } else if(x.kind==='in'||x.kind==='out'||x.kind==='expense'){
+      rows.push('<div class="cd-row2" style="background:'+(x.kind==='tip'?'#FFF8EC':'#F5FBF5')+'"><span style="font-size:12px">'+d5+tm+'</span><span style="font-size:11px;font-weight:600;color:'+(x.kind==='tip'?'#9A6A10':'var(--ok)')+'">'+(x.kind==='tip'?'💵 平分小費':'💵 現金收入')+'</span>'+cell('+'+$f(x.amt),'var(--ok)')+cell('—','var(--faint)')+balCell()+'<span style="font-size:11px;color:var(--sub)">'+String(x.label).replace(/</g,'&lt;')+'</span><span></span></div>');
+    } else if(x.kind==='in'||x.kind==='out'||x.kind==='expense'||x.kind==='tipout'){
       if(running!==null)running+=(x.kind==='in'?x.amt:-x.amt);
-      var lbl=x.kind==='in'?'💰 放入':(x.kind==='out'?'👜 老闆取出':'🧾 支出'), col=x.kind==='in'?'var(--ok)':(x.kind==='out'?'var(--warn)':'var(--sub)');
+      var lbl=x.kind==='in'?'💰 放入':(x.kind==='out'?'👜 老闆取出':(x.kind==='tipout'?'💵 發平分小費':'🧾 支出')), col=x.kind==='in'?'var(--ok)':(x.kind==='out'?'var(--warn)':(x.kind==='tipout'?'#9A6A10':'var(--sub)'));
       rows.push('<div class="cd-row2"><span style="font-size:12px">'+d5+'<br>'+timeInput(x)+'</span><span style="font-size:11px;font-weight:600;color:'+col+'">'+lbl+'</span>'+(x.kind==='in'?cell('+'+$f(x.amt),'var(--ok)')+cell('—','var(--faint)'):cell('—','var(--faint)')+cell('-'+$f(x.amt),col))+balCell()+'<span style="font-size:11px;color:var(--sub)">'+String(x.e.note||'').replace(/</g,'&lt;')+'</span><button class="att-del" onclick="delCDEntry('+x.e.id+')">&#215;</button></div>');
     } else {
       var amt=x.kind==='count'?x.e.amt:x.amt;
@@ -12151,7 +12162,7 @@ function renderCDStoreTbl(store,entries,selMonth){
       var denom=x.kind==='count'?String(x.e.note||'').split(' / ').filter(Boolean).map(function(p){return '<span style="font-size:10px;background:var(--white);border:1px solid var(--border);border-radius:4px;padding:2px 6px;font-weight:600">'+p+'</span>';}).join(' '):'';
       rows.push('<div style="padding:10px 14px;border-bottom:1px solid var(--border);background:var(--bg)"><div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">'
         +'<span style="font-size:12px;color:var(--sub);min-width:40px">'+d5+'</span>'+(x.kind==='count'?timeInput(x):'')
-        +'<span style="font-size:11px;font-weight:700;color:var(--tip)">'+(x.kind==='count'?'🧮 點鈔':'✏️ 手動餘額')+'</span>'
+        +'<span style="font-size:11px;font-weight:700;color:var(--tip)">'+(x.kind==='count'?'🧮 點鈔':'✏️ 月初保險箱的錢')+'</span>'
         +'<span style="font-size:17px;font-weight:700">'+$f(amt)+'</span>'+diffHtml
         +(x.kind==='count'?'<button class="att-del" style="margin-left:auto" onclick="delCDEntry('+x.e.id+')">&#215;</button>':'')
         +'</div>'+(denom?'<div style="display:flex;flex-wrap:wrap;gap:4px;margin-top:6px">'+denom+'</div>':'')
@@ -12165,7 +12176,7 @@ function renderCDStoreTbl(store,entries,selMonth){
   var finalRow='<div style="display:grid;grid-template-columns:50px 120px 90px 90px 90px 1fr 32px;align-items:center;gap:8px;padding:10px 14px;border-top:2px solid '+storeColor+';background:var(--bg)">'
     +'<span style="font-size:11px;color:var(--sub)">目前</span><span style="font-size:12px;font-weight:700;color:'+storeColor+'">📦 帳面應有</span><span></span><span></span>'
     +'<span style="text-align:right;font-size:18px;font-weight:700;color:'+storeColor+'">'+(running===null?'—':$f(r2(running)))+'</span>'
-    +'<span style="font-size:11px;color:var(--sub)">最後一次點鈔＋之後每日記帳的現金收入＋放入－取出－支出</span><span></span></div>';
+    +'<span style="font-size:11px;color:var(--sub)">最後一次點鈔（或月初的錢）＋之後每日記帳的現金收入＋平分現金小費＋放入－取出－支出－發平分小費</span><span></span></div>';
   tbl.innerHTML=hdr+note+(rows.length?rows.join(''):'<div style="text-align:center;padding:24px;font-size:13px;color:var(--faint)">本月尚無記錄</div>')+finalRow;
 }
 function setCDTime(id,val){
@@ -12201,7 +12212,7 @@ function renderCDPage(){
     if(noteEl){
       noteEl.style.display=manualBal!==null?'block':'none';
       noteEl.textContent=manualBal!==null?
-        ('⚠ 已設定手動餘額'+(manualDate?'（'+manualDate+'）':'')+'：$'+manualBal.toFixed(2)+'，「保險箱應該有」會從這個金額開始，加上之後每日記帳的現金收入、放入、取出（同一天有點鈔的話以點鈔為準）'):'';
+        ('✓ 月初保險箱的錢：$'+manualBal.toFixed(2)+'（從這個月 1 號開始算，加上每日記帳的現金收入、平分現金小費，扣掉取出、支出、發小費）'):'';
     }
     if(inpEl) inpEl.value = manualBal !== null ? manualBal : '';
     initCDDenoms(store);
@@ -12239,8 +12250,8 @@ function renderCDPage(){
     } else {
       if(balEl){balEl.textContent=$f(C.now);balEl.style.color=C.now>=0?storeColor:'#B83010';}
       if(expEl){expEl.textContent=$f(C.now);expEl.style.color=C.now>=0?storeColor:'#B83010';}
-      var fromLbl=(C.last.kind==='manual'?'手動餘額 ':'點鈔 ')+C.last.date.slice(5).replace('-','/')+' '+$f(C.last.amt);
-      if(basisEl)basisEl.innerHTML='＝ '+fromLbl+' ＋ 之後現金收入 '+$f(C.since.sales)+(C.since.in>0?' ＋ 放入 '+$f(C.since.in):'')+(C.since.out>0?' － 老闆取走 '+$f(C.since.out):'')+(C.since.exp>0?' － 支出 '+$f(C.since.exp):'')+'（算到 '+upto.slice(5).replace('-','/')+'）';
+      var fromLbl=(C.last.kind==='manual'?'月初的錢 ':'點鈔 ')+C.last.date.slice(5).replace('-','/')+' '+$f(C.last.amt);
+      if(basisEl)basisEl.innerHTML='＝ '+fromLbl+' ＋ 之後現金收入 '+$f(C.since.sales)+(C.since.tip>0?' ＋ 平分現金小費 '+$f(C.since.tip):'')+(C.since.tipout>0?' － 發平分小費 '+$f(C.since.tipout):'')+(C.since.in>0?' ＋ 放入 '+$f(C.since.in):'')+(C.since.out>0?' － 老闆取走 '+$f(C.since.out):'')+(C.since.exp>0?' － 支出 '+$f(C.since.exp):'')+'（算到 '+upto.slice(5).replace('-','/')+'）';
       var mChecks=C.checks.filter(function(x){return x.kind==='count'&&x.date.slice(0,7)===selMonth;});
       if(diffEl){
         diffEl.innerHTML=mChecks.length?mChecks.map(function(x){
