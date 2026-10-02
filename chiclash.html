@@ -7293,6 +7293,9 @@ function getEffectiveTipDay(mo,d){
       names=names.filter(function(n,i){return names.indexOf(n)===i;}).sort();
       if(!names.length)return;
       var type=(c.tipPay||'card')==='cash'?'cash':'card';
+      // 現金小費只有一個人拿（不平分）＝技師自己當場拿走了 → 不算進要發的小費（避免重複發）；
+      // 補款計算另外直接看每日記帳，不受影響
+      if(type==='cash'&&names.length===1){ out[store].ownCash=out[store].ownCash||{}; out[store].ownCash[names[0]]=r2((out[store].ownCash[names[0]]||0)+tip); return; }
       var shares=splitTip(tip,names,type==='cash',tipTechOf(c));
       names.forEach(function(n){out[store][type][n]=r2((out[store][type][n]||0)+shares[n]);});
     });
@@ -7559,7 +7562,7 @@ function buildTipDayBody(d){
     var count=selSet.size||1;
     var shares=splitTip(cl.tip,Array.from(selSet),cl.tipPay==='cash',tipTechOf(cl.c));
     var each=Math.round(cl.tip/count*100)/100;
-    var resultStr=selSet.size>1?Object.keys(shares).map(function(n){return n+' $'+shares[n].toFixed(2);}).join('、'):selSet.size===1?'$'+cl.tip.toFixed(2)+' → '+[...selSet][0]:'未分配';
+    var resultStr=selSet.size>1?Object.keys(shares).map(function(n){return n+' $'+shares[n].toFixed(2);}).join('、'):selSet.size===1?(cl.tipPay==='cash'?'$'+cl.tip.toFixed(2)+' → '+[...selSet][0]+'（現金自己拿走，不用另外發）':'$'+cl.tip.toFixed(2)+' → '+[...selSet][0]):'未分配';
 
     rows+='<div style="background:var(--white);border-radius:10px;padding:10px 12px;margin-bottom:8px;box-shadow:0 1px 6px rgba(0,0,0,.05)">'
       +'<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:8px">'
@@ -7611,6 +7614,7 @@ function buildTipDayBody(d){
     var txnKey2=cl.store+'_'+cl.idx;
     var selSet=tipSplitSel[splitKey][txnKey2]||new Set();
     if(!selSet.size) return;
+    if(cl.tipPay==='cash'&&selSet.size===1) return; // 現金小費自己拿走：不算進要發的小費
     var shares=splitTip(cl.tip,Array.from(selSet),cl.tipPay==='cash',tipTechOf(cl.c));
     selSet.forEach(function(name){
       if(!totals[name]) totals[name]={card:0,cash:0};
@@ -8557,9 +8561,11 @@ function buildStaffReportData(){
   return staffList.map(function(name){
     var cfg=staffPayCfg(name);
     var tips=tipMap[name]||{mv:{card:0,cash:0},sr:{card:0,cash:0}};
-    var mvTip=(tips.mv.card||0)+(tips.mv.cash||0);
-    var srTip=(tips.sr.card||0)+(tips.sr.cash||0);
+    // 薪水裡發的小費＝只有刷卡小費；平分的現金小費月底直接分現金，不含在實領（避免重複發）
+    var mvTip=(tips.mv.card||0);
+    var srTip=(tips.sr.card||0);
     var totalTip=mvTip+srTip;
+    var cashTipDirect=r2((tips.mv.cash||0)+(tips.sr.cash||0));
     var myPens=pens.filter(function(p){return p.staff===name;}).sort(function(a,b){return a.date<b.date?-1:1;});
     var penTotal=myPens.reduce(function(s,p){return s+(p.type==='bonus'?Math.abs(p.amt):-Math.abs(p.amt));},0);
     var mvRev=mvRevPer[name]||0;
@@ -8677,7 +8683,7 @@ function buildStaffReportData(){
       mvTip:mvTip, srTip:srTip,
       mvTipCard:tips.mv.card||0, mvTipCash:tips.mv.cash||0,
       srTipCard:tips.sr.card||0, srTipCash:tips.sr.cash||0,
-      pooledTip:pooledTipVal,
+      pooledTip:pooledTipVal, cashTipDirect:cashTipDirect,
       pens:myPens, penTotal:penTotal,
       mvRev:mvRev, srRev:srRev,
       bossSupp:bossSupp, bossSuppLabel:bossSuppLabel,
@@ -8811,12 +8817,12 @@ function renderReportPage(){
       if(d.mvTip>0) details+=
         '<tr id="'+detailId+'-mt" style="display:none;background:var(--bg)"><td></td>'+
         '<td style="padding:4px 14px 4px 28px;font-size:11px;color:var(--mv)">MV 小費 '+$f(d.mvTip)+
-        (d.mvTipCard>0&&d.mvTipCash>0?' <span style="color:var(--faint);font-weight:400">刷 '+$f(d.mvTipCard)+' / 現 '+$f(d.mvTipCash)+'</span>':'')+
+        (d.mvTipCash>0?' <span style="color:var(--faint);font-weight:400">（另有平分現金小費 '+$f(d.mvTipCash)+' 直接分現金）</span>':'')+
         '</td><td colspan="'+(COLS-2)+'"></td></tr>';
       if(d.srTip>0) details+=
         '<tr id="'+detailId+'-st" style="display:none;background:var(--bg)"><td></td>'+
         '<td style="padding:4px 14px 4px 28px;font-size:11px;color:var(--sr)">SR 小費 '+$f(d.srTip)+
-        (d.srTipCard>0&&d.srTipCash>0?' <span style="color:var(--faint);font-weight:400">刷 '+$f(d.srTipCard)+' / 現 '+$f(d.srTipCash)+'</span>':'')+
+        (d.srTipCash>0?' <span style="color:var(--faint);font-weight:400">（另有平分現金小費 '+$f(d.srTipCash)+' 直接分現金）</span>':'')+
         '</td><td colspan="'+(COLS-2)+'"></td></tr>';
     }
     // Reviews
@@ -8986,12 +8992,12 @@ function renderReportPage(){
             return '<td style="padding:6px 12px;text-align:right"><div style="font-size:13px;font-weight:700;color:var(--tip)">'+$f(d.pooledTip)+'</div><div style="font-size:10px;color:var(--faint)">平分後</div></td>';
           }
           var totalCard=(d.mvTipCard||0)+(d.srTipCard||0);
-          var totalCash=(d.mvTipCash||0)+(d.srTipCash||0);
+          var totalCash=d.cashTipDirect||0;
           var total=totalCard+totalCash;
           if(!total) return '<td style="padding:10px 12px;text-align:right;font-size:12px;color:var(--sub)">—</td>';
           var lines='';
           if(totalCard>0) lines+='<div style="font-size:11px;color:var(--sub)">💳 '+$f(totalCard)+'</div>';
-          if(totalCash>0) lines+='<div style="font-size:11px;color:var(--cash)">💵 '+$f(totalCash)+'</div>';
+          if(totalCash>0) lines+='<div style="font-size:10px;color:var(--faint)" title="平分的現金小費，月底直接分現金，不算在實領合計">💵 '+$f(totalCash)+' 現金另分</div>';
           return '<td style="padding:6px 12px;text-align:right">'+lines+'</td>';
         }())+
         '<td style="padding:10px 12px;text-align:right;font-size:12px;color:var(--gold)">'+(d.mvRev+d.srRev>0?$f(d.mvRev+d.srRev):'—')+'</td>'+
@@ -9175,19 +9181,13 @@ function buildStaffCardHTML(d,moLabel,isPreview,note){
   } else {
   if(d.mvTip>0){
     rows+='<tr><td style="padding:5px 12px;font-size:12px;color:#444">MV 小費</td><td style="padding:5px 12px;text-align:right;font-weight:600;color:#1656A0">'+$f(d.mvTip)+'</td></tr>';
-    if(d.mvTipCard>0&&d.mvTipCash>0){
-      rows+='<tr><td style="padding:2px 12px 2px 24px;font-size:10px;color:#aaa">刷卡</td><td style="padding:2px 12px;text-align:right;font-size:10px;color:#aaa">'+$f(d.mvTipCard)+'</td></tr>';
-      rows+='<tr><td style="padding:2px 12px 4px 24px;font-size:10px;color:#aaa">現金</td><td style="padding:2px 12px;text-align:right;font-size:10px;color:#aaa">'+$f(d.mvTipCash)+'</td></tr>';
-    }
+
   }
   if(d.srTip>0){
     rows+='<tr><td style="padding:5px 12px;font-size:12px;color:#444">SR 小費</td><td style="padding:5px 12px;text-align:right;font-weight:600;color:#5E35B1">'+$f(d.srTip)+'</td></tr>';
-    if(d.srTipCard>0&&d.srTipCash>0){
-      rows+='<tr><td style="padding:2px 12px 2px 24px;font-size:10px;color:#aaa">刷卡</td><td style="padding:2px 12px;text-align:right;font-size:10px;color:#aaa">'+$f(d.srTipCard)+'</td></tr>';
-      rows+='<tr><td style="padding:2px 12px 4px 24px;font-size:10px;color:#aaa">現金</td><td style="padding:2px 12px;text-align:right;font-size:10px;color:#aaa">'+$f(d.srTipCash)+'</td></tr>';
-    }
   }
   }
+  if(d.cashTipDirect>0)rows+='<tr><td style="padding:4px 12px;font-size:11px;color:#999">平分現金小費（月底直接分現金，不含在實領）</td><td style="padding:4px 12px;text-align:right;font-size:11px;color:#999">'+$f(d.cashTipDirect)+'</td></tr>';
   if(d.mvRev>0)rows+='<tr><td style="padding:5px 12px;font-size:12px;color:#444">MV 評論獎勵</td><td style="padding:5px 12px;text-align:right;font-weight:600;color:#7A5A10">'+$f(d.mvRev)+'</td></tr>';
   if(d.srRev>0)rows+='<tr><td style="padding:5px 12px;font-size:12px;color:#444">SR 評論獎勵</td><td style="padding:5px 12px;text-align:right;font-weight:600;color:#7A5A10">'+$f(d.srRev)+'</td></tr>';
   d.pens.forEach(function(p){
@@ -9291,7 +9291,8 @@ function downloadAllPDFs(){
     // 小費合計（不分MV/SR）
     var totalTipAmt=d.pooledTip!==undefined?d.pooledTip:((d.mvTip||0)+(d.srTip||0));
     var tipLabel=d.pooledTip!==undefined?'Tip (pooled)':'Tip';
-    var tipRow=totalTipAmt>0?'<tr><td>'+tipLabel+'</td><td style="color:#7A5A10;font-weight:600">$'+totalTipAmt.toFixed(2)+'</td></tr>':'';
+    var tipRow=(totalTipAmt>0?'<tr><td>'+tipLabel+'</td><td style="color:#7A5A10;font-weight:600">$'+totalTipAmt.toFixed(2)+'</td></tr>':'')
+      +(d.cashTipDirect>0?'<tr><td style="color:#999">Cash tips (paid in cash, not included)</td><td style="color:#999">$'+d.cashTipDirect.toFixed(2)+'</td></tr>':'');
 
     // ── 打卡明細 ──
     var attRecs=(attD.records[d.name]||[]).filter(function(r){return netMins(r.rawMins,r.breakDeducted)>0;});
