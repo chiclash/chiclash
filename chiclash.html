@@ -2562,7 +2562,7 @@ function ledgerCardItems(d){
         else {card+=gv(p.amt);prodPart+=gv(p.amt);parts.push('產品刷卡 '+(p.name||'')+' $'+gv(p.amt).toFixed(2));}
       });
       card=r2(card);
-      if(card>0) items.push({label:(c.clientName||'（沒填名字）'),who:sName+(c.tech?'・'+c.tech:''),amt:card,desc:parts.join('＋'),svcPart:svcPart,tipPart:tipPart,prodPart:r2(prodPart),store:store,pos:ci});
+      if(card>0) items.push({label:(c.clientName||'（沒填名字）'),who:sName+(c.tech?'・'+c.tech:''),amt:card,desc:parts.join('＋'),svcPart:svcPart,tipPart:tipPart,prodPart:r2(prodPart),store:store,pos:ci,t:cdHHMM(c.time)});
     });
     // 沒掛在客人身上的產品
     prods.forEach(function(p,pi){
@@ -2591,7 +2591,15 @@ function matchGdTxns(ledger,gd){
     if(s){s.used=v.used=true;res.push({kind:'void',g:[s,v],l:[]});}
   });
   // ① 一對一
-  L.forEach(function(l){ var g=G.find(function(x){return !x.used&&eq(x.amt,l.amt);}); if(g){g.used=l.used=true;res.push({kind:'ok',l:[l],g:[g]});} });
+  // 同樣金額有好幾筆（例如兩位都是 $65）：有時間的先配時間最接近的，避免配錯人
+  var tm2=function(t){var mm=String(t||'').match(/(\d{1,2}):(\d{2})\s*([AP])?M?/i);if(!mm)return null;var h=parseInt(mm[1],10);if(mm[3]){h=h%12;if(/p/i.test(mm[3]))h+=12;}return h*60+parseInt(mm[2],10);};
+  var eqPairs=[];
+  L.forEach(function(l,li){ G.forEach(function(g,gi){ if(!eq(g.amt,l.amt))return;
+    var lt=tm2(l.t), gt=tm2(g.time);
+    eqPairs.push({l:l,g:g,d:(lt===null||gt===null)?1e6+li*100+gi:Math.abs(lt-gt)});
+  }); });
+  eqPairs.sort(function(a,b){return a.d-b.d;}); // 時間最接近的先配
+  eqPairs.forEach(function(p){ if(p.l.used||p.g.used)return; p.l.used=p.g.used=true; res.push({kind:'ok',l:[p.l],g:[p.g]}); });
   // ② 兩筆或三筆記帳 → 一筆 GoDaddy（合併結帳）
   G.forEach(function(g){ if(g.used)return;
     var fl=L.filter(function(x){return !x.used;});
@@ -2684,7 +2692,7 @@ function renderGdMatchHtml(d,dGD){
   var led=ledgerCardItems(d), res=matchGdTxns(led.items,txns);
   var sumL=r2(led.items.reduce(function(s,x){return s+x.amt;},0)), sumG=r2(txns.reduce(function(s,x){return s+x.amt;},0));
   var gLbl=function(g){return g.time+' '+(g.amt<0?'-$'+Math.abs(g.amt).toFixed(2)+'（取消）':'$'+g.amt.toFixed(2))+(g.tip>0?'（含小費 $'+g.tip.toFixed(2)+'）':'')+(g.last4?' 卡 '+g.last4:'');};
-  var lLbl=function(l){return '<b>'+esc(l.label)+'</b> <span style="color:var(--faint);font-size:10px">'+esc(l.who)+'</span> $'+l.amt.toFixed(2)+'<div style="font-size:10px;color:var(--faint)">'+esc(l.desc)+'</div>';};
+  var lLbl=function(l){return '<b>'+esc(l.label)+'</b> <span style="color:var(--faint);font-size:10px">'+esc(l.who)+(l.t?' · '+l.t:'')+'</span> $'+l.amt.toFixed(2)+'<div style="font-size:10px;color:var(--faint)">'+esc(l.desc)+'</div>';};
   var eq2=function(a,b){return Math.abs(a-b)<0.005;};
   var probs=res.filter(function(r){return r.kind==='diff'||r.kind==='onlyL'||r.kind==='onlyG';});
   var oks=res.filter(function(r){return r.kind==='ok'||r.kind==='combo'||r.kind==='split'||r.kind==='void';});
@@ -2797,7 +2805,7 @@ function ledgerSquareItems(d){
         if(usedProd[pi]||!belongs||p.date!==dateStr||!c.clientName||p.client!==c.clientName)return;
         usedProd[pi]=true; amt+=gv(p.amt); prodPart+=gv(p.amt); parts.push('產品 '+(p.name||'')+' $'+gv(p.amt).toFixed(2)); });
       amt=r2(amt);
-      if(amt>0)items.push({label:c.clientName||'（沒填名字）',who:sName+(c.tech?'・'+c.tech:''),amt:amt,desc:parts.join('＋'),svcPart:0,tipPart:tip,prodPart:r2(prodPart),store:store,pos:ci});
+      if(amt>0)items.push({label:c.clientName||'（沒填名字）',who:sName+(c.tech?'・'+c.tech:''),amt:amt,desc:parts.join('＋'),svcPart:0,tipPart:tip,prodPart:r2(prodPart),store:store,pos:ci,t:cdHHMM(c.time)});
     });
     prods.forEach(function(p,pi){ var belongs=p.store?(p.store===store):(store==='mv');
       if(usedProd[pi]||!belongs||p.date!==dateStr)return; usedProd[pi]=true;
@@ -2822,7 +2830,7 @@ function renderSqMatchHtml(d){
   var led=ledgerSquareItems(d), res=matchGdTxns(led.items,txns);
   var sumL=r2(led.items.reduce(function(s,x){return s+x.amt;},0)), sumS=r2(txns.reduce(function(s,x){return s+x.amt;},0));
   var sLbl=function(g){return g.time+' <b>$'+g.amt.toFixed(2)+'</b> <span style="font-size:10px;color:var(--faint)">'+g.store+' '+esc(g.desc)+'</span>';};
-  var lLbl=function(l){return '<b>'+esc(l.label)+'</b> <span style="color:var(--faint);font-size:10px">'+esc(l.who)+'</span> $'+l.amt.toFixed(2)+'<div style="font-size:10px;color:var(--faint)">'+esc(l.desc)+'</div>';};
+  var lLbl=function(l){return '<b>'+esc(l.label)+'</b> <span style="color:var(--faint);font-size:10px">'+esc(l.who)+(l.t?' · '+l.t:'')+'</span> $'+l.amt.toFixed(2)+'<div style="font-size:10px;color:var(--faint)">'+esc(l.desc)+'</div>';};
   var probs=res.filter(function(r){return r.kind==='diff'||r.kind==='onlyL'||r.kind==='onlyG';});
   var oks=res.filter(function(r){return r.kind!=='diff'&&r.kind!=='onlyL'&&r.kind!=='onlyG';});
   var totalDelta=r2(probs.reduce(function(s,r){return s+r.delta;},0));
