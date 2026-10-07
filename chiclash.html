@@ -2014,7 +2014,7 @@ input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-
     merged.sr = mergeDailyStore(base.sr, other.sr, 'sr');
     merged.gd = mergeDailyStore(base.gd, other.gd, 'gd');
     merged.gc_cards = mergeArrayById(base.gc_cards, other.gc_cards);
-    const safeKeys = ['staffPay','payroll','sqNameMap','tipConfirmed','tipSplitState','reviewSel','reviews','att','penalties','bnkBal','cdManual','tipSchedule','memberItems','members','memberSaleRewards','memberSaleRewardSel','gdDayOk','gdExplain','gdTxns','sqTxns','_ipadSqMigDone','staffLeft'];
+    const safeKeys = ['staffPay','payroll','sqNameMap','tipConfirmed','tipSplitState','reviewSel','reviews','att','penalties','bnkBal','cdManual','tipSchedule','memberItems','members','memberSaleRewards','memberSaleRewardSel','gdDayOk','gdExplain','gdTxns','sqTxns','_ipadSqMigDone','staffLeft','gcPayOverride'];
     safeKeys.forEach(function(key){
       if(other[key] !== undefined && base[key] === undefined){
         merged[key] = other[key];
@@ -2093,6 +2093,7 @@ input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-
         merged._savedAt = cloudTs;
         window._D = merged;
         try { localStorage.setItem('rev19', JSON.stringify(merged)); } catch(e2) {}
+        if (typeof window.applyGcPayOverrides === 'function') window.applyGcPayOverrides();
         if (typeof window.migrateIpadSq === 'function') window.migrateIpadSq();
         if (typeof renderAll === 'function') renderAll();
         setSyncStatus('✓ 已同步其他裝置的更新', '#1A7A45');
@@ -2125,6 +2126,7 @@ input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-
             time:(function(v){var t=String(v||'');if(t.indexOf('T')<0)return '';var dd=new Date(t);return isNaN(dd.getTime())?'':dd.toLocaleTimeString('en-US',{timeZone:'America/Los_Angeles',hour:'numeric',minute:'2-digit'});})(g.issuedAt)
           };
         });
+      if (typeof window.applyGcPayOverrides === 'function') window.applyGcPayOverrides(); // iPad 卡的付款方式如果在系統裡改過，以改過的為準
       if (typeof window.migrateIpadSq === 'function') window.migrateIpadSq(); // 一次性：舊的「iPad 賣卡沒進 Square」說明自動清掉
       if (typeof renderAll === 'function') renderAll(); // 重新算一次，把剛載入的 iPad 禮品卡銷售額補進月營業額
     }catch(e){ console.warn('載入 iPad 禮品卡銷售記錄失敗（月營業額可能少算 iPad 賣出的禮品卡）：', e); }
@@ -3372,10 +3374,27 @@ function dayGcSalesList(store,d){
   });
   (window._gcFbAll||[]).forEach(function(g){
     if(g.store!==store||g.date!==dateStr)return;
-    list.push({src:'📱 iPad',code:g.code||'—',amt:g.amount||0,pay:payLbl(g.payMethod),who:g.giftFor?('For: '+g.giftFor):'',time:g.time||''});
+    list.push({src:'📱 iPad',ipad:true,raw:g.payMethod||'card',changed:(g._origPay!==undefined&&g._origPay!==g.payMethod),code:g.code||'—',amt:g.amount||0,pay:payLbl(g.payMethod),who:g.giftFor?('For: '+g.giftFor):'',time:g.time||''});
   });
   return list;
 }
+// iPad 賣的禮品卡付款方式點錯（例如付現金卻記成刷卡）：在系統裡修正，不用動 iPad
+function applyGcPayOverrides(){
+  var ov=(_D&&_D.gcPayOverride)||{};
+  (window._gcFbAll||[]).forEach(function(g){
+    if(g._origPay===undefined)g._origPay=g.payMethod||'';
+    g.payMethod=(g.code&&ov[g.code])?ov[g.code]:g._origPay;
+  });
+}
+function setGcPayOverride(code,pay){
+  if(!_D.gcPayOverride)_D.gcPayOverride={};
+  var g=(window._gcFbAll||[]).find(function(x){return x.code===code;});
+  var orig=g?(g._origPay!==undefined?g._origPay:g.payMethod):'';
+  if(!pay||pay===orig||(pay==='card'&&(!orig||orig==='card')))delete _D.gcPayOverride[code]; else _D.gcPayOverride[code]=pay;
+  applyGcPayOverrides(); save(); renderAll();
+}
+window.applyGcPayOverrides=applyGcPayOverrides; window.setGcPayOverride=setGcPayOverride;
+
 function renderDayGcSales(d){
   var el=document.getElementById('gcs-'+d);if(!el)return;
   var list=dayGcSalesList(activeStore,d);
@@ -3392,7 +3411,10 @@ function renderDayGcSales(d){
         +'<span style="font-family:monospace;font-weight:700">'+esc(g.code)+'</span>'
         +(g.who?'<span style="color:var(--sub)">'+esc(g.who)+'</span>':'')
         +'<span style="font-size:10px;color:var(--faint)">'+g.src+'</span>'
-        +'<span style="margin-left:auto;color:var(--sub)">'+g.pay+'</span>'
+        +(g.ipad&&g.code!=='—'?'<span style="margin-left:auto;display:inline-flex">'
+            +['card','cash'].map(function(pm,i){var on=(g.raw==='cash'?'cash':'card')===pm;return '<button onclick="setGcPayOverride(\''+esc(g.code)+'\',\''+pm+'\')" style="padding:2px 8px;font-size:11px;cursor:pointer;font-family:inherit;border:1px solid '+(on?'#9A6A10':'var(--border)')+';background:'+(on?'#FFF3D6':'var(--white)')+';color:'+(on?'#9A6A10':'var(--faint)')+';font-weight:'+(on?'700':'400')+';border-radius:'+(i?'0 5px 5px 0':'5px 0 0 5px')+'">'+(pm==='cash'?'現金':'刷卡')+'</button>';}).join('')
+            +'</span>'+(g.changed?'<span style="font-size:10px;color:var(--tip)">（已修正，iPad 原本記'+(g.raw==='cash'?'刷卡':'現金')+'）</span>':'')
+          :'<span style="margin-left:auto;color:var(--sub)">'+g.pay+'</span>')
         +'<span style="font-weight:700;min-width:70px;text-align:right">$'+g.amt.toFixed(2)+'</span></div>';
     }).join('')
     +'<div style="font-size:10px;color:var(--faint);margin-top:4px">已算進當日營業額、Square 對帳和 GoDaddy 應收（刷卡的部分）。要修改請到「Gift Card」頁。iPad 賣的卡本來就不會在 Square，已經自動從 Square 對帳扣掉（GoDaddy 應收照樣包含）。</div>'
