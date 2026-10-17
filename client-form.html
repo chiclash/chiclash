@@ -48,12 +48,51 @@ body{background:var(--cream);font-family:'Inter',sans-serif;color:var(--ink);min
 
 /* fields */
 .field{margin-bottom:16px}
+.rv-sec{font-size:12px;font-weight:700;letter-spacing:.08em;color:#C4726A;margin-bottom:10px}
+.rv-sec span{font-weight:500;color:#C9A39C;letter-spacing:.04em;margin-left:4px}
+.rv-flag{background:#F6F4F2;border-radius:10px;padding:12px 14px;margin-bottom:8px}
+.rv-flag.warn{background:#FBF0EC;border:1px solid #F2D2C8}
+.rv-flag-h{display:flex;align-items:baseline;gap:6px;margin-bottom:2px}
+.rv-flag-zh{font-size:15px;font-weight:700;color:#1A1714}
+.rv-flag.warn .rv-flag-zh{color:#B83010}
+.rv-flag-en{font-size:12px;color:#8A817A}
+.rv-ico{font-size:14px}
+.rv-chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+.rv-chip{display:inline-flex;flex-direction:column;padding:6px 10px;border-radius:8px;background:#fff;border:1px solid #E8E2DC;line-height:1.25}
+.rv-chip b{font-size:14px;font-weight:600;color:#1A1714}
+.rv-chip small{font-size:11px;color:#8A817A;margin-top:1px}
+.rv-chip.warn{border-color:#EFC3B5}
+.rv-chip.warn b{color:#B83010}
+.rv-chip.soft{background:#FAF7F5}
+.rv-sub{margin-top:12px;padding-top:10px;border-top:1px dashed #EFC3B5}
+.rv-row{display:grid;grid-template-columns:108px 1fr;gap:10px;align-items:start;padding:8px 0;border-bottom:1px solid #F0EBE5}
+.rv-row .rv-chips{margin-top:0}
+.rv-lbl{font-size:13px;color:#1A1714;font-weight:600;line-height:1.3}
+.rv-lbl small{display:block;font-size:11px;color:#A8A09A;font-weight:400}
+.rv-all{margin-bottom:16px;border:1px solid #EFE9E3;border-radius:10px;padding:10px 14px}
+.rv-all summary{cursor:pointer;font-size:12px;font-weight:700;letter-spacing:.06em;color:#C4726A;list-style:none}
+.rv-all summary span{font-weight:500;color:#A8A09A;letter-spacing:0}
+.rv-all[open] summary{margin-bottom:6px}
 .req-star{color:var(--rose)}
 .opt-group.grid2{display:grid;grid-template-columns:1fr 1fr;gap:8px}
 .opt-group.grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
 .opt-group.grid2 .opt-btn,.opt-group.grid3 .opt-btn{min-width:0}
 .hg-none{margin-bottom:4px}
 .hg-title{margin:16px 0 2px;font-size:.78em;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--rose)}
+.ha-hint{font-size:.85em;color:var(--sub);margin:2px 0 8px}
+.ha-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.ha-card{border:1.5px solid var(--border);border-radius:8px;background:#fff;transition:all .15s}
+.ha-card.sel{border-color:var(--rose);background:var(--rose-light)}
+.ha-top{display:flex;align-items:center;gap:8px;padding:11px 14px;cursor:pointer;font-size:clamp(15px,0.5vw + 13px,18px);-webkit-user-select:none;user-select:none}
+.ha-top .sq{width:18px;height:18px;border-radius:4px;border:2px solid var(--faint);flex-shrink:0}
+.ha-card.sel .ha-top{color:var(--rose)}
+.ha-card.sel .ha-top .sq{border-color:var(--rose);background:var(--rose)}
+.ha-sides{display:none;gap:4px;padding:0 8px 8px}
+.ha-card.sel .ha-sides{display:flex}
+.ha-side{flex:1;text-align:center;padding:6px 2px;border-radius:6px;border:1px solid #E8C9C3;background:#fff;font-size:.8em;color:var(--sub);cursor:pointer;-webkit-user-select:none;user-select:none;white-space:nowrap}
+.ha-side.sel{background:var(--rose);border-color:var(--rose);color:#fff;font-weight:600}
+body.text-lg .ha-top{font-size:21px} body.text-xl .ha-top{font-size:24px}
+@media(max-width:560px){.ha-grid{grid-template-columns:1fr 1fr}}
 .health-area-box{background:#FBF6F4;border:1.5px solid #EED9D4;border-radius:12px;padding:14px 16px}
 @media(max-width:560px){.opt-group.grid2,.opt-group.grid3{grid-template-columns:1fr 1fr}}
 .opt-btn.all-btn{border-style:dashed;font-weight:600}
@@ -653,7 +692,7 @@ function pickOpt(el, type) {
     });
     var any = !!document.querySelector('.opt-btn.sel[data-name="health"]:not([data-val="None of the above"])');
     var w = document.getElementById('health-detail-wrap'); if (w) w.style.display = any ? 'block' : 'none';
-    if (!any) document.querySelectorAll('.opt-btn.sel[data-name="health-areas"],.opt-btn.sel[data-name="health-side"]').forEach(function(b){ b.classList.remove('sel'); });
+    if (!any) document.querySelectorAll('.ha-card.sel,.ha-side.sel').forEach(function(b){ b.classList.remove('sel'); });
   }
 }
 
@@ -909,9 +948,8 @@ function buildMassage() {
     </div>
     <div class="field health-area-box" id="health-detail-wrap" style="display:none">
       <div class="ql">${t('q_health_areas')}</div>
-      <div class="opt-group grid3">${checkbox('health-areas',["Head/Face", "Neck", "Shoulders", "Upper Back", "Lower Back", "Chest", "Abdomen", "Hips/Glutes", "Arms", "Hands/Wrists", "Legs", "Knees", "Ankles/Feet"],true).replace(/^<div class="opt-group">|<\/div>$/g,'')}</div>
-      <div class="ql" style="margin-top:14px">${t('q_health_side')}</div>
-      <div class="opt-group grid3">${radio('health-side',["Left side", "Right side", "Both sides"],true).replace(/^<div class="opt-group">|<\/div>$/g,'')}</div>
+      <div class="ha-hint">${haMsg('hint')}</div>
+      <div class="ha-grid">${["Head/Face", "Neck", "Shoulders", "Upper Back", "Lower Back", "Chest", "Abdomen", "Hips/Glutes", "Arms", "Hands/Wrists", "Legs", "Knees", "Ankles/Feet"].map(a=>`<div class="ha-card" data-area="${a}"><div class="ha-top" onclick="toggleHA(this.parentElement)"><span class="sq"></span>${t(a)}</div><div class="ha-sides">${['Left side','Right side','Both sides'].map(sd=>`<div class="ha-side" data-s="${sd}" onclick="pickHASide(this)">${haMsg(sd)}</div>`).join('')}</div></div>`).join('')}</div>
     </div>
   </div>
   <div class="sec">
@@ -1100,6 +1138,7 @@ function collectFormData() {
     data.responses.allergyDetail = document.getElementById('f-spa-allergy-detail')?.value||'';
     data.responses.surgery = document.getElementById('f-surgery')?.value||'';
   }
+  if(window.getHealthAreas){ var _ha=getHealthAreas(); if(_ha.length) data.responses['health-areas']=_ha; }
   return data;
 }
 
@@ -1199,6 +1238,8 @@ async function submitForm() {
   };
   function tr(v){
     if(!v) return v;
+    var _m = /^(.*) \((Left side|Right side|Both sides)\)$/.exec(v);
+    if(_m) return _m[1] + ' (' + _m[2] + ') ' + (TRANS[_m[1]]||_m[1]) + '（' + (TRANS[_m[2]]||_m[2]) + '）';
     // 選項文字如果已經內含中文字（例如表單裡本來就寫「Soft 輕」），代表已經是雙語，不用再處理
     if(/[\u4e00-\u9fff]/.test(v)) return v;
     // 純英文的選項，如果查得到翻譯，用「英文 中文」附加顯示，不要整個取代掉英文
@@ -1223,49 +1264,65 @@ async function submitForm() {
     'massageIntensity':'Massage intensity 按摩強度'
   };
 
-  // Build flags with Chinese
-  var flags = [];
-  if(resp['lash-allergy']?.includes('Yes') || resp['spa-allergy']?.includes('Yes')) flags.push({warn:true, text:'⚠ Allergy 過敏 — '+(resp.allergyDetail||'請確認')});
-  if(resp['sensitive']?.includes('Yes')) flags.push({warn:true, text:'⚠ Sensitive eyes 眼睛敏感'});
-  if(resp['contacts']?.includes('Yes')) flags.push({warn:false, text:'👁 Wears contacts 戴隱形眼鏡'});
-  if(resp['medical']?.includes('Currently Pregnant') || resp['pregnant-spa']?.includes('Yes')) flags.push({warn:true, text:'⚠ Pregnant 懷孕中'});
-  if(resp['medical']?.includes('Metal implants in body')) flags.push({warn:true, text:'⚠ Metal implants 體內金屬植入物'});
-  if(resp['claustrophobia']?.length) flags.push({warn:false, text:'💡 Claustrophobia 幽閉恐懼 — '+trArr(resp['claus-pref'])});
+  // ── 員工確認頁：中文大字＋英文小字，用小標籤排整齊 ──
+  function esc(x){ return String(x==null?'':x).replace(/&/g,'&amp;').replace(/</g,'&lt;'); }
+  // 一個選項 → { zh, en }
+  function pair(v){
+    var m = /^(.*) \((Left side|Right side|Both sides)\)$/.exec(v);
+    if(m) return { zh:(TRANS[m[1]]||m[1])+' · '+(TRANS[m[2]]||m[2]).replace('邊',''), en:m[1]+' · '+m[2].replace(' side','').replace(' sides','') };
+    if(/[一-鿿]/.test(v)){ var mm=/^([^一-鿿]+?)\s+([一-鿿].*)$/.exec(v); return mm?{zh:mm[2],en:mm[1]}:{zh:v,en:''}; }
+    return TRANS[v] ? {zh:TRANS[v], en:v} : {zh:v, en:''};
+  }
+  function chips(arr, tone){
+    return '<div class="rv-chips">'+[].concat(arr||[]).map(function(v){ var p=pair(v);
+      return '<span class="rv-chip'+(tone?' '+tone:'')+'"><b>'+esc(p.zh)+'</b>'+(p.en&&p.en!==p.zh?'<small>'+esc(p.en)+'</small>':'')+'</span>'; }).join('')+'</div>';
+  }
+  function txtChip(t, tone){ return '<div class="rv-chips"><span class="rv-chip'+(tone?' '+tone:'')+'"><b>'+esc(t)+'</b></span></div>'; }
+  function lbl(zh,en){ return '<div class="rv-lbl"><div>'+zh+'</div><small>'+en+'</small></div>'; }
+  function row(zh,en,body){ return '<div class="rv-row">'+lbl(zh,en)+'<div class="rv-val">'+body+'</div></div>'; }
+
+  var flags = [];   // 每一則：{ warn, zh, en, body }
+  function flag(warn, icon, zh, en, body){ flags.push({warn:warn, icon:icon, zh:zh, en:en, body:body||''}); }
+  if(resp['lash-allergy']?.includes('Yes') || resp['spa-allergy']?.includes('Yes')) flag(true,'⚠','過敏','Allergy', txtChip(resp.allergyDetail||'請確認 Please confirm','warn'));
+  if(resp['sensitive']?.includes('Yes')) flag(true,'⚠','眼睛敏感','Sensitive eyes');
+  if(resp['contacts']?.includes('Yes')) flag(false,'👁','戴隱形眼鏡','Wears contacts');
+  if(resp['medical']?.includes('Currently Pregnant') || resp['pregnant-spa']?.includes('Yes')) flag(true,'⚠','懷孕中','Pregnant');
+  if(resp['medical']?.includes('Metal implants in body')) flag(true,'⚠','體內金屬植入物','Metal implants');
+  if(resp['claustrophobia']?.length) flag(false,'💡','幽閉恐懼','Claustrophobia', chips(resp['claus-pref']));
   var _hl=(resp['health']||[]).filter(function(x){return x!=='None of the above';});
-  if(_hl.length) flags.push({warn:true, text:'⚠ Health conditions 健康狀況：'+trArr(_hl)+(resp['health-areas']?.length?'（部位 Area：'+trArr(resp['health-areas'])+(resp['health-side']?'，'+trArr(resp['health-side']):'')+'）':'')});
-  if(resp['medication']?.includes('Yes')) flags.push({warn:true, text:'⚠ On medication 有用藥 — '+(resp.medicationDetail||'請確認')});
-  if(resp['surgery']) flags.push({warn:false, text:'🏥 Surgery history 手術史：'+resp.surgery});
-  if(resp['scalp-cond']?.length) flags.push({warn:false, text:'Scalp condition 頭皮狀況：'+trArr(resp['scalp-cond'])});
+  if(_hl.length) flag(true,'⚠','健康狀況','Health conditions', chips(_hl,'warn') +
+      (resp['health-areas']?.length ? '<div class="rv-sub">'+lbl('需小心部位','Careful areas')+chips(resp['health-areas'],'warn')+'</div>' : ''));
+  if(resp['medication']?.includes('Yes')) flag(true,'⚠','有用藥','On medication', txtChip(resp.medicationDetail||'請確認 Please confirm','warn'));
+  if(resp['surgery']) flag(false,'🏥','手術史','Surgery history', txtChip(resp.surgery));
+  if(resp['scalp-cond']?.length) flag(false,'💆','頭皮狀況','Scalp condition', chips(resp['scalp-cond']));
 
-  // Preferences with Chinese
   var prefs = [];
-  if(resp['pressure']) prefs.push('Pressure 力道：'+trArr(resp['pressure']));
-  if(resp['head-pressure']) prefs.push('頭部Pressure 力道：'+trArr(resp['head-pressure']));
-  if(resp['neck-pressure']) prefs.push('肩頸Pressure 力道：'+trArr(resp['neck-pressure']));
-  if(resp['water-pref']) prefs.push('Water temp 水溫：'+trArr(resp['water-pref']));
-  if(resp['focus-areas']?.length) prefs.push('Focus areas 重點部位：'+trArr(resp['focus-areas']));
-  if(resp['massageIntensity']) prefs.push('Massage intensity 按摩強度：'+resp.massageIntensity+'/10');
-  if(resp['addons']?.length) prefs.push('Add-ons 加購：'+trArr(resp['addons']));
-  if(resp['waxing']?.length) prefs.push('Waxing 蜜蠟：'+trArr(resp['waxing']));
+  if(resp['pressure']) prefs.push(row('按摩力道','Pressure',chips(resp['pressure'],'soft')));
+  if(resp['head-pressure']) prefs.push(row('頭部力道','Head pressure',chips(resp['head-pressure'],'soft')));
+  if(resp['neck-pressure']) prefs.push(row('肩頸力道','Neck / shoulder',chips(resp['neck-pressure'],'soft')));
+  if(resp['massageIntensity']) prefs.push(row('按摩強度','Intensity',txtChip(resp.massageIntensity+' / 10','soft')));
+  if(resp['water-pref']) prefs.push(row('水溫','Water temp',chips(resp['water-pref'],'soft')));
+  if(resp['focus-areas']?.length) prefs.push(row('重點部位','Focus areas',chips(resp['focus-areas'],'soft')));
+  if(resp['addons']?.length) prefs.push(row('加購','Add-ons',chips(resp['addons'],'soft')));
+  if(resp['waxing']?.length) prefs.push(row('蜜蠟','Waxing',chips(resp['waxing'],'soft')));
 
-  var flagHtml = flags.length ? flags.map(f=>
-    '<div style="display:flex;align-items:flex-start;gap:8px;padding:8px 12px;border-radius:8px;background:'+(f.warn?'#FBF0EC':'#F5F5F5')+';margin-bottom:6px;font-size:14px;color:'+(f.warn?'#B83010':'#1A1714')+'">'+f.text+'</div>'
-  ).join('') : '<div style="color:#6B6560;font-size:13px">No special notes 無特殊注意事項</div>';
+  var flagHtml = flags.length ? flags.map(function(f){
+    return '<div class="rv-flag'+(f.warn?' warn':'')+'"><div class="rv-flag-h"><span class="rv-ico">'+f.icon+'</span><span class="rv-flag-zh">'+f.zh+'</span><span class="rv-flag-en">'+f.en+'</span></div>'+f.body+'</div>';
+  }).join('') : '<div style="color:#6B6560;font-size:13px">無特殊注意事項 <span style="color:#A8A09A">No special notes</span></div>';
+  var prefHtml = prefs.join('');
 
-  var prefHtml = prefs.length ? prefs.map(p=>
-    '<div style="font-size:14px;color:#1A1714;padding:4px 0;border-bottom:1px solid #F0EBE5">'+p+'</div>'
-  ).join('') : '';
-
-  // 所有問捲回答（不管有沒有觸發上面的警示，全部列出來，避免員工漏看任何一項）
+  // 完整問卷回答（收起來，需要時再點開）
   var allAnswers = [];
+  // 上面「重要提示／偏好」已經顯示過的欄位，這裡不再重複
+  var SHOWN = ['health','health-areas','health-side','pressure','head-pressure','neck-pressure','massageIntensity','water-pref','focus-areas','addons','waxing','allergyDetail','medicationDetail','surgery','scalp-cond','claus-pref'];
   Object.keys(resp).forEach(function(key){
-    if(key==='allergyDetail'||key==='medicationDetail') return; // 已經在 Important Notes 裡顯示過了，不重複列
+    if(SHOWN.indexOf(key)>=0) return;
     var val = resp[key];
     var hasVal = Array.isArray(val) ? val.length>0 : !!val;
     if(!hasVal) return;
-    var label = ALL_LABELS[key] || key;
-    var display = Array.isArray(val) ? trArr(val) : tr(val);
-    allAnswers.push('<div style="display:flex;justify-content:space-between;gap:12px;font-size:13px;color:#1A1714;padding:6px 0;border-bottom:1px solid #F0EBE5"><span style="color:#6B6560">'+label+'</span><span style="font-weight:600;text-align:right">'+display+'</span></div>');
+    var L = String(ALL_LABELS[key] || key), lm = /^(.*?)\s+([一-鿿].*)$/.exec(L);
+    var body = key==='massageIntensity' ? txtChip(val+' / 10') : (Array.isArray(val) ? chips(val) : (TRANS[val]||/[一-鿿]/.test(val) ? chips([val]) : txtChip(val)));
+    allAnswers.push(row(lm?lm[2]:L, lm?lm[1]:'', body));
   });
   var allAnswersHtml = allAnswers.join('');
 
@@ -1279,12 +1336,12 @@ async function submitForm() {
       '<div style="font-size:19px;font-weight:700">'+name+'</div>'+
       '<div style="font-size:13px;color:#6B6560;margin-top:2px">'+svcLabel+'　'+(data.phone||'')+(data.dob?'　DOB 生日 '+data.dob:'')+'</div>'+
     '</div>'+
-    '<div style="margin-bottom:16px">'+
-      '<div style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.1em;color:#C4726A;margin-bottom:8px">⚠ Important Notes 重要提示</div>'+
+    '<div style="margin-bottom:18px">'+
+      '<div class="rv-sec">重要提示 <span>Important Notes</span></div>'+
       flagHtml+
     '</div>'+
-    (prefs.length?'<div style="margin-bottom:16px"><div style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.1em;color:#C4726A;margin-bottom:8px">Preferences 偏好</div>'+prefHtml+'</div>':'')+
-    (allAnswers.length?'<div style="margin-bottom:16px"><div style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.1em;color:#C4726A;margin-bottom:8px">All Answers 完整問捲回答</div>'+allAnswersHtml+'</div>':'')+
+    (prefs.length?'<div style="margin-bottom:18px"><div class="rv-sec">偏好 <span>Preferences</span></div>'+prefHtml+'</div>':'')+
+    (allAnswers.length?'<div style="margin-bottom:18px"><div class="rv-sec">其他回答 <span>Other Answers</span></div>'+allAnswersHtml+'</div>':'')+
     '<div style="display:flex;align-items:center;gap:8px;font-size:13px;color:'+(hasSig?'#3A7D5A':'#B83010')+';margin-bottom:16px">'+
       (hasSig?'✓ Signed 已簽名':'⚠ Not signed — please ask client to sign | 尚未簽名，請讓客戶補籤')+
     '</div>'+
@@ -1880,6 +1937,29 @@ window.syncAllBtn = function(name, btnId){
   var btn=document.getElementById(btnId); if(!btn) return;
   var boxes=document.querySelectorAll('.opt-btn[data-name="'+name+'"]');
   btn.classList.toggle('sel', boxes.length>0 && [].every.call(boxes,function(b){return b.classList.contains('sel');}));
+};
+// ── 需小心部位：每個部位各自選左／右／兩邊 ──
+window.haMsg = function(k){
+  var d={hint:{en:'Tap each area, then choose the side (optional)',es:'Toque cada zona y elija el lado (opcional)',zhTW:'點選部位後，可再選左邊或右邊（選填）',zhCN:'点选部位后，可再选左边或右边（选填）',ja:'部位を選び、左右を選んでください（任意）',ko:'부위를 누른 뒤 좌우를 선택하세요 (선택)'},
+    'Left side':{en:'Left',es:'Izq.',zhTW:'左',zhCN:'左',ja:'左',ko:'왼쪽'},
+    'Right side':{en:'Right',es:'Der.',zhTW:'右',zhCN:'右',ja:'右',ko:'오른쪽'},
+    'Both sides':{en:'Both',es:'Ambos',zhTW:'兩邊',zhCN:'两边',ja:'両側',ko:'양쪽'}}[k];
+  return d[curLang]||d.en;
+};
+window.toggleHA = function(card){
+  card.classList.toggle('sel');
+  if(!card.classList.contains('sel')) card.querySelectorAll('.ha-side.sel').forEach(function(b){ b.classList.remove('sel'); });
+};
+window.pickHASide = function(el){
+  var on = el.classList.contains('sel');
+  el.parentElement.querySelectorAll('.ha-side').forEach(function(b){ b.classList.remove('sel'); });
+  if(!on) el.classList.add('sel');   // 再點一次可以取消
+};
+// 存成 ["Shoulders (Right side)", "Legs (Left side)", "Neck"]
+window.getHealthAreas = function(){
+  return [].map.call(document.querySelectorAll('.ha-card.sel'), function(c){
+    var sd=c.querySelector('.ha-side.sel'); return c.dataset.area + (sd ? ' ('+sd.dataset.s+')' : '');
+  });
 };
 window.pickLevel = function(el){
   var row=el.parentElement;
