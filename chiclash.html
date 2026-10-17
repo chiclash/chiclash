@@ -2121,6 +2121,7 @@ input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-
         .map(function(g){
           return {
             id:g.id, store:g.store, amount:g.amount||0,
+            tip:Math.round((parseFloat(g.tip)||0)*100)/100, // iPad 售卡時填的「含小費」
             payMethod:g.payMethod||'', date:(function(v){var t=String(v||'');if(/^\d{4}-\d{2}-\d{2}$/.test(t)||t.indexOf('T')<0)return t.slice(0,10);var dd=new Date(t);return isNaN(dd.getTime())?t.slice(0,10):dd.toLocaleDateString('en-CA',{timeZone:'America/Los_Angeles'});})(g.issuedAt),
             code:g.code||'', giftFor:g.giftFor||'',
             time:(function(v){var t=String(v||'');if(t.indexOf('T')<0)return '';var dd=new Date(t);return isNaN(dd.getTime())?'':dd.toLocaleTimeString('en-US',{timeZone:'America/Los_Angeles',hour:'numeric',minute:'2-digit'});})(g.issuedAt)
@@ -2462,7 +2463,7 @@ function renderGdExplainHtml(d,st){
     var ipadBtn='';
     if(k==='other'){
       var dStr=mk()+'-'+String(d).padStart(2,'0'), ipadAmt=0, ipadCodes=[];
-      (window._gcFbAll||[]).forEach(function(g){ if(g.date===dStr){ipadAmt+=g.amount||0;ipadCodes.push(g.code||'');} });
+      (window._gcFbAll||[]).forEach(function(g){ if(g.date===dStr){ipadAmt+=(g.amount||0)+(g.payMethod!=='cash'?gv(g.tip):0);ipadCodes.push(g.code||'');} });
       ipadAmt=r2(ipadAmt);
       var already=its.some(function(o){return Math.abs(gv(o.x.amt)+ipadAmt)<0.005;});
       if(ipadAmt>0&&!already&&r.left<=-ipadAmt+0.005)
@@ -2576,8 +2577,10 @@ function ledgerCardItems(d){
     });
     // 賣出的禮品卡（刷卡）
     dayGcSalesList(store,d).forEach(function(g){
-      if(g.pay!=='刷卡'){noGD.cash+=g.pay==='現金'?g.amt:0;return;}
-      items.push({label:'賣禮品卡 '+g.code,who:sName+(g.who?'・'+g.who:''),amt:r2(g.amt),desc:g.src+' 賣卡刷卡'});
+      var gtip=g.tip||0;
+      if(g.pay!=='刷卡'){noGD.cash+=g.pay==='現金'?(g.amt+gtip):0;return;}
+      items.push({label:'賣禮品卡 '+g.code,who:sName+(g.who?'・'+g.who:''),amt:r2(g.amt+gtip),tipPart:r2(gtip),
+        desc:g.src+' 賣卡刷卡 $'+g.amt.toFixed(2)+(gtip>0?'＋含小費 $'+gtip.toFixed(2):'')});
     });
   });
   return {items:items,noGD:noGD,cashSvc:cashSvc};
@@ -2813,7 +2816,7 @@ function ledgerSquareItems(d){
       if(usedProd[pi]||!belongs||p.date!==dateStr)return; usedProd[pi]=true;
       if(gv(p.amt)>0)items.push({label:'產品 '+(p.name||''),who:sName+(p.staff?'・'+p.staff:''),amt:r2(gv(p.amt)),desc:'產品'}); });
     (_D.gc_cards||[]).forEach(function(g){ if(g.store===store&&g.date===dateStr&&(g.amt||0)>0)items.push({label:'賣禮品卡 '+(g.code||''),who:sName,amt:r2(g.amt),desc:'店裡登記的禮品卡'}); });
-    (window._gcFbAll||[]).forEach(function(g){ if(g.store===store&&g.date===dateStr){ipad+=g.amount||0;ipadList.push((g.code||'')+' $'+(g.amount||0).toFixed(2));} });
+    (window._gcFbAll||[]).forEach(function(g){ if(g.store===store&&g.date===dateStr){ipad+=(g.amount||0)+gv(g.tip);ipadList.push((g.code||'')+' $'+(g.amount||0).toFixed(2)+(gv(g.tip)>0?'＋小費 $'+gv(g.tip).toFixed(2):''));} });
   });
   return {items:items,ipad:r2(ipad),ipadList:ipadList};
 }
@@ -3163,7 +3166,7 @@ function calcDay(s,d){
   // 注意：gcSold 是獨立的第四個桶子（不併進 cardSvc/cashSvc/venmoSvc），因為下面 rev 公式是
   // 「刷卡收入 + 現金收入 + Venmo收入 + 禮品卡銷售」四個桶分開加總——併進去的話 rev 會把這筆錢多算一次。
   const dateStr=mk()+'-'+String(d).padStart(2,'0');
-  let gcSold=0,gcSoldCard=0,gcSoldCash=0,gcSoldVenmo=0,ipadCard=0,ipadCash=0,ipadVenmo=0;
+  let gcSold=0,gcSoldCard=0,gcSoldCash=0,gcSoldVenmo=0,ipadCard=0,ipadCash=0,ipadVenmo=0,gcSoldTip=0;
   (_D.gc_cards||[]).forEach(function(g){
     if(g.store!==s||g.date!==dateStr)return;
     gcSold+=(g.amt||0);
@@ -3177,6 +3180,16 @@ function calcDay(s,d){
     if(g.payMethod==='cash'){gcSoldCash+=(g.amount||0);ipadCash+=(g.amount||0);}
     else if(g.payMethod==='venmo'||g.payMethod==='zelle'){gcSoldVenmo+=(g.amount||0);ipadVenmo+=(g.amount||0);}
     else {gcSoldCard+=(g.amount||0);ipadCard+=(g.amount||0);}
+    // 售卡時一起收的「含小費」：直接算進禮品卡銷售總額（營業額）。
+    // 客人之後來用卡時，技師的小費在每日記帳填 Tip、方式選「GC」，由公司跟薪水一起發。
+    // 刷卡的會一起進 GoDaddy 應收；iPad 的卡不在 Square，所以也一起從 Square 應收扣掉
+    var gt=gv(g.tip);
+    if(gt>0){
+      gcSoldTip+=gt; gcSold+=gt;
+      if(g.payMethod==='cash'){gcSoldCash+=gt;ipadCash+=gt;}
+      else if(g.payMethod==='venmo'||g.payMethod==='zelle'){gcSoldVenmo+=gt;ipadVenmo+=gt;}
+      else {gcSoldCard+=gt;ipadCard+=gt;}
+    }
   });
 
   // GoDaddy 應收 = (刷卡服務費 + 刷卡買禮品卡 + 刷卡產品銷售 + 全部刷卡小費含CP小費) × 手續費率
@@ -3211,7 +3224,7 @@ function calcDay(s,d){
     sqDiff=Math.round((sqTotal>0 ? sqTotal-calcTotal : (sqOther+sqCash+sqGC)-calcTotal)*100)/100;
   }
 
-  return{ipadCard,ipadCash,ipadVenmo,gcTip,cardSvc,cashSvc,venmoSvc,cpSvc,gcSvc,gcAmtUsed,gcSold,gcSoldCard,gcSoldCash,prodSold,prodSoldCard,prodSoldCash,prodSoldVenmo,cardTip,cashTip,venmoTip,gdDue,rev,
+  return{ipadCard,ipadCash,ipadVenmo,gcTip,gcSoldTip,cardSvc,cashSvc,venmoSvc,cpSvc,gcSvc,gcAmtUsed,gcSold,gcSoldCard,gcSoldCash,prodSold,prodSoldCard,prodSoldCash,prodSoldVenmo,cardTip,cashTip,venmoTip,gdDue,rev,
     calcOther,calcCash,calcGC,calcTip,calcTotal,sqDiff,hasSq,hasClients};
 }
 
@@ -3374,7 +3387,7 @@ function dayGcSalesList(store,d){
   });
   (window._gcFbAll||[]).forEach(function(g){
     if(g.store!==store||g.date!==dateStr)return;
-    list.push({src:'📱 iPad',ipad:true,raw:g.payMethod||'card',changed:(g._origPay!==undefined&&g._origPay!==g.payMethod),code:g.code||'—',amt:g.amount||0,pay:payLbl(g.payMethod),who:g.giftFor?('For: '+g.giftFor):'',time:g.time||''});
+    list.push({src:'📱 iPad',ipad:true,raw:g.payMethod||'card',changed:(g._origPay!==undefined&&g._origPay!==g.payMethod),code:g.code||'—',amt:g.amount||0,tip:gv(g.tip),pay:payLbl(g.payMethod),who:g.giftFor?('For: '+g.giftFor):'',time:g.time||''});
   });
   return list;
 }
@@ -3400,11 +3413,12 @@ function renderDayGcSales(d){
   var list=dayGcSalesList(activeStore,d);
   if(!list.length){el.innerHTML='';return;}
   var esc=function(v){return String(v||'').replace(/&/g,'&amp;').replace(/</g,'&lt;');};
-  var total=Math.round(list.reduce(function(s,g){return s+g.amt;},0)*100)/100;
+  var total=Math.round(list.reduce(function(s,g){return s+g.amt+(g.tip||0);},0)*100)/100;
+  var tipTotal=Math.round(list.reduce(function(s,g){return s+(g.tip||0);},0)*100)/100;
   el.innerHTML='<div style="margin:10px 0 4px;background:#FFF8EC;border:1px solid #F0DDB0;border-radius:10px;padding:10px 14px">'
     +'<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">'
       +'<span style="font-size:12px;font-weight:700;color:#9A6A10">🎁 這天賣出的禮品卡（自動帶入）</span>'
-      +'<span style="font-size:13px;font-weight:700;color:#9A6A10">共 $'+total.toFixed(2)+'</span></div>'
+      +'<span style="font-size:13px;font-weight:700;color:#9A6A10">共 $'+total.toFixed(2)+(tipTotal>0?' <span style="font-size:11px;font-weight:600">（含小費 $'+tipTotal.toFixed(2)+'）</span>':'')+'</span></div>'
     +list.map(function(g){
       return '<div style="display:flex;gap:10px;align-items:center;font-size:12px;padding:4px 0;border-top:1px dashed #F0DDB0;flex-wrap:wrap">'
         +(g.time?'<span style="color:var(--sub);font-family:monospace;min-width:58px">'+esc(g.time)+'</span>':'')
@@ -3415,9 +3429,10 @@ function renderDayGcSales(d){
             +['card','cash'].map(function(pm,i){var on=(g.raw==='cash'?'cash':'card')===pm;return '<button onclick="setGcPayOverride(\''+esc(g.code)+'\',\''+pm+'\')" style="padding:2px 8px;font-size:11px;cursor:pointer;font-family:inherit;border:1px solid '+(on?'#9A6A10':'var(--border)')+';background:'+(on?'#FFF3D6':'var(--white)')+';color:'+(on?'#9A6A10':'var(--faint)')+';font-weight:'+(on?'700':'400')+';border-radius:'+(i?'0 5px 5px 0':'5px 0 0 5px')+'">'+(pm==='cash'?'現金':'刷卡')+'</button>';}).join('')
             +'</span>'+(g.changed?'<span style="font-size:10px;color:var(--tip)">（已修正，iPad 原本記'+(g.raw==='cash'?'刷卡':'現金')+'）</span>':'')
           :'<span style="margin-left:auto;color:var(--sub)">'+g.pay+'</span>')
-        +'<span style="font-weight:700;min-width:70px;text-align:right">$'+g.amt.toFixed(2)+'</span></div>';
+        +'<span style="font-weight:700;min-width:70px;text-align:right">$'+g.amt.toFixed(2)
+          +(g.tip>0?'<div style="font-size:10px;font-weight:600;color:var(--tip)">含小費 +$'+g.tip.toFixed(2)+'</div>':'')+'</span></div>';
     }).join('')
-    +'<div style="font-size:10px;color:var(--faint);margin-top:4px">已算進當日營業額、Square 對帳和 GoDaddy 應收（刷卡的部分）。要修改請到「Gift Card」頁。iPad 賣的卡本來就不會在 Square，已經自動從 Square 對帳扣掉（GoDaddy 應收照樣包含）。</div>'
+    +'<div style="font-size:10px;color:var(--faint);margin-top:4px">卡面＋含小費已一起算進當日營業額、Square 對帳和 GoDaddy 應收（刷卡的部分）。客人之後來用卡時，技師的小費在那位客人的 Tip 填金額、方式選「GC」，由公司跟薪水一起發。要修改請到「Gift Card」頁。iPad 賣的卡本來就不會在 Square，已經自動從 Square 對帳扣掉（GoDaddy 應收照樣包含）。</div>'
     +'</div>';
 }
 
@@ -5583,6 +5598,7 @@ async function loadFBGiftCards(){
         +'<span id="gcarr-'+safeGid+'" style="font-size:9px;color:var(--faint);transition:transform .15s;display:inline-block">▶</span>'
         +'<span style="font-family:monospace;font-weight:700;color:#C0392B;font-size:13px">'+g.code+'</span>'
         +'<span style="font-size:13px;font-weight:600">$'+g.amount.toFixed(2)+'</span>'
+        +(gv(g.tip)>0?'<span style="font-size:11px;font-weight:700;color:#9A6A10;background:#FFF8EC;border:1px solid #F0DDB0;border-radius:6px;padding:1px 7px">含小費 $'+gv(g.tip).toFixed(2)+'</span>':'')
         +'<span style="font-size:11px;color:var(--sub)">For: '+(g.giftFor||'—')+'</span>'
         +'<span style="font-size:11px;color:var(--sub)">Exp: '+exp+'</span>'
         +'<button onclick="event.stopPropagation();markFBGCUsed(\''+g.id+'\',\''+g.code+'\')" style="margin-left:auto;font-size:11px;padding:4px 10px;border:1px solid #C0392B;border-radius:6px;background:#FFF0EE;color:#C0392B;cursor:pointer;font-family:inherit;font-weight:600">✓ 標記已使用</button>'
@@ -5612,13 +5628,15 @@ function buildGCDetailHtml(g){
   var known=[
     ['卡號',g.code||'—'],
     ['金額','$'+(g.amount!==undefined?Number(g.amount).toFixed(2):'—')],
+    ['含小費 Including Tip',gv(g.tip)>0?'$'+gv(g.tip).toFixed(2):'—'],
+    ['總收款 Total Charged','$'+((Number(g.amount)||0)+gv(g.tip)).toFixed(2)],
     ['收禮人',g.giftFor||'—'],
     ['購買/發卡時間',fmtTs(g.issuedAt)],
     ['到期日',g.expireDate?new Date(g.expireDate+'T12:00:00').toLocaleDateString('zh-TW'):'—'],
     ['狀態',g.used?'已使用':'未使用'],
   ];
   if(g.used||g.usedAt)known.push(['使用時間',fmtTs(g.usedAt)]);
-  var knownKeys={code:1,amount:1,giftFor:1,issuedAt:1,expireDate:1,used:1,usedAt:1,id:1};
+  var knownKeys={code:1,amount:1,giftFor:1,issuedAt:1,expireDate:1,used:1,usedAt:1,id:1,tip:1,totalCharged:1};
   var extra=[];
   Object.keys(g).forEach(function(k){
     if(knownKeys[k])return;
@@ -5850,16 +5868,16 @@ window.renderGCMonthStats=renderGCMonthStats;
 async function exportGCFullReport(){
   var cache=window._gcCombinedCache;
   if(!cache){ alert('資料還在載入中，請稍等一下再試一次 Data still loading, please try again in a moment.'); return; }
-  var rows=[['卡號 Code','面額 Amount','狀態 Status','售出日期 Sold Date','使用日期 Used Date','收禮人/備註 For/Note','來源 Source']];
+  var rows=[['卡號 Code','面額 Amount','含小費 Tip','狀態 Status','售出日期 Sold Date','使用日期 Used Date','收禮人/備註 For/Note','來源 Source']];
   cache.manual.forEach(function(c){
     var isUsed=(c.balance!==undefined?c.balance:c.amt)<=0.01;
-    rows.push([c.code, c.amt.toFixed(2), isUsed?'已使用 Used':'未使用 Active', c.date||'', c.useDate||'', c.note||'', '手動輸入 Manual']);
+    rows.push([c.code, c.amt.toFixed(2), '', isUsed?'已使用 Used':'未使用 Active', c.date||'', c.useDate||'', c.note||'', '手動輸入 Manual']);
   });
   cache.fbActive.forEach(function(g){
-    rows.push([g.code, (g.amount||0).toFixed(2), '未使用 Active', g.issuedAt?new Date(g.issuedAt).toLocaleDateString('en-US'):'', '', g.giftFor||'', 'iPad']);
+    rows.push([g.code, (g.amount||0).toFixed(2), gv(g.tip)>0?gv(g.tip).toFixed(2):'', '未使用 Active', g.issuedAt?new Date(g.issuedAt).toLocaleDateString('en-US'):'', '', g.giftFor||'', 'iPad']);
   });
   cache.fbUsed.forEach(function(g){
-    rows.push([g.code, (g.amount||0).toFixed(2), '已使用 Used', g.issuedAt?new Date(g.issuedAt).toLocaleDateString('en-US'):'', g.usedAt?new Date(g.usedAt).toLocaleDateString('en-US'):'', g.giftFor||'', 'iPad']);
+    rows.push([g.code, (g.amount||0).toFixed(2), gv(g.tip)>0?gv(g.tip).toFixed(2):'', '已使用 Used', g.issuedAt?new Date(g.issuedAt).toLocaleDateString('en-US'):'', g.usedAt?new Date(g.usedAt).toLocaleDateString('en-US'):'', g.giftFor||'', 'iPad']);
   });
   var csv=rows.map(function(r){return r.map(function(v){return '"'+String(v).replace(/"/g,'""')+'"';}).join(',');}).join('\n');
   var blob=new Blob(['\ufeff'+csv],{type:'text/csv;charset=utf-8'});
@@ -5905,6 +5923,7 @@ async function loadGCUsedHistory(){
         +'<span id="gcarr-'+safeGid+'" style="font-size:9px;color:var(--faint);transition:transform .15s;display:inline-block">▶</span>'
         +'<span style="font-family:monospace;font-weight:700;color:var(--sub);font-size:13px">'+g.code+'</span>'
         +'<span style="font-size:13px;font-weight:600">$'+g.amount.toFixed(2)+'</span>'
+        +(gv(g.tip)>0?'<span style="font-size:11px;font-weight:700;color:#9A6A10;background:#FFF8EC;border:1px solid #F0DDB0;border-radius:6px;padding:1px 7px">含小費 $'+gv(g.tip).toFixed(2)+'</span>':'')
         +'<span style="font-size:11px;color:var(--sub)">For: '+(g.giftFor||'—')+'</span>'
         +'<span style="margin-left:auto;font-size:11px;color:var(--ok);font-weight:600">✓ 已使用 '+usedDate+'</span>'
         +'</div>'
@@ -11808,7 +11827,7 @@ function cashRevForDate(store, dateStr){
     if(p.date===dateStr&&belongs&&p.pay==='cash')total+=gv(p.amt);
   });
   (_D.gc_cards||[]).forEach(function(g){ if(g.store===store&&g.date===dateStr&&g.pay==='cash')total+=(g.amt||0); });
-  (window._gcFbAll||[]).forEach(function(g){ if(g.store===store&&g.date===dateStr&&g.payMethod==='cash')total+=(g.amount||0); });
+  (window._gcFbAll||[]).forEach(function(g){ if(g.store===store&&g.date===dateStr&&g.payMethod==='cash')total+=(g.amount||0)+gv(g.tip); });
   return Math.round(total*100)/100;
 }
 // 某店某月「技師現金小費」：每個技師拿到多少現金小費（依小費分配頁的結果；還沒按確認的日子用預設分配），
@@ -11965,7 +11984,7 @@ function cdDupInIds(store){
     });
     ((_D.products&&_D.products[mo])||[]).forEach(function(p){ var b=p.store?(p.store===store):(store==='mv'); if(b&&p.date===date&&p.pay==='cash'&&gv(p.amt)>0)cands.push({amt:r2(gv(p.amt)),used:false}); });
     (_D.gc_cards||[]).forEach(function(g){ if(g.store===store&&g.date===date&&g.pay==='cash')cands.push({amt:r2(g.amt||0),used:false}); });
-    (window._gcFbAll||[]).forEach(function(g){ if(g.store===store&&g.date===date&&g.payMethod==='cash')cands.push({amt:r2(g.amount||0),used:false}); });
+    (window._gcFbAll||[]).forEach(function(g){ if(g.store===store&&g.date===date&&g.payMethod==='cash')cands.push({amt:r2((g.amount||0)+gv(g.tip)),used:false}); });
     byDate[date].forEach(function(e){
       var c=cands.find(function(x){return !x.used&&Math.abs(x.amt-e.amt)<0.005;});
       if(c){c.used=true;ids[e.id]=true;info[e.id]='match';return;}
@@ -12014,7 +12033,7 @@ function cdSalesItems(store,date){ // 這天每一筆進保險箱的現金（含
   });
   ((_D.products&&_D.products[mo])||[]).forEach(function(p){ var b=p.store?(p.store===store):(store==='mv'); if(b&&p.date===date&&p.pay==='cash'&&gv(p.amt)>0)out.push({t:'00:00',amt:r2(gv(p.amt)),label:'產品 '+(p.name||'')}); });
   (_D.gc_cards||[]).forEach(function(g){ if(g.store===store&&g.date===date&&g.pay==='cash')out.push({t:'00:00',amt:r2(g.amt||0),label:'禮品卡 '+(g.code||'')}); });
-  (window._gcFbAll||[]).forEach(function(g){ if(g.store===store&&g.date===date&&g.payMethod==='cash')out.push({t:cdHHMM(g.time)||'00:00',amt:r2(g.amount||0),label:'禮品卡(iPad) '+(g.code||'')}); });
+  (window._gcFbAll||[]).forEach(function(g){ if(g.store===store&&g.date===date&&g.payMethod==='cash')out.push({t:cdHHMM(g.time)||'00:00',amt:r2((g.amount||0)+gv(g.tip)),label:'禮品卡(iPad) '+(g.code||'')+(gv(g.tip)>0?'（含小費 $'+gv(g.tip).toFixed(2)+'）':'')}); });
   if(!clients.length&&day&&day.sqCash)out.push({t:'00:00',amt:r2(gv(day.sqCash))});
   return out;
 }
@@ -12132,7 +12151,7 @@ function cdPeriodAmounts(store,fromDate,toDate){
     });
     ((_D.products&&_D.products[mo])||[]).forEach(function(p){ var b=p.store?(p.store===store):(store==='mv'); if(b&&p.date===day&&p.pay==='cash')A.prodCash+=gv(p.amt); });
     (_D.gc_cards||[]).forEach(function(g){ if(g.store===store&&g.date===day&&g.pay==='cash')A.gcCash+=(g.amt||0); });
-    (window._gcFbAll||[]).forEach(function(g){ if(g.store===store&&g.date===day&&g.payMethod==='cash')A.gcCash+=(g.amount||0); });
+    (window._gcFbAll||[]).forEach(function(g){ if(g.store===store&&g.date===day&&g.payMethod==='cash')A.gcCash+=(g.amount||0)+gv(g.tip); });
   }
   return A;
 }

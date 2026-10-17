@@ -247,6 +247,14 @@ body.text-xl .field-row{grid-template-columns:1fr}
       <span style="font-size:22px;font-weight:600;color:var(--sub)">$</span>
       <input type="number" id="gc-amount" placeholder="0" min="1" step="1" oninput="updateGCPreview()" style="flex:1;border:1.5px solid var(--border);border-radius:9px;padding:12px 14px;font-size:22px;font-weight:700;font-family:'Inter',sans-serif;color:var(--ink);background:var(--white);outline:none;-webkit-appearance:none" onfocus="this.style.borderColor='var(--rose-mid)'" onblur="this.style.borderColor='var(--border)'">
     </div>
+    <div style="margin-top:14px;padding-top:12px;border-top:1px dashed var(--border)">
+      <div style="font-size:12px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--sub);margin-bottom:8px">Including Tip 含小費 <span style="font-weight:400;text-transform:none;letter-spacing:0;color:var(--faint)">(optional 選填)</span></div>
+      <div style="display:flex;align-items:center;gap:8px">
+        <span style="font-size:18px;font-weight:600;color:var(--sub)">$</span>
+        <input type="number" id="gc-tip" placeholder="0" min="0" step="0.01" inputmode="decimal" oninput="updateGCPreview()" style="flex:1;border:1.5px solid var(--border);border-radius:9px;padding:10px 14px;font-size:18px;font-weight:600;font-family:'Inter',sans-serif;color:var(--ink);background:var(--white);outline:none;-webkit-appearance:none" onfocus="this.style.borderColor='var(--rose-mid)'" onblur="this.style.borderColor='var(--border)'">
+      </div>
+      <div id="gc-total-charge" style="display:none;margin-top:10px;background:var(--rose-light);border-radius:8px;padding:9px 12px;font-size:14px;color:var(--ink)"></div>
+    </div>
   </div>
 
   <!-- Gift Details -->
@@ -262,13 +270,13 @@ body.text-xl .field-row{grid-template-columns:1fr}
     </div>
     <div class="field" style="margin-bottom:0">
       <label>Expire Date 到期日</label>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px">
-        <div class="gc-exp-btn" onclick="pickExpiry(12,this)">1 Year 一年</div>
-        <div class="gc-exp-btn" onclick="pickExpiry(6,this)">6 Months 六個月</div>
-        <div class="gc-exp-btn" onclick="pickExpiry(3,this)">3 Months 三個月</div>
-        <div class="gc-exp-btn" onclick="pickExpiry(1,this)">1 Month 一個月</div>
-        <div class="gc-exp-btn" style="grid-column:span 2" onclick="pickExpiry(0,this)">Custom 自訂日期</div>
-      </div>
+      <select id="gc-exp-sel" onchange="pickExpiry(parseInt(this.value,10))" style="width:100%;border:1.5px solid var(--border);border-radius:9px;padding:12px 14px;font-size:16px;font-family:'Inter',sans-serif;color:var(--ink);background:var(--white);outline:none;margin-bottom:8px;box-sizing:border-box">
+        <option value="3">3 Months 三個月</option>
+        <option value="1">1 Month 一個月</option>
+        <option value="6">6 Months 六個月</option>
+        <option value="12">1 Year 一年</option>
+        <option value="0">Custom date 自訂日期…</option>
+      </select>
       <input type="date" id="gc-exp" oninput="updateGCPreview()" style="display:none;width:100%;border:1.5px solid var(--border);border-radius:9px;padding:12px 14px;font-size:16px;font-family:'Inter',sans-serif;color:var(--ink);background:var(--white);outline:none;box-sizing:border-box">
     </div>
   </div>
@@ -352,6 +360,14 @@ body.text-xl .field-row{grid-template-columns:1fr}
         <div>
           <div style="font-size:11px;color:var(--sub);font-weight:600;letter-spacing:.06em;margin-bottom:5px">AMOUNT</div>
           <div style="font-size:15px;font-weight:700;color:var(--rose);border-bottom:1.5px solid var(--border);padding-bottom:6px" id="gc-fill-amt2">—</div>
+        </div>
+        <div id="gc-fill-tip-wrap" style="display:none">
+          <div style="font-size:11px;color:var(--sub);font-weight:600;letter-spacing:.06em;margin-bottom:5px">INCLUDING TIP 含小費</div>
+          <div style="font-size:15px;font-weight:700;color:#9A7030;border-bottom:1.5px solid var(--border);padding-bottom:6px" id="gc-fill-tip">—</div>
+        </div>
+        <div id="gc-fill-total-wrap" style="display:none">
+          <div style="font-size:11px;color:var(--sub);font-weight:600;letter-spacing:.06em;margin-bottom:5px">TOTAL CHARGED 總收款</div>
+          <div style="font-size:15px;font-weight:700;color:var(--ink);border-bottom:1.5px solid var(--border);padding-bottom:6px" id="gc-fill-total">—</div>
         </div>
         <div>
           <div style="font-size:11px;color:var(--sub);font-weight:600;letter-spacing:.06em;margin-bottom:5px">PURCHASER NAME</div>
@@ -1326,9 +1342,11 @@ window.syncClientToSquare = syncClientToSquare;
 var _gcStore = null;
 var _gcPayMethod = null;
 
+// 到期日：下拉選單，預設 3 個月（el 參數保留只是為了相容舊的呼叫方式）
 function pickExpiry(months, el) {
-  document.querySelectorAll('.gc-exp-btn').forEach(b => b.classList.remove('sel'));
-  el.classList.add('sel');
+  if (isNaN(months)) months = 3;
+  var selEl = document.getElementById('gc-exp-sel');
+  if (selEl && String(selEl.value) !== String(months)) selEl.value = String(months);
   var expEl = document.getElementById('gc-exp');
   if (months === 0) {
     expEl.style.display = 'block';
@@ -1343,7 +1361,7 @@ function pickExpiry(months, el) {
     targetMo = targetMo % 12;
     var maxDay = new Date(targetY, targetMo + 1, 0).getDate();
     var expDate = new Date(targetY, targetMo, Math.min(day, maxDay));
-    expEl.value = expDate.toISOString().split('T')[0];
+    expEl.value = expDate.getFullYear() + '-' + String(expDate.getMonth()+1).padStart(2,'0') + '-' + String(expDate.getDate()).padStart(2,'0');
   }
   updateGCPreview();
 }
@@ -1355,8 +1373,7 @@ function showGiftCardForm() {
   document.getElementById('gc-prev-date').textContent = new Date().toLocaleDateString('en-US');
   window.scrollTo(0,0);
   // 直接呼叫 pickExpiry 設定預設值並更新預覽
-  var firstBtn = document.querySelector('.gc-exp-btn');
-  if (firstBtn) pickExpiry(12, firstBtn);
+  pickExpiry(3);
 }
 
 function goBackFromGC() {
@@ -1402,6 +1419,14 @@ function updateGCPreview() {
   document.getElementById('gc-prev-for').textContent  = forVal  || '—';
   document.getElementById('gc-prev-from').textContent = fromVal || '—';
   document.getElementById('gc-prev-amt').textContent  = amtVal > 0 ? '$' + amtVal.toFixed(2) : '$—';
+  var tipVal  = Math.round((parseFloat(document.getElementById('gc-tip')?.value)||0)*100)/100;
+  var tcEl = document.getElementById('gc-total-charge');
+  if (tcEl) {
+    if (tipVal > 0) {
+      tcEl.style.display = 'block';
+      tcEl.innerHTML = 'Card value 卡面 <b>$' + amtVal.toFixed(2) + '</b> + Tip 小費 <b>$' + tipVal.toFixed(2) + '</b> = Total charge 總收款 <b style="color:var(--rose)">$' + (amtVal + tipVal).toFixed(2) + '</b>';
+    } else { tcEl.style.display = 'none'; }
+  }
   document.getElementById('gc-prev-exp').textContent  = expVal
     ? new Date(expVal+'T12:00:00').toLocaleDateString('en-US') : '—';
   validateGC();
@@ -1424,6 +1449,7 @@ async function submitGC() {
   var expVal  = document.getElementById('gc-exp')?.value || '';
   var noteVal = (document.getElementById('gc-note')?.value||'').trim();
   var soldBy  = (document.getElementById('gc-soldby')?.value||'').trim();
+  var tipAmt  = Math.max(0, Math.round((parseFloat(document.getElementById('gc-tip')?.value)||0)*100)/100);
   var code    = gcGenCode(_gcStore);
   var today   = new Date().toLocaleDateString('en-US');
   var expDisp = expVal ? new Date(expVal+'T12:00:00').toLocaleDateString('en-US') : '—';
@@ -1433,6 +1459,7 @@ async function submitGC() {
   var data = {
     type:'gift_certificate', code:code, store:_gcStore,
     giftFor:forVal, purchaser:fromVal, amount:amt, balance:amt,
+    tip:tipAmt, totalCharged:Math.round((amt+tipAmt)*100)/100,
     payMethod:_gcPayMethod, expireDate:expVal, soldBy:soldBy,
     note:noteVal, issuedAt:new Date().toISOString(), used:false
   };
@@ -1448,6 +1475,10 @@ async function submitGC() {
     document.getElementById('gc-fill-exp').textContent       = expDisp;
     document.getElementById('gc-fill-purchaser').textContent = fromVal;
     document.getElementById('gc-fill-soldby').textContent    = soldBy;
+    document.getElementById('gc-fill-tip').textContent       = '$' + tipAmt.toFixed(2);
+    document.getElementById('gc-fill-total').textContent     = '$' + (amt + tipAmt).toFixed(2);
+    document.getElementById('gc-fill-tip-wrap').style.display   = tipAmt > 0 ? 'block' : 'none';
+    document.getElementById('gc-fill-total-wrap').style.display = tipAmt > 0 ? 'block' : 'none';
     document.getElementById('gc-done-code').textContent      = code;
     document.getElementById('gc-fill-code-customer').textContent = code;
     var nw = document.getElementById('gc-done-note-wrap');
@@ -1466,12 +1497,11 @@ async function submitGC() {
 
 function resetGC() {
   _gcStore = null; _gcPayMethod = null;
-  ['gc-for','gc-from','gc-amount','gc-note','gc-soldby'].forEach(id => {
+  ['gc-for','gc-from','gc-amount','gc-tip','gc-note','gc-soldby'].forEach(id => {
     var el = document.getElementById(id); if (el) el.value = '';
   });
   // Reset expiry to 1 year default
-  var firstBtn = document.querySelector('.gc-exp-btn');
-  if (firstBtn) pickExpiry(12, firstBtn);
+  pickExpiry(3);
   document.querySelectorAll('.gc-pay-btn').forEach(b => b.classList.remove('sel'));
   ['gc-store-mv','gc-store-sr'].forEach(id => {
     var e = document.getElementById(id);
