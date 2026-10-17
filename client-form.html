@@ -48,6 +48,36 @@ body{background:var(--cream);font-family:'Inter',sans-serif;color:var(--ink);min
 
 /* fields */
 .field{margin-bottom:16px}
+.req-star{color:var(--rose)}
+.opt-group.grid2{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.opt-group.grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.opt-group.grid2 .opt-btn,.opt-group.grid3 .opt-btn{min-width:0}
+.hg-none{margin-bottom:4px}
+.hg-title{margin:16px 0 2px;font-size:.78em;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--rose)}
+.health-area-box{background:#FBF6F4;border:1.5px solid #EED9D4;border-radius:12px;padding:14px 16px}
+@media(max-width:560px){.opt-group.grid2,.opt-group.grid3{grid-template-columns:1fr 1fr}}
+.opt-btn.all-btn{border-style:dashed;font-weight:600}
+.opt-btn.all-btn.sel{border-style:solid}
+.lvl-row{display:grid;grid-template-columns:repeat(10,1fr);gap:6px;margin-top:6px}
+.lvl-btn{display:flex;align-items:center;justify-content:center;aspect-ratio:1/1;min-height:2.6em;border:1.5px solid var(--border);border-radius:8px;cursor:pointer;font-size:clamp(15px,0.5vw + 13px,18px);font-weight:600;color:var(--ink);background:#fff;-webkit-user-select:none;user-select:none;transition:all .15s}
+.lvl-btn.sel{border-color:var(--rose);background:var(--rose);color:#fff}
+.lvl-legend{display:flex;justify-content:space-between;margin-top:6px;font-size:.85em;color:var(--sub)}
+.need-answer{animation:needPulse 1.2s ease 2;border-radius:10px;box-shadow:0 0 0 2px #E08A8A}
+@keyframes needPulse{0%,100%{box-shadow:0 0 0 2px #E08A8A}50%{box-shadow:0 0 0 5px rgba(224,138,138,.35)}}
+.phone-row{display:flex;gap:8px;align-items:stretch}
+.phone-row input{flex:1;min-width:0}
+.field select.cc-sel{width:auto;flex:0 0 auto;max-width:8.2em;padding-left:.6em;padding-right:.6em;text-overflow:ellipsis}
+.fld-err{display:none;margin-top:6px;font-size:13px;font-weight:600;color:#C0392B}
+.fld-err.on{display:block}
+.fld-err .fix{display:inline-block;margin-left:6px;padding:3px 10px;border-radius:14px;background:#FBEAEA;color:#C0392B;border:1px solid #E8B4B4;cursor:pointer}
+input.bad{border-color:#E08A8A!important;background:#FFF8F8!important}
+.email-wrap{position:relative}
+.email-chips{position:absolute;left:0;right:0;top:calc(100% + 4px);z-index:50;background:#fff;border:1.5px solid var(--border);border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.10);max-height:16em;overflow-y:auto;-webkit-overflow-scrolling:touch}
+.email-chips:empty{display:none}
+.email-chip{display:block;width:100%;text-align:left;padding:.6em .9em;border:none;border-bottom:1px solid #F1ECE8;background:#fff;font-size:1em;color:var(--sub,#888);cursor:pointer;font-family:inherit}
+.email-chip:last-child{border-bottom:none}
+.email-chip b{color:var(--ink);font-weight:600}
+.email-chip:active,.email-chip:hover{background:var(--rose-light,#F5EDED)}
 .field:last-child{margin-bottom:0}
 .field label{display:block;font-size:clamp(14px,0.4vw + 12px,16px);font-weight:500;color:var(--sub);margin-bottom:6px;letter-spacing:.02em}
 .field input[type=text],.field input[type=email],.field input[type=tel],.field input[type=date],.field select,.field textarea{
@@ -125,6 +155,7 @@ body.text-lg .svc-btn{padding:28px 20px}
 body.text-lg .field label{font-size:19px}
 body.text-lg .field input[type=text],body.text-lg .field input[type=email],body.text-lg .field input[type=tel],body.text-lg .field input[type=date],body.text-lg .field select,body.text-lg .field textarea{font-size:24px;padding:18px 18px}
 body.text-lg .opt-btn{font-size:21px;padding:14px 18px}
+body.text-lg .lvl-btn{font-size:21px}
 body.text-lg .opt-btn .dot,body.text-lg .opt-btn .sq{width:22px;height:22px}
 body.text-lg .ql{font-size:21px}
 body.text-lg .sec-title{font-size:16px}
@@ -149,6 +180,7 @@ body.text-xl .svc-btn{padding:32px 22px}
 body.text-xl .field label{font-size:22px}
 body.text-xl .field input[type=text],body.text-xl .field input[type=email],body.text-xl .field input[type=tel],body.text-xl .field input[type=date],body.text-xl .field select,body.text-xl .field textarea{font-size:29px;padding:20px 20px}
 body.text-xl .opt-btn{font-size:24px;padding:16px 20px}
+body.text-xl .lvl-btn{font-size:24px}
 body.text-xl .opt-btn .dot,body.text-xl .opt-btn .sq{width:27px;height:27px}
 body.text-xl .ql{font-size:24px}
 body.text-xl .sec-title{font-size:18px}
@@ -564,6 +596,8 @@ var T = {
   ja: {"back": "戻る", "or": "または", "select_location": "店舗を選択", "select_location_sub": "本日ご利用の店舗を選択してください", "select_language": "言語を選択", "select_language_sub": "ご希望の言語を選択してください", "gift_certificate": "ギフト券", "purchase_gift_certificate": "ギフト券を購入する", "welcome": "ようこそ！", "select_service_sub": "本日のサービスを選択してください", "continue": "次へ", "submit_form": "フォームを送信", "clear": "消去", "thank_you": "ありがとうございました！", "info_saved": "情報が保存されました。", "hand_ipad_back": "iPadを担当スタッフにお返しください。", "new_client": "新規のお客様", "form_subtitle": "すべての項目にご記入の上、下部にご署名ください", "svc_lash_name": "まつげ", "svc_lash_desc": "エクステ＆リフト", "svc_facial_name": "フェイシャル", "svc_facial_desc": "スキンケア＆トリートメント", "svc_headspa_name": "ヘッドスパ", "svc_headspa_desc": "頭皮ケア", "svc_massage_name": "マッサージ", "svc_massage_desc": "ボディ＆リラクゼーション", "sec_personal_info": "個人情報", "lbl_first_name": "名 *", "ph_first_name": "名", "lbl_last_name": "姓 *", "ph_last_name": "姓", "lbl_phone": "電話番号 *", "lbl_email": "メール", "lbl_dob": "生年月日", "month": "月", "day": "日", "lbl_hear": "当店をどこでお知りになりましたか？", "sec_signature": "署名", "lbl_print_name": "氏名（活字体）", "ph_auto_filled": "自動入力", "lbl_date": "日付", "lbl_signature": "署名", "sec_client_info": "お客様情報", "q_sensitive_eyes": "目が敏感だと思いますか？", "q_prev_lash": "以前にまつげエクステをしたことがありますか？", "q_contacts": "コンタクトレンズを使用していますか？", "q_lash_allergy": "既知のアレルギーはありますか？（接着剤、ラテックス、テープ）", "ph_please_specify": "詳細をご記入ください…", "sec_skin_analysis": "肌肉分析 — デイリーケア", "q_makeup": "1. メイクをしますか？", "lbl_makeup_removal": "メイク落としの方法：", "q_face_wash": "2. 洗顔料のタイプ：", "q_water_temp": "3. 使用するお湯の温度：", "q_exfoliator": "4. 角質ケアや酵素製品を使用していますか？", "q_vitc": "5. ビタミンCや美白製品を使用していますか？", "lbl_usage_freq": "使用頻度：", "sec_medical": "医療・特別配慮事項", "q_medical_check": "6. 該当する項目にチェックしてください：", "opt_claustrophobia": "閉所恐怖症", "lbl_allergies_7": "7. アレルギー（アスピリン、ヨウ素、ナッツ類など）", "ph_list_allergies": "アレルギーがあればご記入ください…", "lbl_massage_intensity_8": "8. 肩・首マッサージの強さ（1〜10）", "ph_eg_5": "例：5", "sec_addons_waxing": "オプション＆ワックス脱毛", "lbl_addons": "オプション：", "lbl_waxing": "ワックス脱毛：", "sec_headspa_consult": "ヘッドスパ カウンセリング", "q_prev_spa": "1. 以前に頭皮マッサージを受けたことがありますか？", "q_medication": "2. 現在服用中のお薬はありますか？", "ph_if_yes_specify": "はいの場合、詳細をご記入ください…", "q_spa_allergy": "3. アレルギーはありますか？", "q_pregnant_spa": "4. 妊娠していますか？", "q_water_pref": "5. お湯の温度の好み：", "q_head_pressure": "6. 頭部マッサージの強さ：", "q_neck_pressure": "7. 首・肩マッサージの強さ：", "q_scalp_indicate": "8. 該当するものがあればお知らせください：", "lbl_surgery_9": "9. 頭部・首・肩の手術歴（あれば）：", "ph_describe_if_applicable": "該当する場合はご記入ください…", "sec_massage_pref": "1. マッサージのご希望", "lbl_desired_pressure": "希望する強さ：", "lbl_focus_areas": "重点的にマッサージしてほしい部位：", "sec_health_history": "2. 健康状態", "q_health_conditions": "以下のいずれかに該当しますか？", "Yes": "はい", "No": "いいえ", "Yes, love them": "はい、気に入っています", "Yes, had reactions": "はい、反応が出たことがあります", "No, first time": "いいえ、初めてです", "Oil": "オイル", "Wipes": "ウェットティッシュ", "Soap": "石鹸", "Other": "その他", "Foam": "洗顔フォーム", "Cold": "冷たい", "Warm": "ぬるめ", "Daily": "毎日", "Weekly": "毎週", "Sometimes": "時々", "Currently Pregnant": "現在妊娠中", "Metal implants in body": "体内に金属インプラントがある", "A: Do not cover my eyes and lip": "A: 目と唇は覆わないでください", "B: Masks OK, let me know before applying": "B: マスク使用OK、塗布前に教えてください", "C: I need to keep the lights on": "C: 明かりをつけたままにしてほしい", "Google": "Google", "Yelp": "Yelp", "Friend": "友人の紹介", "Pass By": "通りがかり", "Ultrasonic Cleaning ($25)": "超音波クレンジング（$25）", "Eye Treatment Device ($45)": "アイトリートメント機器（$45）", "Eye Treatment Upgrade Pola ($25)": "アイトリートメントアップグレード Pola（$25）", "Brow ($30)": "眉毛（$30）", "Full Face ($55)": "顔全体（$55）", "Chin Lip ($15)": "顎・唇（$15）", "Under Arm ($40)": "脇（$40）", "Brow Lip ($40)": "眉毛・唇（$40）", "Cool": "涼しめ", "Normal": "普通", "Extra Warm": "熱め", "Soft": "弱め", "Medium": "普通", "Hard": "強め", "Skin Conditions": "皮膚トラブル", "Dandruff": "フケ", "Eczema": "湿疹", "Psoriasis": "乾癬", "Light": "弱め", "Firm / Deep Tissue": "強め／ディープティシュー", "Neck": "首", "Shoulders": "肩", "Upper Back": "背中上部", "Lower Back": "背中下部", "Hips/Glutes": "腰・お尻", "Arms/Hands": "腕・手", "Legs/Feet": "脚", "Scalp/Face": "頭皮・顔", "High Blood Pressure": "高血圧", "Varicose Veins": "静脈瘤", "Blood Clots/DVT": "血栓症", "Osteoporosis": "骨粗鬆症", "Recent Surgery": "最近の手術", "Pregnancy": "妊娠", "Skin Rashes": "皮膚の発疹", "Numbness/Tingling": "しびれ・チクチク感", "textsize_normal": "Aa 文字サイズ", "textsize_lg": "Aa+ 大きい文字", "textsize_xl": "Aa++ 特大文字"},
   ko: {"back": "뒤로", "or": "또는", "select_location": "매장 선택", "select_location_sub": "오늘 방문하실 매장을 선택해 주세요", "select_language": "언어 선택", "select_language_sub": "선호하는 언어를 선택해 주세요", "gift_certificate": "기프트 카드", "purchase_gift_certificate": "기프트 카드 구매", "welcome": "환영합니다!", "select_service_sub": "오늘 이용하실 서비스를 선택해 주세요", "continue": "계속", "submit_form": "양식 제출", "clear": "지우기", "thank_you": "감사합니다!", "info_saved": "정보가 저장되었습니다.", "hand_ipad_back": "아이패드를 담당 직원에게 돌려주세요.", "new_client": "신규 고객", "form_subtitle": "모든 항목을 작성하신 후 아래에 서명해 주세요", "svc_lash_name": "속눈썹", "svc_lash_desc": "연장 & 리프팅", "svc_facial_name": "페이셜", "svc_facial_desc": "스킨케어 & 트리트먼트", "svc_headspa_name": "헤드 스파", "svc_headspa_desc": "두피 관리", "svc_massage_name": "마사지", "svc_massage_desc": "전신 & 릴렉스", "sec_personal_info": "개인 정보", "lbl_first_name": "이름 *", "ph_first_name": "이름", "lbl_last_name": "성 *", "ph_last_name": "성", "lbl_phone": "전화번호 *", "lbl_email": "이메일", "lbl_dob": "생년월일", "month": "월", "day": "일", "lbl_hear": "저희를 어떻게 알게 되셨나요?", "sec_signature": "서명", "lbl_print_name": "성명 (인쇄체)", "ph_auto_filled": "자동 입력", "lbl_date": "날짜", "lbl_signature": "서명", "sec_client_info": "고객 정보", "q_sensitive_eyes": "눈이 민감하다고 생각하시나요?", "q_prev_lash": "전에 속눈썹 연장을 받아보신 적이 있나요?", "q_contacts": "콘택트렌즈를 착용하시나요?", "q_lash_allergy": "알려진 알레르기가 있나요? (접착제, 라텍스, 테이프)", "ph_please_specify": "자세히 적어 주세요...", "sec_skin_analysis": "피부 분석 — 데일리 케어", "q_makeup": "1. 화장을 하시나요?", "lbl_makeup_removal": "화장 제거 방법:", "q_face_wash": "2. 클렌저 종류:", "q_water_temp": "3. 선호하는 물 온도:", "q_exfoliator": "4. 각질제거제 / 효소 제품을 사용하시나요?", "q_vitc": "5. 비타민C 또는 미백 제품을 사용하시나요?", "lbl_usage_freq": "사용 빈도:", "sec_medical": "의료 및 특별 요청 사항", "q_medical_check": "6. 해당하는 항목에 체크해 주세요:", "opt_claustrophobia": "폐소공포증", "lbl_allergies_7": "7. 알레르기 (아스피린, 요오드, 견과류 등)", "ph_list_allergies": "알레르기를 적어 주세요...", "lbl_massage_intensity_8": "8. 어깨/목 마사지 강도 (1–10)", "ph_eg_5": "예: 5", "sec_addons_waxing": "추가 서비스 & 왁싱", "lbl_addons": "추가 서비스:", "lbl_waxing": "왁싱:", "sec_headspa_consult": "헤드 스파 상담", "q_prev_spa": "1. 전에 두피 마사지를 받아보신 적이 있나요?", "q_medication": "2. 현재 복용 중인 약이 있나요?", "ph_if_yes_specify": "네, 라면 어떤 약인지 적어 주세요...", "q_spa_allergy": "3. 알레르기가 있나요?", "q_pregnant_spa": "4. 임신 중이신가요?", "q_water_pref": "5. 선호하는 물 온도:", "q_head_pressure": "6. 헤드 마사지 강도:", "q_neck_pressure": "7. 목/어깨 마사지 강도:", "q_scalp_indicate": "8. 해당하는 것이 있으면 알려주세요:", "lbl_surgery_9": "9. 머리, 목, 어깨 수술 이력 (있는 경우):", "ph_describe_if_applicable": "해당되는 경우 설명해 주세요...", "sec_massage_pref": "1. 마사지 선호도", "lbl_desired_pressure": "원하는 강도:", "lbl_focus_areas": "집중 부위:", "sec_health_history": "2. 건강 이력", "q_health_conditions": "다음 중 해당하는 것이 있나요?", "Yes": "네", "No": "아니요", "Yes, love them": "네, 좋아해요", "Yes, had reactions": "네, 반응이 있었어요", "No, first time": "아니요, 처음이에요", "Oil": "오일", "Wipes": "물티슈", "Soap": "비누", "Other": "기타", "Foam": "폼클렌저", "Cold": "차가움", "Warm": "따뜻함", "Daily": "매일", "Weekly": "매주", "Sometimes": "가끔", "Currently Pregnant": "현재 임신 중", "Metal implants in body": "체내 금속 삽입물 있음", "A: Do not cover my eyes and lip": "A: 눈과 입은 가리지 말아주세요", "B: Masks OK, let me know before applying": "B: 마스크 사용 괜찮음, 도포 전에 알려주세요", "C: I need to keep the lights on": "C: 조명을 켜 두어야 해요", "Google": "Google", "Yelp": "Yelp", "Friend": "친구 추천", "Pass By": "지나가다 발견", "Ultrasonic Cleaning ($25)": "초음파 클렌징 ($25)", "Eye Treatment Device ($45)": "아이 트리트먼트 기기 ($45)", "Eye Treatment Upgrade Pola ($25)": "아이 트리트먼트 업그레이드 Pola ($25)", "Brow ($30)": "눈썹 ($30)", "Full Face ($55)": "얼굴 전체 ($55)", "Chin Lip ($15)": "턱/입술 ($15)", "Under Arm ($40)": "겨드랑이 ($40)", "Brow Lip ($40)": "눈썹/입술 ($40)", "Cool": "시원함", "Normal": "보통", "Extra Warm": "매우 따뜻함", "Soft": "약하게", "Medium": "보통", "Hard": "강하게", "Skin Conditions": "피부 질환", "Dandruff": "비듬", "Eczema": "습진", "Psoriasis": "건선", "Light": "가볍게", "Firm / Deep Tissue": "강하게 / 딥티슈", "Neck": "목", "Shoulders": "어깨", "Upper Back": "등 상부", "Lower Back": "등 하부", "Hips/Glutes": "엉덩이", "Arms/Hands": "팔/손", "Legs/Feet": "다리/발", "Scalp/Face": "두피/얼굴", "High Blood Pressure": "고혈압", "Varicose Veins": "정맥류", "Blood Clots/DVT": "혈전/DVT", "Osteoporosis": "골다공증", "Recent Surgery": "최근 수술", "Pregnancy": "임신", "Skin Rashes": "피부 발진", "Numbness/Tingling": "저림/따끔거림", "textsize_normal": "Aa 글자 크기", "textsize_lg": "Aa+ 큰 글자", "textsize_xl": "Aa++ 특대 글자"},
 };
+// 健康狀況選項的翻譯（按摩表單）
+(function(){var A={"en": {"None of the above": "None of the above", "Low Blood Pressure": "Low Blood Pressure", "Heart Condition / Pacemaker": "Heart Condition / Pacemaker", "Diabetes": "Diabetes", "Arthritis": "Arthritis", "Herniated / Slipped Disc": "Herniated / Slipped Disc", "Scoliosis": "Scoliosis", "Sciatica": "Sciatica", "Recent Injury / Sprain": "Recent Injury / Sprain", "Metal Implants / Joint Replacement": "Metal Implants / Joint Replacement", "Eczema": "Eczema", "Psoriasis": "Psoriasis", "Sunburn / Open Wounds": "Sunburn / Open Wounds", "Headaches / Migraines": "Headaches / Migraines", "Fibromyalgia": "Fibromyalgia", "Cancer (current or past)": "Cancer (current or past)", "Epilepsy / Seizures": "Epilepsy / Seizures", "Allergy to Oils / Lotions": "Allergy to Oils / Lotions", "lbl_health_detail": "Details — where on the body / when? (e.g. right knee surgery, 2024)", "ph_health_detail": "e.g. lower back surgery last year — please avoid", "hg_heart": "Heart & Blood", "hg_bone": "Bones, Joints & Nerves", "hg_injury": "Injury & Surgery", "hg_skin": "Skin", "hg_other": "Other", "Head/Face": "Head/Face", "Chest": "Chest", "Abdomen": "Abdomen", "Arms": "Arms", "Hands/Wrists": "Hands/Wrists", "Legs": "Legs", "Knees": "Knees", "Ankles/Feet": "Ankles/Feet", "Left side": "Left side", "Right side": "Right side", "Both sides": "Both sides", "q_health_areas": "Which area should we be careful with or avoid?", "q_health_side": "Which side?"}, "es": {"None of the above": "Ninguna de las anteriores", "Low Blood Pressure": "Presión arterial baja", "Heart Condition / Pacemaker": "Afección cardíaca / Marcapasos", "Diabetes": "Diabetes", "Arthritis": "Artritis", "Herniated / Slipped Disc": "Hernia de disco", "Scoliosis": "Escoliosis", "Sciatica": "Ciática", "Recent Injury / Sprain": "Lesión / esguince reciente", "Metal Implants / Joint Replacement": "Implantes metálicos / Prótesis articular", "Eczema": "Eccema", "Psoriasis": "Psoriasis", "Sunburn / Open Wounds": "Quemadura solar / Heridas abiertas", "Headaches / Migraines": "Dolores de cabeza / Migrañas", "Fibromyalgia": "Fibromialgia", "Cancer (current or past)": "Cáncer (actual o pasado)", "Epilepsy / Seizures": "Epilepsia / Convulsiones", "Allergy to Oils / Lotions": "Alergia a aceites / lociones", "lbl_health_detail": "Detalles — ¿en qué parte del cuerpo / cuándo? (ej. cirugía de rodilla derecha, 2024)", "ph_health_detail": "ej. cirugía de espalda baja el año pasado — evitar", "hg_heart": "Corazón y sangre", "hg_bone": "Huesos, articulaciones y nervios", "hg_injury": "Lesiones y cirugía", "hg_skin": "Piel", "hg_other": "Otros", "Head/Face": "Cabeza/Cara", "Chest": "Pecho", "Abdomen": "Abdomen", "Arms": "Brazos", "Hands/Wrists": "Manos/Muñecas", "Legs": "Piernas", "Knees": "Rodillas", "Ankles/Feet": "Tobillos/Pies", "Left side": "Lado izquierdo", "Right side": "Lado derecho", "Both sides": "Ambos lados", "q_health_areas": "¿Qué zona debemos tratar con cuidado o evitar?", "q_health_side": "¿Qué lado?"}, "zhTW": {"None of the above": "以上皆無", "Low Blood Pressure": "低血壓", "Heart Condition / Pacemaker": "心臟病／心律調節器", "Diabetes": "糖尿病", "Arthritis": "關節炎", "Herniated / Slipped Disc": "椎間盤突出", "Scoliosis": "脊椎側彎", "Sciatica": "坐骨神經痛", "Recent Injury / Sprain": "近期受傷／扭傷", "Metal Implants / Joint Replacement": "體內金屬／人工關節", "Eczema": "濕疹", "Psoriasis": "乾癬（牛皮癬）", "Sunburn / Open Wounds": "曬傷／傷口", "Headaches / Migraines": "頭痛／偏頭痛", "Fibromyalgia": "纖維肌痛", "Cancer (current or past)": "癌症（目前或曾經）", "Epilepsy / Seizures": "癲癇", "Allergy to Oils / Lotions": "精油／乳液過敏", "lbl_health_detail": "詳細說明 — 身體哪個部位／什麼時候？（例如：右膝開刀，2024）", "ph_health_detail": "例如：去年下背開刀，請避開", "hg_heart": "心臟與血液", "hg_bone": "骨骼、關節與神經", "hg_injury": "受傷與手術", "hg_skin": "皮膚", "hg_other": "其他", "Head/Face": "頭/臉", "Chest": "胸部", "Abdomen": "腹部", "Arms": "手臂", "Hands/Wrists": "手/手腕", "Legs": "腿", "Knees": "膝蓋", "Ankles/Feet": "腳踝/腳", "Left side": "左邊", "Right side": "右邊", "Both sides": "兩邊", "q_health_areas": "哪個部位需要小心或避開？", "q_health_side": "哪一邊？"}, "zhCN": {"None of the above": "以上皆无", "Low Blood Pressure": "低血压", "Heart Condition / Pacemaker": "心脏病／心脏起搏器", "Diabetes": "糖尿病", "Arthritis": "关节炎", "Herniated / Slipped Disc": "椎间盘突出", "Scoliosis": "脊柱侧弯", "Sciatica": "坐骨神经痛", "Recent Injury / Sprain": "近期受伤／扭伤", "Metal Implants / Joint Replacement": "体内金属／人工关节", "Eczema": "湿疹", "Psoriasis": "银屑病（牛皮癣）", "Sunburn / Open Wounds": "晒伤／伤口", "Headaches / Migraines": "头痛／偏头痛", "Fibromyalgia": "纤维肌痛", "Cancer (current or past)": "癌症（目前或曾经）", "Epilepsy / Seizures": "癫痫", "Allergy to Oils / Lotions": "精油／乳液过敏", "lbl_health_detail": "详细说明 — 身体哪个部位／什么时候？（例如：右膝手术，2024）", "ph_health_detail": "例如：去年下背手术，请避开", "hg_heart": "心脏与血液", "hg_bone": "骨骼、关节与神经", "hg_injury": "受伤与手术", "hg_skin": "皮肤", "hg_other": "其他", "Head/Face": "头/脸", "Chest": "胸部", "Abdomen": "腹部", "Arms": "手臂", "Hands/Wrists": "手/手腕", "Legs": "腿", "Knees": "膝盖", "Ankles/Feet": "脚踝/脚", "Left side": "左边", "Right side": "右边", "Both sides": "两边", "q_health_areas": "哪个部位需要小心或避开？", "q_health_side": "哪一边？"}, "ja": {"None of the above": "該当なし", "Low Blood Pressure": "低血圧", "Heart Condition / Pacemaker": "心臓疾患／ペースメーカー", "Diabetes": "糖尿病", "Arthritis": "関節炎", "Herniated / Slipped Disc": "椎間板ヘルニア", "Scoliosis": "側弯症", "Sciatica": "坐骨神経痛", "Recent Injury / Sprain": "最近のけが／捻挫", "Metal Implants / Joint Replacement": "金属インプラント／人工関節", "Eczema": "湿疹", "Psoriasis": "乾癬", "Sunburn / Open Wounds": "日焼け／傷口", "Headaches / Migraines": "頭痛／片頭痛", "Fibromyalgia": "線維筋痛症", "Cancer (current or past)": "がん（現在または過去）", "Epilepsy / Seizures": "てんかん", "Allergy to Oils / Lotions": "オイル／ローションのアレルギー", "lbl_health_detail": "詳細 — 体のどこ／いつ？（例：右ひざの手術、2024年）", "ph_health_detail": "例：昨年腰の手術 — 避けてください", "hg_heart": "心臓・血液", "hg_bone": "骨・関節・神経", "hg_injury": "けが・手術", "hg_skin": "肌", "hg_other": "その他", "Head/Face": "頭・顔", "Chest": "胸", "Abdomen": "お腹", "Arms": "腕", "Hands/Wrists": "手・手首", "Legs": "脚（太もも・すね）", "Knees": "ひざ", "Ankles/Feet": "足首・足", "Left side": "左側", "Right side": "右側", "Both sides": "両側", "q_health_areas": "注意する・避ける部位はどこですか？", "q_health_side": "どちら側？"}, "ko": {"None of the above": "해당 없음", "Low Blood Pressure": "저혈압", "Heart Condition / Pacemaker": "심장 질환 / 심박조율기", "Diabetes": "당뇨병", "Arthritis": "관절염", "Herniated / Slipped Disc": "디스크 (추간판 탈출)", "Scoliosis": "척추측만증", "Sciatica": "좌골신경통", "Recent Injury / Sprain": "최근 부상 / 염좌", "Metal Implants / Joint Replacement": "금속 임플란트 / 인공관절", "Eczema": "습진", "Psoriasis": "건선", "Sunburn / Open Wounds": "햇볕 화상 / 상처", "Headaches / Migraines": "두통 / 편두통", "Fibromyalgia": "섬유근육통", "Cancer (current or past)": "암 (현재 또는 과거)", "Epilepsy / Seizures": "뇌전증 / 발작", "Allergy to Oils / Lotions": "오일 / 로션 알레르기", "lbl_health_detail": "자세히 — 몸의 어느 부위 / 언제? (예: 오른쪽 무릎 수술, 2024)", "ph_health_detail": "예: 작년 허리 수술 — 피해 주세요", "hg_heart": "심장 · 혈액", "hg_bone": "뼈 · 관절 · 신경", "hg_injury": "부상 · 수술", "hg_skin": "피부", "hg_other": "기타", "Head/Face": "머리/얼굴", "Chest": "가슴", "Abdomen": "복부", "Arms": "팔", "Hands/Wrists": "손/손목", "Legs": "다리", "Knees": "무릎", "Ankles/Feet": "발목/발", "Left side": "왼쪽", "Right side": "오른쪽", "Both sides": "양쪽", "q_health_areas": "조심하거나 피해야 할 부위가 있나요?", "q_health_side": "어느 쪽인가요?"}};Object.keys(A).forEach(function(l){if(T[l])Object.assign(T[l],A[l]);});})();
 function t(key) {
   var d = T[curLang] || T.en;
   if (d && d[key] !== undefined) return d[key];
@@ -611,6 +645,16 @@ function pickOpt(el, type) {
   }
   el.classList.toggle('sel');
   if (type==='radio' && !el.classList.contains('sel')) el.classList.add('sel');
+  if (name==='focus-areas' && window.syncAllBtn) syncAllBtn('focus-areas','focus-all-btn');
+  if (name==='health') {
+    var isNone = el.dataset.val==='None of the above';
+    if (el.classList.contains('sel')) document.querySelectorAll('.opt-btn.sel[data-name="health"]').forEach(function(b){
+      if (b!==el && (isNone || b.dataset.val==='None of the above')) b.classList.remove('sel');
+    });
+    var any = !!document.querySelector('.opt-btn.sel[data-name="health"]:not([data-val="None of the above"])');
+    var w = document.getElementById('health-detail-wrap'); if (w) w.style.display = any ? 'block' : 'none';
+    if (!any) document.querySelectorAll('.opt-btn.sel[data-name="health-areas"],.opt-btn.sel[data-name="health-side"]').forEach(function(b){ b.classList.remove('sel'); });
+  }
 }
 
 // ── COMMON INFO SECTION ──
@@ -621,8 +665,8 @@ function commonInfo() {
       <div class="field"><label>${t('lbl_first_name')}</label><input type="text" id="f-first" placeholder="${t('ph_first_name')}" autocomplete="off" oninput="autoFillPrintName()"></div>
       <div class="field"><label>${t('lbl_last_name')}</label><input type="text" id="f-last" placeholder="${t('ph_last_name')}" autocomplete="off" oninput="autoFillPrintName()"></div>
     </div>
-    <div class="field"><label>${t('lbl_phone')}</label><input type="tel" id="f-phone" placeholder="(415) 000-0000" autocomplete="off" inputmode="numeric" oninput="formatPhoneInput(this)"></div>
-    <div class="field"><label>${t('lbl_email')}</label><input type="email" id="f-email" placeholder="email@example.com" autocomplete="off"></div>
+    <div class="field"><label>${t('lbl_phone')}</label><div class="phone-row"><select id="f-phone-cc" class="cc-sel" onchange="onPhoneCcChange()" aria-label="Country code">${phoneCcOptions()}</select><input type="tel" id="f-phone" name="ph_${Date.now()}" placeholder="(415) 000-0000" autocomplete="off" inputmode="tel" oninput="formatPhoneInput(this)" onblur="checkPhoneField()"></div><div class="fld-err" id="f-phone-err"></div></div>
+    <div class="field"><label>${t('lbl_email')}</label><div class="email-wrap"><input type="email" id="f-email" placeholder="email@example.com" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" inputmode="email" oninput="cleanEmailInput(this)" onfocus="renderEmailChips(this.value)" onblur="checkEmailField()"><div class="email-chips" id="f-email-chips"></div></div><div class="fld-err" id="f-email-err"></div></div>
     <div class="field"><label>${t('lbl_dob')}</label>
 <div style="display:flex;gap:8px;align-items:center">
   <select id="f-dob-m" style="flex:1;padding:10px;border:1.5px solid var(--border);border-radius:9px;font-size:15px;background:var(--card);color:var(--txt);font-family:inherit">
@@ -753,8 +797,10 @@ function buildFacial() {
       <input type="text" id="f-facial-allergy" placeholder="${t('ph_list_allergies')}">
     </div>
     <div class="field">
-      <label>${t('lbl_massage_intensity_8')}</label>
-      <input type="text" id="f-massage-intensity" placeholder="${t('ph_eg_5')}">
+      <label>${t('lbl_massage_intensity_8')} <span class="req-star">*</span></label>
+      <input type="hidden" id="f-massage-intensity" value="">
+      <div class="lvl-row" id="lvl-massage-intensity" data-req="facial">${[1,2,3,4,5,6,7,8,9,10].map(n=>`<div class="lvl-btn" data-v="${n}" onclick="pickLevel(this)">${n}</div>`).join('')}</div>
+      <div class="lvl-legend"><span>${pressMsg('light')}</span><span>${pressMsg('strong')}</span></div>
     </div>
   </div>
 
@@ -810,11 +856,11 @@ function buildHeadSpa() {
       ${radio('water-pref',['Cool','Normal','Warm','Extra Warm'],true)}
     </div>
     <div class="field">
-      <div class="ql">${t('q_head_pressure')}</div>
+      <div class="ql">${t('q_head_pressure')} <span class="req-star">*</span></div>
       ${radio('head-pressure',['Soft','Medium','Hard'],true)}
     </div>
     <div class="field">
-      <div class="ql">${t('q_neck_pressure')}</div>
+      <div class="ql">${t('q_neck_pressure')} <span class="req-star">*</span></div>
       ${radio('neck-pressure',['Soft','Medium','Hard'],true)}
     </div>
     <div class="field">
@@ -845,11 +891,12 @@ function buildMassage() {
   <div class="sec">
     <div class="sec-title">${t('sec_massage_pref')}</div>
     <div class="field">
-      <div class="ql">${t('lbl_desired_pressure')}</div>
+      <div class="ql">${t('lbl_desired_pressure')} <span class="req-star">*</span></div>
       ${radio('pressure',['Light','Medium','Firm / Deep Tissue'],true)}
     </div>
     <div class="field">
       <div class="ql">${t('lbl_focus_areas')}</div>
+      <div class="opt-group" style="margin-bottom:2px"><div class="opt-btn all-btn" id="focus-all-btn" onclick="toggleAllOpts('focus-areas',this)"><span class="sq"></span>${allMsg()}</div></div>
       ${checkbox('focus-areas',['Neck','Shoulders','Upper Back','Lower Back','Hips/Glutes','Arms/Hands','Legs/Feet','Scalp/Face'],true)}
     </div>
   </div>
@@ -857,7 +904,14 @@ function buildMassage() {
     <div class="sec-title">${t('sec_health_history')}</div>
     <div class="field">
       <div class="ql">${t('q_health_conditions')}</div>
-      ${checkbox('health',['High Blood Pressure','Varicose Veins','Blood Clots/DVT','Osteoporosis','Recent Surgery','Pregnancy','Skin Rashes','Numbness/Tingling'],true)}
+      <div class="opt-group grid2 hg-none">${checkbox('health',['None of the above'],true).replace(/^<div class="opt-group">|<\/div>$/g,'')}</div>
+      ${[["hg_heart", ["High Blood Pressure", "Low Blood Pressure", "Heart Condition / Pacemaker", "Blood Clots/DVT", "Varicose Veins", "Diabetes"]], ["hg_bone", ["Osteoporosis", "Arthritis", "Herniated / Slipped Disc", "Scoliosis", "Sciatica", "Numbness/Tingling"]], ["hg_injury", ["Recent Injury / Sprain", "Recent Surgery", "Metal Implants / Joint Replacement", "Pregnancy"]], ["hg_skin", ["Skin Rashes", "Eczema", "Psoriasis", "Sunburn / Open Wounds", "Allergy to Oils / Lotions"]], ["hg_other", ["Headaches / Migraines", "Fibromyalgia", "Cancer (current or past)", "Epilepsy / Seizures"]]].map(g=>`<div class="hg-title">${t(g[0])}</div><div class="opt-group grid2">${checkbox('health',g[1],true).replace(/^<div class="opt-group">|<\/div>$/g,'')}</div>`).join('')}
+    </div>
+    <div class="field health-area-box" id="health-detail-wrap" style="display:none">
+      <div class="ql">${t('q_health_areas')}</div>
+      <div class="opt-group grid3">${checkbox('health-areas',["Head/Face", "Neck", "Shoulders", "Upper Back", "Lower Back", "Chest", "Abdomen", "Hips/Glutes", "Arms", "Hands/Wrists", "Legs", "Knees", "Ankles/Feet"],true).replace(/^<div class="opt-group">|<\/div>$/g,'')}</div>
+      <div class="ql" style="margin-top:14px">${t('q_health_side')}</div>
+      <div class="opt-group grid3">${radio('health-side',["Left side", "Right side", "Both sides"],true).replace(/^<div class="opt-group">|<\/div>$/g,'')}</div>
     </div>
   </div>
   <div class="sec">
@@ -1013,7 +1067,7 @@ function collectFormData() {
     store: 'mv', // default; can be set by staff
     firstName: document.getElementById('f-first')?.value.trim() || '',
     lastName: document.getElementById('f-last')?.value.trim() || '',
-    phone: document.getElementById('f-phone')?.value.trim() || '',
+    phone: (window.getPhoneValue ? getPhoneValue() : (document.getElementById('f-phone')?.value.trim() || '')),
     email: document.getElementById('f-email')?.value.trim() || '',
     dob: (()=>{var m=document.getElementById('f-dob-m')?.value,d=document.getElementById('f-dob-d')?.value;return(m&&d)?m+'/'+d:'';})(),
     printName: document.getElementById('f-print-name')?.value.trim() || '',
@@ -1092,6 +1146,13 @@ async function submitForm() {
   var data = collectFormData();
   if(!data.firstName || !data.lastName) { alert('Please enter your first and last name.'); return; }
   if(!data.phone) { alert('Please enter your phone number.'); return; }
+  var missP = missingPressure();
+  if(missP){ missP.classList.add('need-answer'); missP.scrollIntoView({behavior:'smooth',block:'center'}); setTimeout(function(){missP.classList.remove('need-answer');},2600); alert(pressMsg('need')); return; }
+  if(!checkPhoneField()) { document.getElementById('f-phone').focus(); alert(vMsg(phoneCc()==='1'?'phone':'phoneIntl')); return; }
+  if(!checkEmailField()) { document.getElementById('f-email').focus(); alert(vMsg('email')); return; }
+  data.phone = getPhoneValue();
+  data.phoneCountry = phoneCc();
+  data.email = document.getElementById('f-email').value.trim();
 
   _pendingData = data;
 
@@ -1115,12 +1176,19 @@ async function submitForm() {
     'High Blood Pressure':'高血壓','Varicose Veins':'靜脈曲張','Blood Clots/DVT':'血栓',
     'Osteoporosis':'骨質疏鬆','Recent Surgery':'近期手術','Pregnancy':'懷孕',
     'Skin Rashes':'皮膚疹','Numbness/Tingling':'麻木/刺痛',
+    'None of the above':'以上皆無','Low Blood Pressure':'低血壓','Heart Condition / Pacemaker':'心臟病/心律調節器','Diabetes':'糖尿病',
+    'Arthritis':'關節炎','Herniated / Slipped Disc':'椎間盤突出','Scoliosis':'脊椎側彎','Sciatica':'坐骨神經痛',
+    'Recent Injury / Sprain':'近期受傷/扭傷','Metal Implants / Joint Replacement':'體內金屬/人工關節','Sunburn / Open Wounds':'曬傷/傷口',
+    'Headaches / Migraines':'頭痛/偏頭痛','Fibromyalgia':'纖維肌痛','Cancer (current or past)':'癌症（目前或曾經）',
+    'Epilepsy / Seizures':'癲癇','Allergy to Oils / Lotions':'精油/乳液過敏',
+    'Head/Face':'頭/臉','Chest':'胸部','Abdomen':'腹部','Arms':'手臂','Hands/Wrists':'手/手腕','Legs':'腿','Knees':'膝蓋','Ankles/Feet':'腳踝/腳',
+    'Left side':'左邊','Right side':'右邊','Both sides':'兩邊',
     'Neck':'頸部','Shoulders':'肩部','Upper Back':'上背','Lower Back':'下背',
     'Hips/Glutes':'臀部','Arms/Hands':'手臂/手','Legs/Feet':'腿/腳','Scalp/Face':'頭皮/臉',
     'Light':'輕','Medium':'中','Firm / Deep Tissue':'深層/深組織',
     'Soft':'輕','Hard':'重',
     'Cool':'涼','Normal':'正常','Warm':'溫','Extra Warm':'非常溫',
-    'Skin Conditions':'皮膚狀況','Dandruff':'頭皮屑','Eczema':'溼疹','Psoriasis':'牛皮癬',
+    'Skin Conditions':'皮膚狀況','Dandruff':'頭皮屑','Eczema':'溼疹','Psoriasis':'乾癬（牛皮癬）',
     'Yes':'是','No':'否',
     'Oil':'油','Wipes':'溼巾','Soap':'肥皂','Foam':'泡沫',
     'Cold':'冷','Daily':'每天','Weekly':'每週','Sometimes':'有時',
@@ -1150,7 +1218,7 @@ async function submitForm() {
     'spa-allergy':'Allergy 過敏','pregnant-spa':'Pregnant 懷孕','water-pref':'Water pref 水溫偏好',
     'head-pressure':'Head pressure 頭部力道','neck-pressure':'Neck/shoulder pressure 肩頸力道',
     'scalp-cond':'Scalp condition 頭皮狀況','pressure':'Pressure 按摩力道','focus-areas':'Focus areas 重點部位',
-    'health':'Health condition 健康狀況','hear':'How heard 從哪得知','allergyDetail':'Allergy detail 過敏詳情',
+    'health':'Health condition 健康狀況','health-areas':'Careful areas 需小心部位','health-side':'Side 左右邊','hear':'How heard 從哪得知','allergyDetail':'Allergy detail 過敏詳情',
     'medicationDetail':'Medication detail 用藥詳情','surgery':'Surgery history 手術史',
     'massageIntensity':'Massage intensity 按摩強度'
   };
@@ -1163,7 +1231,8 @@ async function submitForm() {
   if(resp['medical']?.includes('Currently Pregnant') || resp['pregnant-spa']?.includes('Yes')) flags.push({warn:true, text:'⚠ Pregnant 懷孕中'});
   if(resp['medical']?.includes('Metal implants in body')) flags.push({warn:true, text:'⚠ Metal implants 體內金屬植入物'});
   if(resp['claustrophobia']?.length) flags.push({warn:false, text:'💡 Claustrophobia 幽閉恐懼 — '+trArr(resp['claus-pref'])});
-  if(resp['health']?.length) flags.push({warn:true, text:'⚠ Health conditions 健康狀況：'+trArr(resp['health'])});
+  var _hl=(resp['health']||[]).filter(function(x){return x!=='None of the above';});
+  if(_hl.length) flags.push({warn:true, text:'⚠ Health conditions 健康狀況：'+trArr(_hl)+(resp['health-areas']?.length?'（部位 Area：'+trArr(resp['health-areas'])+(resp['health-side']?'，'+trArr(resp['health-side']):'')+'）':'')});
   if(resp['medication']?.includes('Yes')) flags.push({warn:true, text:'⚠ On medication 有用藥 — '+(resp.medicationDetail||'請確認')});
   if(resp['surgery']) flags.push({warn:false, text:'🏥 Surgery history 手術史：'+resp.surgery});
   if(resp['scalp-cond']?.length) flags.push({warn:false, text:'Scalp condition 頭皮狀況：'+trArr(resp['scalp-cond'])});
@@ -1655,13 +1724,196 @@ window.autoFillPrintName = function(){
 };
 // 電話輸入自動排版：不管客人打純數字、加-、加空格，畫面上都會自動統一成 (415) 470-6495 這種格式
 // 只留數字，最多 10 碼（美國號碼），超過的部分（例如不小心打了國碼1）會被忽略
+var PHONE_CCS = [
+  ['1','🇺🇸','USA'],['44','🇬🇧','UK'],['49','🇩🇪','Germany'],['33','🇫🇷','France'],['39','🇮🇹','Italy'],['34','🇪🇸','Spain'],
+  ['31','🇳🇱','Netherlands'],['32','🇧🇪','Belgium'],['41','🇨🇭','Switzerland'],['43','🇦🇹','Austria'],['353','🇮🇪','Ireland'],['351','🇵🇹','Portugal'],
+  ['46','🇸🇪','Sweden'],['47','🇳🇴','Norway'],['45','🇩🇰','Denmark'],['358','🇫🇮','Finland'],['48','🇵🇱','Poland'],['420','🇨🇿','Czechia'],['30','🇬🇷','Greece'],
+  ['52','🇲🇽','Mexico'],['55','🇧🇷','Brazil'],['61','🇦🇺','Australia'],['64','🇳🇿','New Zealand'],
+  ['81','🇯🇵','Japan'],['82','🇰🇷','Korea'],['86','🇨🇳','China'],['852','🇭🇰','Hong Kong'],['853','🇲🇴','Macau'],['886','🇹🇼','Taiwan'],['65','🇸🇬','Singapore'],
+  ['60','🇲🇾','Malaysia'],['66','🇹🇭','Thailand'],['84','🇻🇳','Vietnam'],['63','🇵🇭','Philippines'],['62','🇮🇩','Indonesia'],['91','🇮🇳','India'],
+  ['971','🇦🇪','UAE'],['972','🇮🇱','Israel'],['90','🇹🇷','Türkiye'],['27','🇿🇦','South Africa']
+];
+window.phoneCcOptions = function(){
+  return PHONE_CCS.map(function(c){ return '<option value="'+c[0]+'"'+(c[0]==='1'?' selected':'')+'>'+c[1]+' +'+c[0]+'　'+c[2]+'</option>'; }).join('');
+};
+function phoneCc(){ var s=document.getElementById('f-phone-cc'); return s ? s.value : '1'; }
+window.onPhoneCcChange = function(){
+  var inp=document.getElementById('f-phone'); if(!inp) return;
+  inp.placeholder = phoneCc()==='1' ? '(415) 000-0000' : 'Phone number';
+  window.formatPhoneInput(inp); if(inp.value) window.checkPhoneField();
+};
+// 電話輸入自動排版
+// 美國 (+1)：只留數字，自動排成 (415) 470-6495；前面多打的 1 會自動去掉
+// 其他國家：只留數字，每 3~4 碼空一格；客人也可以直接打 +49… 會自動切換國碼
 window.formatPhoneInput = function(input){
-  var digits = input.value.replace(/\D/g,'').slice(0,10);
-  var formatted = digits;
-  if(digits.length > 6) formatted = '('+digits.slice(0,3)+') '+digits.slice(3,6)+'-'+digits.slice(6);
-  else if(digits.length > 3) formatted = '('+digits.slice(0,3)+') '+digits.slice(3);
-  else if(digits.length > 0) formatted = '('+digits;
-  input.value = formatted;
+  var raw = input.value;
+  var sel = document.getElementById('f-phone-cc');
+  // 客人直接打「+國碼」：自動判斷並切換左邊的國碼
+  if(/^\s*(\+|00)/.test(raw) && sel){
+    var dg = raw.replace(/^\s*(\+|00)/,'').replace(/\D/g,'');
+    var hit = null;
+    for(var L=3; L>=1 && !hit; L--){ var pre=dg.slice(0,L); if(PHONE_CCS.some(function(c){return c[0]===pre;})) hit=pre; }
+    if(hit){ sel.value=hit; raw=dg.slice(hit.length); input.placeholder = hit==='1' ? '(415) 000-0000' : 'Phone number'; }
+    else { input.value = '+'+dg; return; }   // 還沒打完國碼，先保持原樣
+  }
+  var cc = phoneCc();
+  var digits, formatted;
+  if(cc==='1'){
+    digits = raw.replace(/\D/g,'').replace(/^[01]+/,'').slice(0,10);
+    formatted = digits;
+    if(digits.length > 6) formatted = '('+digits.slice(0,3)+') '+digits.slice(3,6)+'-'+digits.slice(6);
+    else if(digits.length > 3) formatted = '('+digits.slice(0,3)+') '+digits.slice(3);
+    else if(digits.length > 0) formatted = '('+digits;
+    input.value = formatted;
+    if(digits.length===10){ input.classList.remove('bad'); var e=document.getElementById('f-phone-err'); if(e) e.classList.remove('on'); }
+  } else {
+    digits = raw.replace(/\D/g,'');
+    if(cc!=='39') digits = digits.replace(/^0+/,'');   // 國內的開頭 0 加國碼時要去掉（義大利除外）
+    digits = digits.slice(0,14);
+    input.value = digits.replace(/(\d{3,4})(?=\d{3})/g,'$1 ').trim();
+    if(digits.length>=6){ input.classList.remove('bad'); var e2=document.getElementById('f-phone-err'); if(e2) e2.classList.remove('on'); }
+  }
+};
+// 存進資料庫的電話：美國維持 (415) 470-6495（跟以前一樣）；國外存成 +49 1512 3456789
+window.getPhoneValue = function(){
+  var inp=document.getElementById('f-phone'); if(!inp) return '';
+  var v=inp.value.trim(); if(!v) return '';
+  var cc=phoneCc();
+  return cc==='1' ? v : '+'+cc+' '+v;
+};
+
+// ── 電話 / Email 格式檢查 ──
+var _VMSG = {
+  phoneIntl: {en:'Please enter the full phone number (without the country code)', es:'Ingrese el número completo (sin el código de país)', zhTW:'請輸入完整電話號碼（不含國碼）', zhCN:'请输入完整电话号码（不含国码）', ja:'電話番号をすべて入力してください（国番号なし）', ko:'전체 전화번호를 입력해 주세요 (국가번호 제외)'},
+  phone: {en:'Please enter a 10-digit phone number, e.g. (415) 470-6495', es:'Ingrese un número de 10 dígitos, ej. (415) 470-6495', zhTW:'請輸入 10 位數電話號碼，例如 (415) 470-6495', zhCN:'请输入 10 位数电话号码，例如 (415) 470-6495', ja:'10桁の電話番号を入力してください 例：(415) 470-6495', ko:'10자리 전화번호를 입력해 주세요 예: (415) 470-6495'},
+  email:{en:'Please check your email — it looks incomplete (e.g. name@gmail.com)', es:'Revise su correo — parece incompleto (ej. nombre@gmail.com)', zhTW:'請確認 Email 格式，看起來不完整（例如 name@gmail.com）', zhCN:'请确认 Email 格式，看起来不完整（例如 name@gmail.com）', ja:'メールアドレスをご確認ください（例：name@gmail.com）', ko:'이메일을 확인해 주세요 (예: name@gmail.com)'},
+  mean: {en:'Did you mean', es:'¿Quiso decir', zhTW:'您是不是要輸入', zhCN:'您是不是要输入', ja:'もしかして', ko:'혹시'}
+};
+function vMsg(k){ var d=_VMSG[k]; return d[curLang]||d.en; }
+var EMAIL_DOMAINS = ['gmail.com','yahoo.com','icloud.com','hotmail.com','outlook.com','aol.com','comcast.net','me.com','mac.com','live.com','msn.com','sbcglobal.net','att.net','ymail.com','protonmail.com','proton.me','berkeley.edu','stanford.edu','ucsf.edu','qq.com','163.com','126.com','yahoo.com.tw','naver.com','hanmail.net','yahoo.co.jp'];
+var EMAIL_CHIPS = EMAIL_DOMAINS;
+// 常見打錯的 domain（少了點、拼錯）
+var EMAIL_TYPOS = {
+  'gmailcom':'gmail.com','gmail.co':'gmail.com','gmail.con':'gmail.com','gmail.cm':'gmail.com','gmail.om':'gmail.com','gmail.comm':'gmail.com','gmail.cpm':'gmail.com','gmail.vom':'gmail.com','gmail.xom':'gmail.com','gmai.com':'gmail.com','gmal.com':'gmail.com','gmial.com':'gmail.com','gamil.com':'gmail.com','gnail.com':'gmail.com','gmil.com':'gmail.com','gmaill.com':'gmail.com','gmail.c':'gmail.com','gmail':'gmail.com','gmail.':'gmail.com','gmailc.om':'gmail.com',
+  'yahoocom':'yahoo.com','yahoo.co':'yahoo.com','yahoo.con':'yahoo.com','yaho.com':'yahoo.com','yahooo.com':'yahoo.com','yhoo.com':'yahoo.com','yahoo':'yahoo.com','yahoo.cm':'yahoo.com',
+  'icloudcom':'icloud.com','icloud.co':'icloud.com','icloud.con':'icloud.com','iclould.com':'icloud.com','icoud.com':'icloud.com','icloud':'icloud.com','icluod.com':'icloud.com','icloud.cm':'icloud.com',
+  'hotmailcom':'hotmail.com','hotmail.co':'hotmail.com','hotmail.con':'hotmail.com','hotmial.com':'hotmail.com','hotmal.com':'hotmail.com','hotmail':'hotmail.com','hotmai.com':'hotmail.com',
+  'outlookcom':'outlook.com','outlook.co':'outlook.com','outlook.con':'outlook.com','outlok.com':'outlook.com','outlook':'outlook.com',
+  'aolcom':'aol.com','aol.con':'aol.com','comcastnet':'comcast.net','comcast.ne':'comcast.net','sbcglobalnet':'sbcglobal.net','attnet':'att.net','mecom':'me.com','livecom':'live.com'
+};
+var EMAIL_RE = /^[a-z0-9._%+\-]+@[a-z0-9\-]+(\.[a-z0-9\-]+)*\.[a-z]{2,}$/;
+// 打字時：拿掉空格、全形符號、自動變小寫，並顯示常用 @ 選項
+window.cleanEmailInput = function(input){
+  var v = input.value;
+  var c = v.replace(/\s+/g,'').replace(/＠/g,'@').replace(/[。．]/g,'.').replace(/，/g,',').toLowerCase();
+  if(c !== v){ var pos = input.selectionStart - (v.length - c.length); input.value = c; try{ input.setSelectionRange(pos,pos); }catch(e){} }
+  input.classList.remove('bad'); var er=document.getElementById('f-email-err'); if(er) er.classList.remove('on');
+  renderEmailChips(input.value);
+};
+window.renderEmailChips = renderEmailChips;
+function renderEmailChips(v){
+  var box=document.getElementById('f-email-chips'); if(!box) return;
+  var at=v.indexOf('@'); var html='';
+  if(v && v.length>=1){
+    var local = at>=0 ? v.slice(0,at) : v;
+    var typed = at>=0 ? v.slice(at+1) : '';
+    if(local && EMAIL_DOMAINS.indexOf(typed)<0){
+      var list = EMAIL_CHIPS.filter(function(d){ return !typed || d.indexOf(typed)===0; });
+      var esc = function(x){ return x.replace(/&/g,'&amp;').replace(/</g,'&lt;'); };
+      html = list.map(function(d){ return '<button type="button" class="email-chip" onmousedown="event.preventDefault()" onclick="pickEmailDomain(\''+d+'\')">'+esc(local)+'<b>@'+d+'</b></button>'; }).join('');
+    }
+  }
+  box.innerHTML = html;
+  // 跟著輸入框字體大小一起變大變小（Aa Text Size）
+  var inp=document.getElementById('f-email');
+  if(inp) box.style.fontSize = getComputedStyle(inp).fontSize;
+  box.scrollTop = 0;
+}
+window.pickEmailDomain = function(d){
+  var inp=document.getElementById('f-email'); var v=inp.value; var at=v.indexOf('@');
+  inp.value = (at>=0 ? v.slice(0,at) : v) + '@' + d;
+  renderEmailChips(inp.value); checkEmailField();
+};
+// 找出可能打錯的 domain 並建議正確的
+function suggestEmail(v){
+  var at=v.lastIndexOf('@'); if(at<1) return null;
+  var local=v.slice(0,at), dom=v.slice(at+1);
+  if(EMAIL_TYPOS[dom]) return local+'@'+EMAIL_TYPOS[dom];
+  // 少了點：gmailcom → gmail.com、yahoocom → yahoo.com
+  for(var i=0;i<EMAIL_DOMAINS.length;i++){ if(dom===EMAIL_DOMAINS[i].replace('.','')) return local+'@'+EMAIL_DOMAINS[i]; }
+  return null;
+}
+window.checkEmailField = function(){
+  var inp=document.getElementById('f-email'), er=document.getElementById('f-email-err');
+  if(!inp) return true;
+  var v=inp.value.replace(/\s+/g,'').toLowerCase().replace(/\.+$/,'').replace(/^\.+/,'');
+  // 兩個 @ 或 @. 之類
+  v=v.replace(/@+/g,'@').replace(/\.{2,}/g,'.').replace(/@\./,'@');
+  inp.value=v;
+  setTimeout(function(){ var b=document.getElementById('f-email-chips'); if(b && document.activeElement!==inp) b.innerHTML=''; },150);
+  if(!v){ inp.classList.remove('bad'); er.classList.remove('on'); return true; }   // Email 選填
+  var sug=suggestEmail(v);
+  if(sug && sug!==v){
+    inp.classList.add('bad');
+    er.innerHTML = vMsg('mean')+' <span class="fix" onclick="applyEmailFix(\''+sug.replace(/'/g,"\\'")+'\')">'+sug+'</span> ?';
+    er.classList.add('on'); return false;
+  }
+  if(!EMAIL_RE.test(v)){ inp.classList.add('bad'); er.textContent=vMsg('email'); er.classList.add('on'); return false; }
+  inp.classList.remove('bad'); er.classList.remove('on'); return true;
+};
+// ── 力道：Facial 1–10 按鈕，Head Spa / Massage 必選 ──
+var _PRESS = {
+  light:{en:'1 = Very light',es:'1 = Muy suave',zhTW:'1 = 很輕',zhCN:'1 = 很轻',ja:'1 = とても弱い',ko:'1 = 아주 약하게'},
+  strong:{en:'10 = Very strong',es:'10 = Muy fuerte',zhTW:'10 = 很重',zhCN:'10 = 很重',ja:'10 = とても強い',ko:'10 = 아주 세게'},
+  need:{en:'Please choose your preferred pressure.',es:'Por favor elija la presión que prefiere.',zhTW:'請選擇您喜歡的力道。',zhCN:'请选择您喜欢的力道。',ja:'お好みの強さを選んでください。',ko:'원하시는 압력을 선택해 주세요.'}
+};
+window.pressMsg = function(k){ var d=_PRESS[k]; return d[curLang]||d.en; };
+// 「全身 Full Body」一鍵全勾／全取消
+window.allMsg = function(){ var d={en:'Full Body (select all)',es:'Cuerpo completo (todo)',zhTW:'全身（全部勾選）',zhCN:'全身（全部勾选）',ja:'全身（すべて選択）',ko:'전신 (모두 선택)'}; return d[curLang]||d.en; };
+window.toggleAllOpts = function(name, btn){
+  var boxes=document.querySelectorAll('.opt-btn[data-name="'+name+'"]');
+  var allOn=[].every.call(boxes,function(b){return b.classList.contains('sel');});
+  boxes.forEach(function(b){ b.classList.toggle('sel', !allOn); });
+  btn.classList.toggle('sel', !allOn);
+};
+window.syncAllBtn = function(name, btnId){
+  var btn=document.getElementById(btnId); if(!btn) return;
+  var boxes=document.querySelectorAll('.opt-btn[data-name="'+name+'"]');
+  btn.classList.toggle('sel', boxes.length>0 && [].every.call(boxes,function(b){return b.classList.contains('sel');}));
+};
+window.pickLevel = function(el){
+  var row=el.parentElement;
+  row.querySelectorAll('.lvl-btn').forEach(function(b){ b.classList.remove('sel'); });
+  el.classList.add('sel');
+  var h=document.getElementById('f-massage-intensity'); if(h) h.value=el.dataset.v;
+};
+// 回傳第一個沒選力道的區塊（沒有就回傳 null）
+window.missingPressure = function(){
+  function grp(name){ var b=document.querySelector('.opt-btn[data-name="'+name+'"]'); return b ? b.parentElement : null; }
+  function picked(name){ return !!document.querySelector('.opt-btn.sel[data-name="'+name+'"]'); }
+  if(curSvc==='facial'){
+    var h=document.getElementById('f-massage-intensity'), row=document.getElementById('lvl-massage-intensity');
+    if(row && h && !h.value) return row;
+  }
+  if(curSvc==='headspa'){
+    if(grp('head-pressure') && !picked('head-pressure')) return grp('head-pressure');
+    if(grp('neck-pressure') && !picked('neck-pressure')) return grp('neck-pressure');
+  }
+  if(curSvc==='massage'){
+    if(grp('pressure') && !picked('pressure')) return grp('pressure');
+  }
+  return null;
+};
+window.applyEmailFix = function(v){ var inp=document.getElementById('f-email'); inp.value=v; checkEmailField(); };
+window.checkPhoneField = function(){
+  var inp=document.getElementById('f-phone'), er=document.getElementById('f-phone-err');
+  if(!inp) return true;
+  window.formatPhoneInput(inp);
+  var d=inp.value.replace(/\D/g,'');
+  if(!d){ inp.classList.remove('bad'); er.classList.remove('on'); return true; }   // 空白由「必填」那關處理
+  var okLen = phoneCc()==='1' ? d.length===10 : (d.length>=6 && d.length<=14);
+  if(!okLen){ inp.classList.add('bad'); er.textContent=vMsg(phoneCc()==='1'?'phone':'phoneIntl'); er.classList.add('on'); return false; }
+  inp.classList.remove('bad'); er.classList.remove('on'); return true;
 };
 </script>
 </body>

@@ -343,8 +343,23 @@ var RESP_LABELS = {
   'water-pref':'水溫偏好 Water Pref','head-pressure':'頭部力道 Head Pressure','neck-pressure':'肩頸力道 Neck/Shoulder','scalp-cond':'頭皮狀況 Scalp',
   'pressure':'按摩力道 Pressure','focus-areas':'重點部位 Focus Areas','health':'健康狀況 Health',
   'sensitive':'敏感眼 Sensitive Eyes','prev-lash':'睫毛延伸經驗 Prev Lash','contacts':'隱形眼鏡 Contacts','lash-allergy':'睫毛過敏 Lash Allergy',
-  'hear':'來源 How did you hear','allergyDetail':'過敏詳情 Allergy Detail','medicationDetail':'用藥詳情 Medication Detail','surgery':'手術 Surgery','massageIntensity':'按摩強度 Intensity'
+  'hear':'來源 How did you hear','allergyDetail':'過敏詳情 Allergy Detail','medicationDetail':'用藥詳情 Medication Detail','surgery':'手術 Surgery','massageIntensity':'按摩強度 Intensity','healthDetail':'健康狀況說明 Health Details','health-areas':'需小心部位 Careful Areas','health-side':'左右邊 Side'
 };
+// 客人點的英文選項 → 中文（員工一看就懂）
+var VAL_ZH = {
+  'None of the above':'以上皆無','High Blood Pressure':'高血壓','Low Blood Pressure':'低血壓','Heart Condition / Pacemaker':'心臟病/心律調節器',
+  'Diabetes':'糖尿病','Varicose Veins':'靜脈曲張','Blood Clots/DVT':'血栓','Osteoporosis':'骨質疏鬆','Arthritis':'關節炎',
+  'Herniated / Slipped Disc':'椎間盤突出','Scoliosis':'脊椎側彎','Sciatica':'坐骨神經痛','Recent Injury / Sprain':'近期受傷/扭傷',
+  'Recent Surgery':'近期手術','Metal Implants / Joint Replacement':'體內金屬/人工關節','Pregnancy':'懷孕','Skin Rashes':'皮膚疹',
+  'Eczema':'濕疹','Psoriasis':'乾癬（牛皮癬）','Sunburn / Open Wounds':'曬傷/傷口','Numbness/Tingling':'麻木/刺痛',
+  'Headaches / Migraines':'頭痛/偏頭痛','Fibromyalgia':'纖維肌痛','Cancer (current or past)':'癌症（目前或曾經）',
+  'Epilepsy / Seizures':'癲癇','Allergy to Oils / Lotions':'精油/乳液過敏','Dandruff':'頭皮屑',
+  'Neck':'頸部','Shoulders':'肩部','Upper Back':'上背','Lower Back':'下背','Hips/Glutes':'臀部','Arms/Hands':'手臂/手','Legs/Feet':'腿/腳','Scalp/Face':'頭皮/臉',
+  'Head/Face':'頭/臉','Chest':'胸部','Abdomen':'腹部','Arms':'手臂','Hands/Wrists':'手/手腕','Legs':'腿','Knees':'膝蓋','Ankles/Feet':'腳踝/腳',
+  'Left side':'左邊','Right side':'右邊','Both sides':'兩邊',
+  'Light':'輕','Medium':'中','Firm / Deep Tissue':'重/深層','Soft':'輕','Hard':'重'
+};
+function zhVal(x){ return VAL_ZH[x] ? x+' '+VAL_ZH[x] : x; }
 
 // ── INIT ──
 function init() {
@@ -720,8 +735,9 @@ function buildRecordDetailHtml(rec) {
   var resp = rec.responses || {};
   var respHtml = Object.entries(resp).filter(([k, v]) => v && (Array.isArray(v) ? v.length : v)).map(([k, v]) => {
     var label = RESP_LABELS[k] || k;
-    var val = Array.isArray(v) ? v.join(', ') : v;
-    return '<div class="p-row"><span class="p-lbl">' + label + '</span><span class="p-val">' + val + '</span></div>';
+    var val = Array.isArray(v) ? v.map(zhVal).join('、') : zhVal(v);
+    var warn = (k==='health' && Array.isArray(v) && v.some(function(x){return x!=='None of the above';})) || k==='healthDetail' || k==='health-areas' || k==='health-side';
+    return '<div class="p-row"><span class="p-lbl">' + label + '</span><span class="p-val"' + (warn?' style="color:#B23B2E;font-weight:600"':'') + '>' + (warn&&k==='health'?'⚠ ':'') + val + '</span></div>';
   }).join('');
   return (respHtml ?
     '<div class="p-sec"><div class="p-sec-title">問卷回答 Questionnaire</div>' + respHtml + '</div>' :
