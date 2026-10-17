@@ -748,6 +748,35 @@ function renderTable() {
 
 // ── DETAIL PANEL ──
 // 把一筆記錄（問卷回答/簽名/條款）組成 HTML —— 共用給「目前資料」跟「每次到訪記錄」使用
+// ── 複製給 Square Note 用的文字：中文一段、英文一段，不混在一起 ──
+var _noteTexts = {};
+var SVC_ZH = {lash:'睫毛', facial:'臉部護理', headspa:'頭皮護理', massage:'按摩'};
+function buildSquareNote(rec){
+  var resp = rec.responses || {};
+  var keys = Object.keys(resp).filter(function(k){ var v=resp[k]; return v && (Array.isArray(v)?v.length:v); }).sort(function(a,b){
+    var ia=RESP_ORDER.indexOf(a), ib=RESP_ORDER.indexOf(b); return (ia<0?99:ia)-(ib<0?99:ib);
+  });
+  var d = rec.submittedAt ? new Date(rec.submittedAt).toLocaleDateString('en-US',{timeZone:'America/Los_Angeles'}) : '';
+  var zh = ['【'+d+' '+(SVC_ZH[rec.service]||rec.service||'')+' 填表】'];
+  var en = ['['+d+' '+(SVC_LABELS[rec.service]||rec.service||'')+' Form]'];
+  keys.forEach(function(k){
+    var v = resp[k], arr = Array.isArray(v) ? v : [v];
+    var lbl = String(RESP_LABELS[k]||k), m = lbl.match(/^([^A-Za-z]+?)\s+([A-Za-z].*)$/);
+    var lz = m ? m[1] : lbl, le = m ? m[2] : lbl;
+    var isHealth = k==='health' && arr.some(function(x){return x!=='None of the above';});
+    var vz = k==='massageIntensity' ? v+'/10' : arr.map(function(x){ return zhOf(x)||x; }).join('、');
+    var ve = k==='massageIntensity' ? v+'/10' : arr.join(', ');
+    zh.push((isHealth?'⚠ ':'• ')+lz+'：'+vz);
+    en.push((isHealth?'⚠ ':'• ')+le+': '+ve);
+  });
+  return zh.join('\n') + '\n\n' + en.join('\n');
+}
+window.copySquareNote = function(id, btn){
+  var txt = _noteTexts[id] || '';
+  function done(){ var o=btn.textContent; btn.textContent='✓ 已複製 Copied'; setTimeout(function(){btn.textContent=o;},1500); }
+  if(navigator.clipboard && navigator.clipboard.writeText){ navigator.clipboard.writeText(txt).then(done, fallback); } else fallback();
+  function fallback(){ var ta=document.createElement('textarea'); ta.value=txt; ta.style.position='fixed'; ta.style.opacity='0'; document.body.appendChild(ta); ta.select(); try{document.execCommand('copy'); done();}catch(e){ prompt('請手動複製 Copy manually:', txt); } ta.remove(); }
+};
 function buildRecordDetailHtml(rec) {
   var resp = rec.responses || {};
   var respHtml = Object.entries(resp).filter(([k, v]) => v && (Array.isArray(v) ? v.length : v)).sort(function(a,b){
@@ -760,8 +789,10 @@ function buildRecordDetailHtml(rec) {
     if(lm) label = '<div>'+lm[1]+'</div><div style="font-size:11px;color:var(--faint,#B8B0A8);margin-top:1px">'+lm[2]+'</div>';
     return '<div class="p-row"><span class="p-lbl">' + label + '</span><span class="p-val"' + (warn?' style="color:#B23B2E;font-weight:600"':'') + '>' + (warn&&k==='health' ? (val.indexOf('<div>')===0 ? val.replace('<div>','<div>⚠ ') : '⚠ '+val) : val) + '</span></div>';
   }).join('');
+  if (respHtml && rec.id) _noteTexts[rec.id] = buildSquareNote(rec);
   return (respHtml ?
-    '<div class="p-sec"><div class="p-sec-title">問卷回答 Questionnaire</div>' + respHtml + '</div>' :
+    '<div class="p-sec"><div class="p-sec-title" style="display:flex;justify-content:space-between;align-items:center;gap:8px">問卷回答 Questionnaire'+
+      '<button type="button" onclick="event.stopPropagation();copySquareNote(\''+rec.id+'\',this)" style="font-size:11px;font-weight:600;letter-spacing:0;text-transform:none;padding:5px 10px;border-radius:7px;border:1.5px solid var(--rose-mid);background:#fff;color:var(--rose);cursor:pointer;font-family:inherit">📋 複製給 Square Note</button></div>' + respHtml + '</div>' :
     '<div style="font-size:12px;color:var(--faint,#B8B0A8);padding:8px 0">沒有問卷記錄 No questionnaire data</div>') +
     (rec.signature ? '<div class="p-sec"><div class="p-sec-title">簽名</div><img src="' + rec.signature + '" style="max-width:100%;border:1px solid var(--border);border-radius:8px"></div>' : '') +
     (rec.agreementText ? '<div class="p-sec"><div class="p-sec-title">📄 Agreement 條款（客人簽署版本）</div><pre style="font-size:11px;color:var(--sub);white-space:pre-wrap;line-height:1.7;font-family:inherit;background:var(--bg);border-radius:8px;padding:12px">' + rec.agreementText + '</pre></div>' : '');
