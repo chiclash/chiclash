@@ -25,6 +25,12 @@ input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-
 .app{display:flex;min-height:100vh}
 .side{width:196px;flex-shrink:0;background:var(--white);border-right:1px solid var(--border);display:flex;flex-direction:column;position:sticky;top:0;height:100vh;overflow-y:auto}
 .main{flex:1;padding:24px 28px;max-width:1100px;min-width:0;overflow-x:hidden}
+.main:has(#page-home.on){max-width:1480px}
+.home-grid{display:grid;grid-template-columns:minmax(0,1fr) 320px;gap:16px;align-items:start}
+@media(max-width:1300px){.home-grid{grid-template-columns:1fr}}
+.yr-row{display:grid;grid-template-columns:44px 1fr 1fr 1fr;gap:6px;align-items:center;padding:7px 12px;border-bottom:1px solid var(--border);font-size:12.5px;cursor:pointer}
+.yr-row:hover{background:#F8F6F3}
+.yr-row .n{text-align:right;font-family:monospace}
 
 .s-brand{padding:14px 16px;border-bottom:1px solid var(--border)}
 .s-brand-name{font-size:12px;font-weight:700;letter-spacing:.14em;text-transform:uppercase}
@@ -715,6 +721,8 @@ input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-
     <div><div class="pg-title">本月營業額總覽</div><div class="pg-sub" id="home-sub"></div></div>
     <button onclick="exportReconReport()" style="padding:9px 18px;background:#1A1A1A;color:#fff;border:none;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;display:flex;align-items:center;gap:7px;white-space:nowrap">⬇ 匯出對帳報表 PDF</button>
   </div>
+  <div class="home-grid"><div class="home-main" style="min-width:0">
+  <div id="home-summary-note" style="display:none;background:var(--gold-bg);border:1px solid #DDD0A0;border-radius:10px;padding:10px 16px;margin-bottom:12px;font-size:12.5px;color:var(--gold)"></div>
   <div class="gd-banner neutral" id="gd-banner">
     <div class="gdb-icon" id="gdb-icon">💳</div>
     <div class="gdb-body"><div class="gdb-title" id="gdb-title">GoDaddy 本月撥款</div><div class="gdb-desc" id="gdb-desc">填入每日 GoDaddy 實收後自動加總</div>
@@ -852,6 +860,9 @@ input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-
     </div>
     <div style="font-size:24px;font-weight:700;font-family:monospace" id="home-net-income">—</div>
   </div>
+  </div><!-- /home-main -->
+  <aside id="home-year" style="background:var(--white);border:1px solid var(--border);border-radius:10px;overflow:hidden"></aside>
+  </div><!-- /home-grid -->
 </div>
 
 <!-- 每日日曆 -->
@@ -1375,6 +1386,22 @@ input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-
   </div>
   <div class="att-summary" id="att-summary"></div>
   <div id="att-staff-cards"></div>
+  <div class="pen-form" style="margin-top:8px;background:var(--warn-bg);border-color:var(--warn-bd)">
+    <div class="pen-form-title" style="color:var(--warn)">&#127958; 快速新增請假（全員 / 多人）</div>
+    <div style="font-size:11px;color:var(--sub);margin-bottom:8px">例如店休、國定假日：選日期、勾選要請假的人（預設全部），一次登記。已經登記過同一段請假的人會自動略過。</div>
+    <div class="pen-row" style="margin-bottom:8px">
+      <div class="pen-ff"><label>開始日期</label><input type="date" id="bulk-leave-start" class="pen-field" style="width:140px"></div>
+      <div class="pen-ff"><label>結束日期（單日可留空）</label><input type="date" id="bulk-leave-end" class="pen-field" style="width:140px"></div>
+      <div class="pen-ff"><label>備註</label><input type="text" id="bulk-leave-note" class="pen-field" placeholder="例：店休、Thanksgiving" style="min-width:180px"></div>
+      <div class="pen-ff"><button class="pen-add-btn" style="background:var(--warn)" onclick="addLeaveBulk()">全部登記</button></div>
+    </div>
+    <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+      <span style="font-size:11px;color:var(--sub)">請假的人：</span>
+      <button type="button" onclick="bulkLeaveSelAll(true)" style="font-size:11px;padding:2px 8px;border:1px solid var(--border);border-radius:5px;background:var(--white);cursor:pointer;font-family:inherit">全選</button>
+      <button type="button" onclick="bulkLeaveSelAll(false)" style="font-size:11px;padding:2px 8px;border:1px solid var(--border);border-radius:5px;background:var(--white);cursor:pointer;font-family:inherit">全不選</button>
+      <div id="bulk-leave-staff" style="display:flex;flex-wrap:wrap;gap:6px"></div>
+    </div>
+  </div>
   <div class="pen-form" style="margin-top:8px">
     <div class="pen-form-title">&#127942; 快速新增獎懲（全員）</div>
     <div class="pen-row">
@@ -1646,11 +1673,35 @@ input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-
   <!-- 資料備份與還原：任何一鍵寫入的動作都會自動備份，這裡可以隨時還原 -->
   <div style="background:#FEF9EE;border:1.5px solid #F0D9A0;border-radius:10px;padding:14px 16px;margin-bottom:12px">
     <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:8px">
-      <div style="font-size:12px;font-weight:700;color:#8A5F1A">🕐 資料備份 — 匯入前的自動備份紀錄，隨時可以還原</div>
+      <div style="font-size:12px;font-weight:700;color:#8A5F1A">🕐 資料備份 — 匯入前的自動備份紀錄（保留最近 10 份，存在這台裝置的瀏覽器），隨時可以還原</div>
       <button onclick="renderBackupList()" style="padding:5px 12px;background:var(--white);border:1px solid #E8DFC0;border-radius:6px;font-size:11px;color:#8A5F1A;cursor:pointer;font-family:inherit">🔄 重新整理</button>
     </div>
     <div id="backup-list-wrap" style="font-size:12px;color:var(--sub)">尚無備份紀錄（第一次使用「一鍵全部寫入」或「覆蓋寫入」時會自動建立）</div>
   </div>
+
+  <!-- 🔄 一鍵同步整年 -->
+  <details id="sync-box" style="background:var(--mv-bg);border:1px solid var(--mv-bd);border-radius:10px;padding:8px 14px;margin-bottom:12px">
+    <summary style="font-size:12.5px;font-weight:700;color:var(--mv);cursor:pointer;padding:2px 0">🔄 一鍵同步（整年也可以，不怕覆蓋）<span style="font-weight:400;color:var(--sub);font-size:11px">　點開使用</span></summary>
+    <div style="padding-top:8px">
+    <div style="font-size:12px;color:var(--sub);line-height:1.7;margin-bottom:10px">
+      把 Square 的 <b>Items CSV</b>、<b>Transactions CSV</b>（還有 GoDaddy 的 <b>Payout_Payments CSV</b>，選填）一起拖進來，會自動整理所有月份：<br>
+      ✓ 已經有的客人：用 Square 更新金額，<b>你手動改過的付款方式、禮品卡、ClassPass、小費方式、技師、名字都保留</b><br>
+      ✓ 漏掉的客人：自動補上　✓ GoDaddy 實收和逐筆明細：用 Payout 更新<br>
+      ✓ Square 找不到的舊紀錄：<b>不會刪</b>，只在名字下面標「⚠ Square 找不到」讓你自己決定<br>
+      ✓ 同步前自動備份，可以在下面「資料備份」還原；同一份檔案同步幾次結果都一樣，不會重複
+    </div>
+    <div id="sync-drop" style="border:2px dashed var(--mv-bd);border-radius:9px;padding:22px;text-align:center;cursor:pointer;background:var(--white)"
+      onclick="document.getElementById('sync-files').click()"
+      ondragover="event.preventDefault();this.style.borderColor='var(--mv)'"
+      ondragleave="this.style.borderColor='var(--mv-bd)'"
+      ondrop="event.preventDefault();this.style.borderColor='var(--mv-bd)';impAutoSync(event.dataTransfer.files)">
+      <div style="font-size:26px;margin-bottom:4px">📂</div>
+      <div style="font-size:13px;font-weight:700;color:var(--mv)">點擊或拖曳 2～3 個 CSV 到這裡（可以一次全選）</div>
+      <div id="sync-st" style="font-size:12px;color:var(--sub);margin-top:6px;line-height:1.7"></div>
+      <input type="file" id="sync-files" accept=".csv" multiple style="display:none" onchange="impAutoSync(this.files);this.value=''">
+    </div>
+    </div>
+  </details>
 
   <!-- Step 1: Upload -->
   <div style="background:var(--white);border:1px solid var(--border);border-radius:10px;padding:16px;margin-bottom:12px">
@@ -1739,11 +1790,9 @@ input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-
     <div style="background:var(--white);border:1px solid var(--border);border-radius:10px;padding:14px;margin-bottom:12px">
       <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--sub);margin-bottom:10px">Step 2 — 確認並寫入</div>
       <div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center">
-        <button onclick="impCommitAll()" style="padding:8px 20px;background:var(--ok);color:#fff;border:none;border-radius:7px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit">✓ 一鍵全部寫入</button>
-        <span style="color:var(--sub);font-size:12px">或分開操作：</span>
-        <button onclick="impCommitDaily()" style="padding:7px 14px;background:var(--mv-bg);color:var(--mv);border:1.5px solid var(--mv-bd);border-radius:7px;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit">📅 寫入每日記帳</button>
-        <button onclick="impCommitCash()" style="padding:7px 14px;background:#EEF7F2;color:#1A7A45;border:1.5px solid #B8DEC9;border-radius:7px;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit">💵 記錄現金到現金櫃</button>
-        <button onclick="impCommitGD()" style="padding:7px 14px;background:#FEF9EE;color:#B45309;border:1.5px solid #F0D9A0;border-radius:7px;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit">📄 寫入 GoDaddy Payout</button>
+        <div id="imp-month-plan" style="width:100%;margin-bottom:6px"></div>
+        <button onclick="impCommitAll()" style="padding:8px 20px;background:var(--ok);color:#fff;border:none;border-radius:7px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit">✓ 依上表寫入</button>
+        <button onclick="impCommitGD()" style="padding:7px 14px;background:#FEF9EE;color:#B45309;border:1.5px solid #F0D9A0;border-radius:7px;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit">📄 只寫入 GoDaddy Payout</button>
       </div>
       <div id="imp-commit-status" style="margin-top:8px;font-size:12px;color:var(--ok);display:none"></div>
     </div>
@@ -1762,6 +1811,9 @@ input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-
           <option value="">全部店</option>
           <option value="mv">Mill Valley</option>
           <option value="sr">San Rafael</option>
+        </select>
+        <select id="imp-filter-month" onchange="document.getElementById('imp-filter-date').value='';impRenderTable()" style="border:1px solid var(--border);border-radius:5px;padding:4px 8px;font-size:11px;font-family:inherit;background:var(--white);outline:none">
+          <option value="">全部月份</option>
         </select>
         <select id="imp-filter-date" onchange="impRenderTable()" style="border:1px solid var(--border);border-radius:5px;padding:4px 8px;font-size:11px;font-family:inherit;background:var(--white);outline:none">
           <option value="">全部日期</option>
@@ -1972,6 +2024,74 @@ input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-
 
   setSyncStatus('⟳ 同步中…', '#7A746C');
 
+  // ── 雲端分檔儲存：Firebase 一份文件最多 1MB，整年資料放不下，
+  //    所以每日記帳、GoDaddy 明細、庫存出庫等「按月份」的資料，一個月存一份，只上傳有改過的月份 ──
+  const SHARD_KEYS = ['mv','sr','gdTxns','sqTxns','gdImport','tipSplitState'];
+  window._shardCache = window._shardCache || {}; // id -> {h, json}
+  function strHash(str){ let h=5381; for(let i=0;i<str.length;i++){ h=((h<<5)+h+str.charCodeAt(i))|0; } return (h>>>0).toString(36)+'_'+str.length; }
+  function packForCloud(D){
+    const main = Object.assign({}, D), shards = {};
+    SHARD_KEYS.forEach(function(k){
+      const obj = D[k]; if (!obj || typeof obj !== 'object' || Array.isArray(obj)) return;
+      delete main[k];
+      Object.keys(obj).forEach(function(mo){ shards['m_'+k+'_'+mo] = JSON.stringify(obj[mo]); });
+    });
+    if (Array.isArray(D.stockOut)) {
+      delete main.stockOut;
+      const by = {};
+      D.stockOut.forEach(function(x){ const mo = String((x&&x.date)||'').slice(0,7) || 'none'; (by[mo]=by[mo]||[]).push(x); });
+      Object.keys(by).forEach(function(mo){ shards['m_stockOut_'+mo] = JSON.stringify(by[mo]); });
+    }
+    return { mainJson: JSON.stringify(main), shards: shards };
+  }
+  function unpackCloud(main, shardJson){
+    Object.keys(shardJson).forEach(function(id){
+      const rest = id.slice(2), cut = rest.lastIndexOf('_');
+      const k = rest.slice(0,cut), mo = rest.slice(cut+1);
+      let v; try { v = JSON.parse(shardJson[id]); } catch(e) { return; }
+      if (k === 'stockOut') main.stockOut = (main.stockOut||[]).concat(v||[]);
+      else { if (!main[k]) main[k] = {}; main[k][mo] = v; }
+    });
+    return main;
+  }
+  // 讀雲端：新格式（_fmt:2）就把各月份的檔案拿回來拼起來；舊格式直接用
+  async function readCloud(data){
+    if (!data || data._fmt !== 2) return data;
+    const main = JSON.parse(data._json || '{}');
+    const idx = data._shards || {}, out = {};
+    await Promise.all(Object.keys(idx).map(async function(id){
+      const c = window._shardCache[id];
+      if (c && c.h === idx[id]) { out[id] = c.json; return; } // 沒變的月份不用重抓
+      const sn = await getDoc(doc(db, 'chic lash', id));
+      if (sn.exists()) { const j = sn.data().v; out[id] = j; window._shardCache[id] = { h: strHash(j), json: j }; }
+    }));
+    main._savedAt = data._savedAt || main._savedAt || 0;
+    return unpackCloud(main, out);
+  }
+  async function writeCloud(D){
+    const pk = packForCloud(D), idx = {}, jobs = [];
+    Object.keys(pk.shards).forEach(function(id){
+      const j = pk.shards[id], h = strHash(j); idx[id] = h;
+      const c = window._shardCache[id];
+      if (c && c.h === h) return; // 這個月沒改，不用上傳
+      if (j.length > 900000) console.warn('雲端：'+id+' 快超過 1MB 上限');
+      jobs.push(setDoc(doc(db, 'chic lash', id), { v: j }).then(function(){ window._shardCache[id] = { h: h, json: j }; }));
+    });
+    await Promise.all(jobs); // 先存好各月份，再存主檔（主檔記著要讀哪些月份）
+    if (pk.mainJson.length > 900000) console.warn('雲端主檔快超過 1MB 上限：', pk.mainJson.length);
+    await setDoc(doc(db, 'chic lash', 'data'), { _fmt: 2, _json: pk.mainJson, _shards: idx, _savedAt: D._savedAt || 0 });
+  }
+  // 給一般存檔用：連續打字時合併成一次上傳（0.6 秒）
+  let _cloudTimer = null, _cloudBusy = Promise.resolve();
+  window._cloudSave = function(){
+    clearTimeout(_cloudTimer);
+    _cloudTimer = setTimeout(function(){
+      _cloudBusy = _cloudBusy.then(function(){ return writeCloud(window._D); })
+        .then(function(){ setSyncStatus('✓ 已存到雲端', '#1A7A45'); })
+        .catch(function(e){ console.warn('Firebase save error:', e); setSyncStatus('⚠ 雲端儲存失敗，本機已保留', '#B83010'); const el=document.getElementById('sync-status'); if(el) el.style.opacity='1'; });
+    }, 600);
+  };
+
   // ── 逐天/逐筆安全合併：絕對不讓「贏的一方」整包蓋掉另一方已經填寫的每日資料 ──
   // 適用於 mv/sr（每天客人紀錄）跟 gd（每天GoDaddy實收）這種 {月份:{日期:紀錄}} 結構
   // 規則：以「這台裝置（本機）現在打的」為準，只有本機那天完全空白時才退而使用對方的版本補上。
@@ -2014,7 +2134,7 @@ input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-
     merged.sr = mergeDailyStore(base.sr, other.sr, 'sr');
     merged.gd = mergeDailyStore(base.gd, other.gd, 'gd');
     merged.gc_cards = mergeArrayById(base.gc_cards, other.gc_cards);
-    const safeKeys = ['staffPay','payroll','sqNameMap','tipConfirmed','tipSplitState','reviewSel','reviews','att','penalties','bnkBal','cdManual','tipSchedule','memberItems','members','memberSaleRewards','memberSaleRewardSel','gdDayOk','gdExplain','gdTxns','sqTxns','_ipadSqMigDone','staffLeft','gcPayOverride'];
+    const safeKeys = ['staffPay','payroll','sqNameMap','tipConfirmed','tipSplitState','reviewSel','reviews','att','penalties','bnkBal','cdManual','tipSchedule','memberItems','members','memberSaleRewards','memberSaleRewardSel','gdDayOk','gdExplain','gdTxns','sqTxns','_ipadSqMigDone','staffLeft','gcPayOverride','monthSummary'];
     safeKeys.forEach(function(key){
       if(other[key] !== undefined && base[key] === undefined){
         merged[key] = other[key];
@@ -2029,7 +2149,7 @@ input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-
     const hasLocalData = local.mv || local.sr; // 本機有實際資料
 
     if (snap.exists()) {
-      const cloudData = snap.data();
+      const cloudData = await readCloud(snap.data());
       const cloudTs = cloudData._savedAt || 0;
       const localTs  = local._savedAt || 0;
 
@@ -2054,14 +2174,14 @@ input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-
       // 合併完之後才真正把這份（已經保護過每日資料的）版本寫回本機跟雲端，取代掉直接無條件覆蓋的舊寫法
       window._D = merged;
       localStorage.setItem('rev19', JSON.stringify(merged));
-      await setDoc(doc(db, 'chic lash', 'data'), JSON.parse(JSON.stringify(merged))).catch(function(e){console.warn('雲端寫入失敗，本機資料已保留：',e);});
+      await writeCloud(merged).catch(function(e){console.warn('雲端寫入失敗，本機資料已保留：',e);});
       if (typeof renderAll === 'function') renderAll();
       setSyncStatus('✓ 資料已同步', '#1A7A45');
 
     } else {
       // 雲端沒有資料 → 上傳本機
       if (window._D) {
-        await setDoc(doc(db, 'chic lash', 'data'), JSON.parse(JSON.stringify(window._D)));
+        await writeCloud(window._D);
         setSyncStatus('✓ 本機資料已上傳雲端', '#1A7A45');
       }
     }
@@ -2074,10 +2194,14 @@ input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-
   // 用 _savedAt 這個時間戳記分辨「這是不是我自己剛剛存的」，避免自己存一次、又觸發自己重畫一次的無限迴圈。
   if (window._db) {
     try {
-      onSnapshot(doc(db, 'chic lash', 'data'), function(snap){
+      onSnapshot(doc(db, 'chic lash', 'data'), async function(snap){
         if (!snap.exists()) return;
-        var cloudData = snap.data();
-        var cloudTs = cloudData._savedAt || 0;
+        var raw = snap.data();
+        var cloudTs = raw._savedAt || 0;
+        if (cloudTs && cloudTs === window._lastWrittenSavedAt) return;
+        if (cloudTs <= ((window._D && window._D._savedAt) || 0)) return;
+        var cloudData;
+        try { cloudData = await readCloud(raw); } catch(e) { console.warn('讀取雲端月份資料失敗：', e); return; }
         // 這筆更新如果就是我們自己剛剛寫出去的那一版（時間戳記一樣），不用理它，避免自己觸發自己重畫
         if (cloudTs && cloudTs === window._lastWrittenSavedAt) return;
         // 這筆更新如果比我們現在手上的資料還舊或一樣，也不用理它
@@ -2173,6 +2297,7 @@ let activeStore='mv';
 
 // ── FIREBASE SAVE ──
 const saveOnly=()=>{
+  if(window._suppressSave)return; // 匯入中心預覽時不要存檔
   _D._savedAt = Date.now();
   window._lastWrittenSavedAt = _D._savedAt; // 記錄「這是我自己剛存的版本」，即時監聽看到同樣的時間戳記時會略過，不會自己觸發自己重畫
   try{
@@ -2184,39 +2309,72 @@ const saveOnly=()=>{
     console.error('本機儲存失敗:', e);
     alert('⚠️ 本機儲存失敗（'+(e&&e.name==='QuotaExceededError'?'裝置儲存空間已滿':(e&&e.message)||'未知錯誤')+'）\n\n剛剛的操作可能沒有真的存起來，畫面重新整理後可能會消失。\n建議先截圖記錄，並跟開發者反應這個訊息。');
   }
-  if(window._db){
-    import('https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js').then(({doc,setDoc})=>{
-      setDoc(doc(window._db,'chic lash','data'),JSON.parse(JSON.stringify(_D))).catch(e=>console.warn('Firebase save error:',e));
-    });
-  }
+  if(window._db&&typeof window._cloudSave==='function') window._cloudSave();
 };
 // ── 安全備份：任何可能會「整包蓋掉」既有資料的動作（例如匯入中心強制覆蓋），
 // 動手之前一定先把目前的完整資料存一份快照，最多留5份，輪替覆蓋最舊的。
 // 就算真的按錯、蓋掉了，也可以從這裡救回來，不用再重新輸入一次。
+// 備份放在瀏覽器的 IndexedDB（空間大很多），以前放 localStorage，整年資料放 5 份會超過上限、備份會悄悄失敗
+var _bkDB=null;
+function bkOpen(){
+  return new Promise(function(res,rej){
+    if(_bkDB)return res(_bkDB);
+    if(!window.indexedDB)return rej(new Error('這個瀏覽器不支援 IndexedDB'));
+    var r=indexedDB.open('chiclash_backups',1);
+    r.onupgradeneeded=function(){ r.result.createObjectStore('b',{keyPath:'savedAt'}); };
+    r.onsuccess=function(){ _bkDB=r.result; res(_bkDB); };
+    r.onerror=function(){ rej(r.error); };
+  });
+}
+function bkAll(){
+  return bkOpen().then(function(db){ return new Promise(function(res,rej){
+    var q=db.transaction('b','readonly').objectStore('b').getAll(); q.onsuccess=function(){ res((q.result||[]).sort(function(a,b){return b.savedAt-a.savedAt;})); }; q.onerror=function(){rej(q.error);};
+  }); });
+}
+function bkPut(rec){
+  return bkOpen().then(function(db){ return new Promise(function(res,rej){
+    var tx=db.transaction('b','readwrite'); tx.objectStore('b').put(rec); tx.oncomplete=function(){res();}; tx.onerror=function(){rej(tx.error);};
+  }); });
+}
+function bkPrune(keep){
+  return bkAll().then(function(list){ var old=list.slice(keep); if(!old.length)return;
+    return bkOpen().then(function(db){ return new Promise(function(res){ var tx=db.transaction('b','readwrite'); var st=tx.objectStore('b'); old.forEach(function(x){st.delete(x.savedAt);}); tx.oncomplete=function(){res();}; tx.onerror=function(){res();}; }); });
+  });
+}
+var _bkLastAt=0;
 function backupSnapshot(reason){
   try{
-    var snap={savedAt:Date.now(),reason:reason||'',data:JSON.parse(JSON.stringify(_D))};
-    var list=JSON.parse(localStorage.getItem('rev19_backups')||'[]');
-    list.unshift(snap);
-    if(list.length>5) list=list.slice(0,5);
-    localStorage.setItem('rev19_backups', JSON.stringify(list));
+    var at=Date.now(); if(at<=_bkLastAt)at=_bkLastAt+1; _bkLastAt=at;
+    var rec={savedAt:at,reason:reason||'',json:JSON.stringify(_D)}; // 先同步拍下快照，之後才改資料
+    return bkPut(rec).then(function(){return bkPrune(10);}).then(function(){ if(typeof renderBackupList==='function')renderBackupList(); })
+      .catch(function(e){ console.warn('備份失敗：',e); alert('⚠ 自動備份失敗（'+(e&&e.message||e)+'），這次的修改還是會照常寫入。'); });
   }catch(e){ console.warn('備份失敗（不影響原本操作）：',e); }
 }
 function listBackups(){
-  var list=JSON.parse(localStorage.getItem('rev19_backups')||'[]');
-  return list.map(function(b,i){return {index:i, time:new Date(b.savedAt).toLocaleString('zh-TW'), reason:b.reason};});
+  return bkAll().then(function(list){ return list.map(function(b){return {index:b.savedAt, time:new Date(b.savedAt).toLocaleString('zh-TW'), reason:b.reason};}); }).catch(function(){return [];});
 }
-function restoreBackup(index){
-  var list=JSON.parse(localStorage.getItem('rev19_backups')||'[]');
-  var b=list[index];
-  if(!b){alert('找不到這份備份');return;}
-  if(!confirm('確定要還原到「'+new Date(b.savedAt).toLocaleString('zh-TW')+'」這個時間點的備份嗎？\n\n目前的資料會先被存成新的備份，不會真的消失，可以再還原回來。'))return;
-  backupSnapshot('還原前的自動備份');
-  window._D=JSON.parse(JSON.stringify(b.data));
-  saveOnly();
-  renderAll();
-  alert('✓ 已還原到「'+new Date(b.savedAt).toLocaleString('zh-TW')+'」的備份');
+function restoreBackup(at){
+  bkAll().then(function(list){
+    var b=list.find(function(x){return x.savedAt===at;});
+    if(!b){alert('找不到這份備份');return;}
+    if(!confirm('確定要還原到「'+new Date(b.savedAt).toLocaleString('zh-TW')+'」這個時間點的備份嗎？\n\n目前的資料會先被存成新的備份，不會真的消失，可以再還原回來。'))return;
+    backupSnapshot('還原前的自動備份');
+    window._D=JSON.parse(b.json);
+    saveOnly();
+    renderAll();
+    alert('✓ 已還原到「'+new Date(b.savedAt).toLocaleString('zh-TW')+'」的備份');
+  });
 }
+// 舊的 localStorage 備份搬到 IndexedDB，順便把 localStorage 的空間讓出來
+(function migrateOldBackups(){
+  try{
+    var raw=localStorage.getItem('rev19_backups'); if(!raw)return;
+    var list=JSON.parse(raw)||[];
+    Promise.all(list.map(function(b){ return bkPut({savedAt:b.savedAt,reason:b.reason||'',json:JSON.stringify(b.data)}); }))
+      .then(function(){ localStorage.removeItem('rev19_backups'); })
+      .catch(function(e){ console.warn('搬移舊備份失敗：',e); });
+  }catch(e){}
+})();
 window.listBackups=listBackups;
 window.restoreBackup=restoreBackup;
 const save=()=>{
@@ -2342,7 +2500,7 @@ function gdRowDiffs(d){
   var expOther=r2(mvT.calcOther+srT.calcOther+expGCUsed);
   var expCash=r2(mvT.calcCash+srT.calcCash);
   var expGD=r2(mvT.gdDue+srT.gdDue);
-  var sqR=sqReconDay(d), a=gdDay(d).act;
+  var sqR=(_D.sqRecon&&_D.sqRecon[mk()]&&_D.sqRecon[mk()][d])||{}, gdr=_D.gd&&_D.gd[mk()]&&_D.gd[mk()][d], a=gdr?gdr.act:'';
   return [
     (sqR.card!==''&&sqR.card!==undefined)?r2(gv(sqR.card)-expOther):null,
     (sqR.cash!==''&&sqR.cash!==undefined)?r2(gv(sqR.cash)-expCash):null,
@@ -2385,12 +2543,12 @@ function gdExplainStatus(d){
   return res;
 }
 // 新增一項時，方向（多/少）預設跟「還沒說明的差額」同方向
-function addGdExplain(d,f,amt,why){
+function addGdExplain(d,f,amt,why){_gdRowOpen[d]=true;
   var st=gdExplainStatus(d), left=st.rows[f==='swap'?'other':(f||'other')].left;
   if(amt!==undefined){gdExplainList(d).push({f:f,amt:String(amt),why:why||'',sign:gv(amt)<0?-1:1});saveOnly();buildGDTable();return;}
   gdExplainList(d).push({f:f||'other',amt:'',why:'',sign:left<0?-1:1});saveOnly();buildGDTable();
 }
-function updGdExplain(d,i,k,v){
+function updGdExplain(d,i,k,v){_gdRowOpen[d]=true;
   var l=gdExplainList(d);if(!l[i])return;
   if(k==='amt'){
     // 金額欄只打數字；正負由「多／少」按鈕決定（直接打負號也可以）
@@ -2403,13 +2561,13 @@ function updGdExplain(d,i,k,v){
   } else l[i][k]=v;
   saveOnly();buildGDTable();
 }
-function setGdExplainSign(d,i,sg){
+function setGdExplainSign(d,i,sg){_gdRowOpen[d]=true;
   var l=gdExplainList(d);if(!l[i])return;
   l[i].sign=sg; if(l[i].amt!=='')l[i].amt=String(Math.abs(gv(l[i].amt))*sg);
   saveOnly();buildGDTable();
 }
 window.setGdExplainSign=setGdExplainSign;
-function delGdExplain(d,i){gdExplainList(d).splice(i,1);saveOnly();buildGDTable();}
+function delGdExplain(d,i){_gdRowOpen[d]=true;gdExplainList(d).splice(i,1);saveOnly();buildGDTable();}
 window.addGdExplain=addGdExplain;window.updGdExplain=updGdExplain;window.delGdExplain=delGdExplain;
 function renderGdExplainHtml(d,st){
   var esc=function(v){return String(v||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/"/g,'&quot;');};
@@ -2507,7 +2665,7 @@ function parseGdTxnPaste(text){
   return out;
 }
 function gdTxnsForDay(d){return (_D.gdTxns&&_D.gdTxns[mk()]&&_D.gdTxns[mk()][d])||null;}
-function saveGdTxnPaste(d){
+function saveGdTxnPaste(d){_gdRowOpen[d]=true;
   var ta=document.getElementById('gdpaste-'+d);if(!ta)return;
   var list=parseGdTxnPaste(ta.value);
   if(!list.length){alert('看不到 GoDaddy 交易。請在 GoDaddy「Transactions」頁，從第一筆的日期拖曳選到最後一筆，複製後貼上。');return;}
@@ -2953,7 +3111,7 @@ function isGdDayConfirmed(d){
   var c=_D.gdDayOk&&_D.gdDayOk[mk()]&&_D.gdDayOk[mk()][d];
   return !!(c&&c.sig===gdDaySig(d));
 }
-function toggleGdDayOk(d){
+function toggleGdDayOk(d){_gdRowOpen[d]=true;
   if(!_D.gdDayOk)_D.gdDayOk={};
   if(!_D.gdDayOk[mk()])_D.gdDayOk[mk()]={};
   if(isGdDayConfirmed(d)) delete _D.gdDayOk[mk()][d];
@@ -3040,7 +3198,7 @@ function sqReconDay(d){
   if(!_D.sqRecon[mk()][d])_D.sqRecon[mk()][d]={card:'',cash:''};
   return _D.sqRecon[mk()][d];
 }
-function setSqRecon(d,field,v){
+function setSqRecon(d,field,v){_gdRowOpen[d]=true;
   var r=sqReconDay(d);
   r[field]=v===''?'':Math.round((parseFloat(v)||0)*100)/100;
   saveOnly();
@@ -3060,7 +3218,7 @@ function getGDFee(d){
   if(!_D.gdFeeManual||!_D.gdFeeManual[mk()]||_D.gdFeeManual[mk()][d]===undefined)return '';
   return _D.gdFeeManual[mk()][d];
 }
-function setGDFee(d,v){
+function setGDFee(d,v){_gdRowOpen[d]=true;
   if(!_D.gdFeeManual)_D.gdFeeManual={};
   if(!_D.gdFeeManual[mk()])_D.gdFeeManual[mk()]={};
   _D.gdFeeManual[mk()][d]=v===''?'':Math.round((parseFloat(v)||0)*100)/100;
@@ -3243,7 +3401,7 @@ function calcMonth(s){
 // ── GODADDY 計算（自然日，與 Square 同步）──
 
 // ── NAV ──
-function changeMonth(d){cur.setMonth(cur.getMonth()+d);renderAll();}
+function changeMonth(d){_gdRowOpen={};cur.setMonth(cur.getMonth()+d);renderAll();}
 function showPage(p){
   document.querySelectorAll('.page').forEach(e=>e.classList.remove('on'));
   document.querySelectorAll('.ni').forEach(e=>e.classList.remove('on'));
@@ -3317,6 +3475,8 @@ function renderDay(d,dow){
     if(t.gcSold>0) badges+=`<span class='bdg gc' style="background:#FFF8EC;color:#9A6A10;border-color:#F0DDB0">🎁 賣卡 ${$f(t.gcSold)}</span>`;
     if(t.cashTip>0) badges+=`<span class='bdg tk'>現金小費 ${$f(t.cashTip)}</span>`;
     var missingNames=(r.clients||[]).filter(c=>!c.clientName&&c.svc).length;
+    var sqMiss=(r.clients||[]).filter(c=>c.sqMissing).length;
+    if(sqMiss>0) badges+=`<span class='bdg warn' style="background:#FFF3E0;color:#B45309;border-color:#F0D0A0">⚠ ${sqMiss}筆 Square 找不到</span>`;
     if(missingNames>0) badges+=`<span class='bdg warn' style="background:#FFF0EE;color:#C04020;border-color:#F0B0A0">⚠ ${missingNames}筆缺名字</span>`;
   }
 
@@ -3448,7 +3608,7 @@ function renderClientTable(d){
     tr.innerHTML=`
       <td style="text-align:center;width:20px"><span class="row-flag${c.flagged?' on':''}" onclick="toggleClientFlag(${d},${i},this)" title="標記有問題">⚠️</span></td>
       <td style="color:var(--faint);font-size:11px;text-align:center;width:24px">${i+1}</td>
-      <td style="min-width:130px"><input type="text" class='ti' placeholder="客人名字" value="${(c.clientName||'').replace(/"/g,'&quot;')}" oninput="updC(${d},${i},'clientName',this.value)" style="width:100%;box-sizing:border-box;font-size:12px;color:var(--sub);${!c.clientName?'border-color:#F0A090;background:#FFF5F3;':''}"></td>
+      <td style="min-width:130px"><input type="text" class='ti' placeholder="客人名字" value="${(c.clientName||'').replace(/"/g,'&quot;')}" oninput="updC(${d},${i},'clientName',this.value)" style="width:100%;box-sizing:border-box;font-size:12px;color:var(--sub);${!c.clientName?'border-color:#F0A090;background:#FFF5F3;':''}">${c.sqMissing?`<div style="font-size:9.5px;color:#B45309;margin-top:2px;white-space:nowrap" title="同步時 Square 找不到這筆，所以保留沒刪。如果是重複的就按右邊 × 刪掉；確認是對的就按「沒問題」">⚠ Square 找不到 <span onclick="updC(${d},${i},'sqMissing',false)" style="cursor:pointer;text-decoration:underline">沒問題</span></div>`:''}</td>
       <td>${buildTechSel(d,i,c)}</td>
       <td><input type="text" inputmode="decimal" class='ti' placeholder="服務費" min="0" step="0.01" value="${c.svc||''}" oninput="updC(${d},${i},'svc',this.value)" style="width:80px"></td>
       <td>
@@ -3612,6 +3772,8 @@ function updateDaySummary(d){
     if(t.gcSold>0) badges+=`<span class='bdg gc' style="background:#FFF8EC;color:#9A6A10;border-color:#F0DDB0">🎁 賣卡 ${$f(t.gcSold)}</span>`;
     if(t.cashTip>0) badges+=`<span class='bdg tk'>現金小費 ${$f(t.cashTip)}</span>`;
     var missingNames2=(sDay(activeStore,d).clients||[]).filter(c=>!c.clientName&&c.svc).length;
+    var sqMiss2=(sDay(activeStore,d).clients||[]).filter(c=>c.sqMissing).length;
+    if(sqMiss2>0) badges+=`<span class='bdg warn' style="background:#FFF3E0;color:#B45309;border-color:#F0D0A0">⚠ ${sqMiss2}筆 Square 找不到</span>`;
     if(missingNames2>0) badges+=`<span class='bdg warn' style="background:#FFF0EE;color:#C04020;border-color:#F0B0A0">⚠ ${missingNames2}筆缺名字</span>`;
   }
   const infoEl=card.querySelector('.dh-info');if(infoEl)infoEl.innerHTML=badges;
@@ -3692,7 +3854,8 @@ function updC(d,i,f,v){
   const c=sDay(activeStore,d).clients[i];if(!c)return;
   var stringFields=['tech','clientName'];
   c[f]=typeof v==='boolean'?v:v===''?'':stringFields.indexOf(f)>=0?v:parseFloat(v)||0;save();
-  if(f==='tech'||f==='cashTipOk')renderClientTable(d);
+  if(f==='sqMissing'&&!v)delete c.sqMissing;
+  if(f==='tech'||f==='cashTipOk'||f==='sqMissing')renderClientTable(d);
   if(f==='clientName'||f==='svc'||f==='tech')renderMemberDetectBanner(d);
   updateDaySummary(d);updateAll();
 }
@@ -3745,7 +3908,17 @@ function updSq(d,f,v){
 
 // ── OVERVIEW ──
 function updateAll(){
-  const mv=calcMonth('mv'),sr=calcMonth('sr');
+  let mv=calcMonth('mv'),sr=calcMonth('sr');
+  // 這個月有上傳「每月總額 CSV」的話，首頁改用那份數字顯示（不會改每日記帳）；禮品卡銷售還是用系統自己的（iPad＋手動登記）
+  const _ms=monthSummaryFor(mk());
+  if(_ms){ mv=applyMonthSummary(mv,_ms.mv); sr=applyMonthSummary(sr,_ms.sr); }
+  (function(){
+    var n=document.getElementById('home-summary-note'); if(!n)return;
+    if(!_ms){n.style.display='none';n.innerHTML='';return;}
+    n.style.display='block';
+    n.innerHTML='📄 這個月顯示的是上傳的「每月總額 CSV」（來源：Square＋GoDaddy，'+(_ms.uploadedAt?new Date(_ms.uploadedAt).toLocaleDateString('zh-TW')+' 上傳':'')+'），因為每日記帳不完整。每日記帳本身沒有被改動。'
+      +'<button onclick="removeMonthSummary(\''+mk()+'\')" style="margin-left:10px;padding:2px 10px;border:1px solid #DDD0A0;background:var(--white);border-radius:6px;font-size:11px;cursor:pointer;font-family:inherit;color:var(--gold)">改回用每日記帳</button>';
+  })();
   // 先把 MV、SR 各自的月營業額四捨五入成整數，再相加當作「兩店合計」，
   // 這樣總數才會永遠精確等於 MV金額+SR金額，不會因為各自捨去的零頭方向不同而差$1
   const mvRevR=Math.round(mv.rev), srRevR=Math.round(sr.rev);
@@ -3818,6 +3991,7 @@ function updateAll(){
     act+=gv(a); actDays++;
     exp+=calcDay('mv',d).gdDue+calcDay('sr',d).gdDue;
   }
+  if(_ms&&_ms.gd){ act=_ms.gd; exp=act; actDays=actDays||1; } // 用每月總額 CSV 的 GoDaddy 實收
   // include manual adjustments in monthly diff
   let totalAdj=0;for(let d=1;d<=days;d++)totalAdj+=parseFloat(gdDay(d).adj)||0;
   // 每日手續費加總：GoDaddy 每次撥款各自扣一筆手續費（不是月底統一扣一次），
@@ -3836,12 +4010,13 @@ function updateAll(){
   banner.className='gd-banner neutral';
   document.getElementById('gdb-icon').textContent='💳';
   document.getElementById('gdb-title').textContent=actDays?('GoDaddy 本月撥款 '+$f(act)):'GoDaddy 本月撥款';
-  document.getElementById('gdb-desc').textContent=actDays?('已填 '+actDays+' 天｜手續費 '+$f(totalFee)+'｜實際入帳 '+$f(netIn)):'填入每日 GoDaddy 實收後自動加總';
+  document.getElementById('gdb-desc').textContent=(_ms&&_ms.gd)?('來自每月總額 CSV（GoDaddy Payout 整月加總）｜手續費 '+$f(totalFee)+'｜實際入帳 '+$f(netIn)):actDays?('已填 '+actDays+' 天｜手續費 '+$f(totalFee)+'｜實際入帳 '+$f(netIn)):'填入每日 GoDaddy 實收後自動加總';
   if(badge)badge.style.display='none';
 
   // ── 跟下面兩店「GoDaddy 對帳金額」為什麼不一樣：逐項對起來 ──
   (function(){
     var el=document.getElementById('gdb-recon'); if(!el)return;
+    if(_ms){ el.innerHTML=''; return; }
     var expAll=0,pend=0,pendDays=[],rows=[],expl=0,unexpl=0;
     var B={rev:0,cardTip:0,cash:0,venmo:0,cp:0,nonCard:0};
     for(var d=1;d<=days;d++){
@@ -3923,7 +4098,142 @@ function updateAll(){
     netEl.textContent=(tot||hasExp)?(net>=0?'$':'-$')+Math.abs(net).toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2}):'—';
     netEl.style.color=net>=0?'var(--ok)':'var(--warn)';
   })();
+  var hp=document.getElementById('page-home');
+  if(hp&&hp.classList.contains('on'))renderYearOverview();
 }
+
+
+
+// ── 每月總額 CSV：每日記帳不完整的月份，首頁改用 Square/GoDaddy 的整月數字顯示，不會改到每日記帳 ──
+function monthSummaryFor(mo){ return (_D.monthSummary&&_D.monthSummary[mo])||null; }
+function applyMonthSummary(appM, s){
+  s=s||{};
+  var o=Object.assign({},appM);
+  o.cardSvc=gv(s.card); o.cashSvc=gv(s.cash); o.venmoSvc=gv(s.venmo); o.cpSvc=gv(s.cp); o.prodSold=gv(s.prod);
+  o.cardTip=gv(s.ctip); o.cashTip=gv(s.ktip); o.venmoTip=0; o.gdDue=gv(s.gdDue);
+  // 禮品卡銷售用系統自己的（iPad 賣的＋手動登記的），Square 匯出裡沒有
+  o.rev=o.cardSvc+o.cashSvc+o.venmoSvc+o.cpSvc+o.prodSold+(appM.gcSold||0);
+  return o;
+}
+function uploadMonthSummary(file){
+  if(!file)return;
+  var r=new FileReader();
+  r.onload=function(e){
+    var lines=String(e.target.result).replace(/^\uFEFF/,'').split(/\r?\n/).filter(function(l){return l.trim();});
+    if(lines.length<2){alert('這個檔案是空的');return;}
+    var h=parseCSVLine(lines[0]).map(function(x){return x.trim();});
+    var col=function(name){return h.indexOf(name);};
+    var iMo=col('月份'), iSt=col('店');
+    if(iMo<0||iSt<0){alert('看不懂這個檔案：需要「月份」跟「店」欄位。請用我給你的每月總額 CSV。');return;}
+    var num=function(c,name){var i=col(name);return i<0?0:(parseFloat(String(c[i]||'').replace(/[$,]/g,''))||0);};
+    var got={};
+    for(var k=1;k<lines.length;k++){
+      var c=parseCSVLine(lines[k]); var mo=(c[iMo]||'').trim(), st=(c[iSt]||'').trim().toUpperCase();
+      if(!/^\d{4}-\d{2}$/.test(mo))continue;
+      if(!got[mo])got[mo]={mv:null,sr:null,gd:0};
+      var row={card:num(c,'刷卡收入'),cash:num(c,'現金收入'),venmo:num(c,'Venmo收入'),cp:num(c,'ClassPass'),prod:num(c,'產品銷售'),ctip:num(c,'刷卡小費'),ktip:num(c,'現金小費'),gdDue:num(c,'GoDaddy應收')};
+      row.rev=r2(row.card+row.cash+row.venmo+row.cp+row.prod);
+      if(st==='MV'||st.indexOf('MILL')>=0)got[mo].mv=row;
+      else if(st==='SR'||st.indexOf('SAN')>=0)got[mo].sr=row;
+      else got[mo].gd=num(c,'GoDaddy實收');
+    }
+    var mos=Object.keys(got).sort();
+    if(!mos.length){alert('檔案裡沒有找到月份資料');return;}
+    var old=mos.filter(function(m){return monthSummaryFor(m);});
+    if(!confirm('要把這些月份的首頁數字改用這份每月總額顯示嗎？\n\n'+mos.join('、')+(old.length?'\n（'+old.join('、')+' 之前上傳過，會換成這份）':'')+'\n\n每日記帳、GoDaddy 對帳等其他資料都不會改動，之後也可以在首頁按「改回用每日記帳」。'))return;
+    if(!_D.monthSummary)_D.monthSummary={};
+    mos.forEach(function(m){ got[m].uploadedAt=Date.now(); _D.monthSummary[m]=got[m]; });
+    save(); renderAll();
+    alert('✓ 已套用 '+mos.length+' 個月：'+mos.join('、'));
+  };
+  r.readAsText(file);
+}
+function removeMonthSummary(mo){
+  if(!confirm(mo+' 改回用每日記帳的數字顯示？（上傳的每月總額會移除）'))return;
+  if(_D.monthSummary)delete _D.monthSummary[mo];
+  save(); renderAll();
+}
+window.uploadMonthSummary=uploadMonthSummary; window.removeMonthSummary=removeMonthSummary;
+
+// ── 首頁右邊：整年每個月的營業額（MV / SR / 合計）＋GoDaddy 對帳狀態 ──
+var _yrTimer=null;
+function renderYearOverview(){
+  clearTimeout(_yrTimer);
+  _yrTimer=setTimeout(_renderYearOverviewNow,30);
+}
+function _renderYearOverviewNow(){
+  var el=document.getElementById('home-year'); if(!el)return;
+  var y=cur.getFullYear(), curMo=mk(), saveCur=new Date(cur.getTime()), today=todayLocal();
+  var data=[];
+  var had={}; ['mv','sr'].forEach(function(st){ var o={}; Object.keys(_D[st]||{}).forEach(function(mo){ o[mo]=Object.keys(_D[st][mo]||{}); }); had[st]=o; });
+  try{
+    for(var m=0;m<12;m++){
+      cur=new Date(y,m,1);
+      var mo=mk(), days=new Date(y,m+1,0).getDate();
+      var mv=0,sr=0,bad=0,miss=0,has=false,gcMv=0,gcSr=0,ms=monthSummaryFor(mo);
+      if(mo<=today.slice(0,7)){
+        for(var d=1;d<=days;d++){
+          var A=calcDay('mv',d),B=calcDay('sr',d);
+          mv+=A.rev; sr+=B.rev; gcMv+=A.gcSold; gcSr+=B.gcSold;
+          if(ms)continue; // 用每月總額的月份不檢查 GoDaddy 逐日
+          var dateStr=mo+'-'+String(d).padStart(2,'0');
+          if(dateStr>=today)continue;
+          var rec=_D.gd&&_D.gd[mo]&&_D.gd[mo][d], act=rec?rec.act:'';
+          var due=r2(A.gdDue+B.gdDue);
+          if(act===''||act===undefined||act===null){ if(due>0)miss++; continue; }
+          var diffs=gdRowDiffs(d);
+          var hasDiff=diffs.some(function(x){return x!==null&&Math.abs(x)>=0.01;});
+          if(hasDiff&&!(isGdDayConfirmed(d)||gdExplainStatus(d).done))bad++;
+        }
+        has=true;
+      }
+      if(ms){ mv=gv(ms.mv&&ms.mv.rev)+gcMv; sr=gv(ms.sr&&ms.sr.rev)+gcSr; has=true; }
+      data.push({m:m,mo:mo,mv:Math.round(mv),sr:Math.round(sr),bad:bad,miss:miss,has:has,ms:!!ms});
+    }
+  } finally {
+    cur=saveCur;
+    // calcDay 會順手建立空白的日子；把剛剛才建立、而且完全空白的拿掉，避免存檔時塞一堆空資料
+    ['mv','sr'].forEach(function(st){ Object.keys(_D[st]||{}).forEach(function(mo){
+      var before=had[st][mo]||[], md=_D[st][mo];
+      Object.keys(md).forEach(function(d){
+        if(before.indexOf(d)>=0)return;
+        var r=md[d]; if(r&&(!r.clients||!r.clients.length)&&!r.note&&!r.sqOther&&!r.sqCash&&!r.sqTip&&!r.sqGC&&!r.sqTotal&&!r.done&&!r.flagged)delete md[d];
+      });
+      if(!had[st][mo]&&!Object.keys(md).length)delete _D[st][mo];
+    }); });
+  }
+  var tmv=0,tsr=0;
+  var rows=data.map(function(x){
+    tmv+=x.mv; tsr+=x.sr;
+    var tot=x.mv+x.sr, isCur=x.mo===curMo;
+    var warn='';
+    if(x.ms)warn+='<span style="color:var(--gold)">📄 每月總額 CSV</span>';
+    if(x.bad)warn+='<span style="color:var(--warn)">⚠ GoDaddy '+x.bad+' 天沒對好</span>';
+    if(x.miss)warn+=(warn?'　':'')+'<span style="color:#B45309">'+x.miss+' 天沒填實收</span>';
+    var faded=!x.has?'opacity:.35;':'';
+    return '<div class="yr-row" onclick="yrGoMonth('+y+','+x.m+')" title="點一下看這個月" style="'+faded+(isCur?'background:var(--gold-bg);':'')+'">'
+      +'<span style="font-weight:700">'+(x.m+1)+' 月</span>'
+      +'<span class="n" style="color:var(--mv)">'+(x.mv?'$'+x.mv.toLocaleString():'—')+'</span>'
+      +'<span class="n" style="color:var(--sr)">'+(x.sr?'$'+x.sr.toLocaleString():'—')+'</span>'
+      +'<span class="n" style="font-weight:700">'+(tot?'$'+tot.toLocaleString():'—')+'</span>'
+      +(warn?'<span style="grid-column:2 / -1;font-size:10.5px;margin-top:-3px">'+warn+'</span>':'')
+      +'</div>';
+  }).join('');
+  el.innerHTML='<div style="display:flex;align-items:center;gap:6px;padding:12px 12px 10px;border-bottom:1px solid var(--border)">'
+      +'<button class="mb" onclick="changeMonth(-12)" title="上一年">‹</button>'
+      +'<div style="flex:1;text-align:center;font-size:13px;font-weight:700">'+y+' 年 每月營業額</div>'
+      +'<button class="mb" onclick="changeMonth(12)" title="下一年">›</button></div>'
+    +'<div class="yr-row" style="cursor:default;background:var(--bg);font-size:10px;text-transform:uppercase;letter-spacing:.06em;color:var(--sub);font-weight:600">'
+      +'<span>月</span><span class="n" style="font-family:inherit;color:var(--mv)">Mill Valley</span><span class="n" style="font-family:inherit;color:var(--sr)">San Rafael</span><span class="n" style="font-family:inherit">合計</span></div>'
+    +rows
+    +'<div class="yr-row" style="cursor:default;background:var(--bg);border-top:2px solid var(--border2);font-weight:700">'
+      +'<span>全年</span><span class="n" style="color:var(--mv)">$'+tmv.toLocaleString()+'</span><span class="n" style="color:var(--sr)">$'+tsr.toLocaleString()+'</span><span class="n">$'+(tmv+tsr).toLocaleString()+'</span></div>'
+    +'<div style="padding:10px 12px 0"><button onclick="document.getElementById(\'ms-file\').click()" style="width:100%;padding:7px;border:1.5px dashed #DDD0A0;background:var(--gold-bg);color:var(--gold);border-radius:7px;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit">📄 上傳每月總額 CSV</button>'
+      +'<input type="file" id="ms-file" accept=".csv" style="display:none" onchange="uploadMonthSummary(this.files[0]);this.value=\'\'"></div>'
+    +'<div style="padding:8px 12px 12px;font-size:10.5px;color:var(--faint);line-height:1.6">算法跟左邊月營業額一樣（不含小費）。點任一個月會切換到那個月。⚠ 表示那個月 GoDaddy 對帳還有沒說明的差額。📄 表示那個月用上傳的每月總額（每日記帳不完整的月份用，不會改每日記帳）。</div>';
+}
+function yrGoMonth(y,m){ cur=new Date(y,m,1); renderAll(); }
+window.yrGoMonth=yrGoMonth;
 
 // ── 每日日曆 ──
 var _calSelDay=null;
@@ -4900,7 +5210,7 @@ function checkGDSuspiciousValues(){
   }
 }
 window.checkGDSuspiciousValues=checkGDSuspiciousValues;
-function updGD(d,v){
+function updGD(d,v){_gdRowOpen[d]=true;
   // 不管有沒有覺得數字可疑，一律先把使用者打的存起來——絕對不能因為「覺得奇怪」就丟掉輸入
   if(!_D.gd)_D.gd={};if(!_D.gd[mk()])_D.gd[mk()]={};
   if(!_D.gd[mk()][d])_D.gd[mk()][d]={};
@@ -9946,7 +10256,13 @@ function detectSqProductsAndStockOut(itemsRaw, txnMap) {
       if (!_D.products[mo]) _D.products[mo] = [];
       // 去重key加上日期+時間，避免 Transaction ID 萬一是空的時候，把不同天/不同筆的東西誤判成重複而漏掉（靜默資料遺失）
       var dupKey = (item.txnId || (item.date + '_' + item.time)) + '|' + itemName;
-      var exists = _D.products[mo].some(function(p) { return p.sqKey === dupKey; });
+      var exists = _D.products[mo].some(function(p) {
+        if (p.sqKey === dupKey) return true;
+        // 手動登記過的同一筆（沒有 sqKey）：同一天、同金額、同品名或同客人 → 不要再加一次
+        return !p.sqKey && p.date === item.date && Math.abs(gv(p.amt) - item.net) < 0.01 &&
+          (String(p.name||'').trim().toLowerCase() === itemName.toLowerCase() ||
+           (p.client && item.customer && String(p.client).trim().toLowerCase() === String(item.customer).trim().toLowerCase()));
+      });
       if (!exists) {
         _D.products[mo].push({
           id: Date.now() + Math.random(), sqKey: dupKey, date: item.date, name: itemName,
@@ -9959,7 +10275,8 @@ function detectSqProductsAndStockOut(itemsRaw, txnMap) {
       // 庫存出庫（$0，內部領用）
       if (!_D.stockOut) _D.stockOut = [];
       var dupKey2 = (item.txnId || (item.date + '_' + item.time)) + '|' + itemName + '|stockout';
-      var exists2 = _D.stockOut.some(function(x) { return x.sqKey === dupKey2; });
+      var exists2 = _D.stockOut.some(function(x) { return x.sqKey === dupKey2 ||
+        (!x.sqKey && x.date === item.date && String(x.item||'').trim().toLowerCase() === itemName.toLowerCase()); });
       if (!exists2) {
         _D.stockOut.push({
           id: Date.now() + Math.random(), sqKey: dupKey2, date: item.date, item: itemName,
@@ -10650,6 +10967,39 @@ function addLeave(name){
   renderOneStaffCard(name);
   renderAttSummary();
 }
+
+// ── 全員 / 多人一次請假 ──
+function renderBulkLeaveStaff(){
+  var wrap=document.getElementById('bulk-leave-staff'); if(!wrap)return;
+  var prev={}; wrap.querySelectorAll('input[type=checkbox]').forEach(function(c){prev[c.value]=c.checked;});
+  wrap.innerHTML=activeStaffList().map(function(n){
+    var on=prev[n]===undefined?true:prev[n];
+    var safe=String(n).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;');
+    return '<label style="display:inline-flex;align-items:center;gap:4px;font-size:12px;padding:3px 9px;border:1px solid var(--warn-bd);border-radius:14px;background:var(--white);cursor:pointer"><input type="checkbox" value="'+safe+'"'+(on?' checked':'')+' style="accent-color:var(--warn)">'+safe+'</label>';
+  }).join('');
+}
+function bulkLeaveSelAll(on){
+  document.querySelectorAll('#bulk-leave-staff input[type=checkbox]').forEach(function(c){c.checked=on;});
+}
+function addLeaveBulk(){
+  var s=document.getElementById('bulk-leave-start'), e=document.getElementById('bulk-leave-end'), n=document.getElementById('bulk-leave-note');
+  var start=s?s.value:'', end=e&&e.value?e.value:start, note=n?n.value.trim():'';
+  if(!start){alert('請至少選擇開始日期');return;}
+  if(end<start){alert('結束日期不能早於開始日期');return;}
+  var names=[]; document.querySelectorAll('#bulk-leave-staff input[type=checkbox]').forEach(function(c){if(c.checked)names.push(c.value);});
+  if(!names.length){alert('請至少勾選一位員工');return;}
+  var added=0,skipped=[];
+  names.forEach(function(name){
+    var arr=getStaffLeave(name);
+    if(arr.some(function(l){return l.start===start&&l.end===end;})){skipped.push(name);return;}
+    arr.push({start:start,end:end,note:note}); added++;
+  });
+  saveOnly();
+  if(s)s.value=''; if(e)e.value=''; if(n)n.value='';
+  renderAttPage();
+  alert('✓ 已幫 '+added+' 位員工登記請假（'+start.slice(5)+(end!==start?' ~ '+end.slice(5):'')+'）'+(skipped.length?'\n已經登記過、略過：'+skipped.join('、'):''));
+}
+window.addLeaveBulk=addLeaveBulk; window.bulkLeaveSelAll=bulkLeaveSelAll;
 // 薪資頁直接點「請假」：只影響那一天，不需要打卡
 function prToggleLeave(name,date){
   var arr=getStaffLeave(name);
@@ -11353,6 +11703,7 @@ function renderAttSummary(){
     '<div class="att-sc"><div class="att-sc-l" style="color:'+penColor+'">獎懲合計</div><div class="att-sc-v" style="color:'+penColor+'">'+(penAmt>=0?'+':'')+penAmt.toFixed(2)+'</div></div>';
 }
 function renderAttPage(){
+  renderBulkLeaveStaff();
   var sub=document.getElementById('att-sub');
   if(sub)sub.textContent=cur.toLocaleDateString('zh-TW',{year:'numeric',month:'long'});
   var staff=activeStaffList();
@@ -12494,6 +12845,10 @@ var impTxnRaw = null;
 var impRows = [];       // merged Square rows (same format as sqRows)
 var impGDData = {};     // { 'YYYY-MM-DD': payout }
 var impGDTxns = {};     // { 'YYYY-MM-DD': [{sale, tip, amt},...] }
+var impGDTxnsFull = {}; // { 'YYYY-MM-DD': [{date,time,type,sale,tip,amt,last4}] } 寫進 GoDaddy 逐筆比對用
+var impPlan = {};       // { 'YYYY-MM': 'skip' | 'fill' | 'over' } 每個月份的寫入方式
+var impParsedItems = null, impParsedTxn = null; // 整合時解析好的 Square 資料，寫入時用來登記產品／出庫
+function impTo12h(hm){ var m=String(hm||'').match(/(\d{1,2}):(\d{2})/); if(!m)return ''; var h=parseInt(m[1],10), ap=h>=12?'PM':'AM'; h=h%12; if(h===0)h=12; return String(h).padStart(2,'0')+':'+m[2]+' '+ap; }
 var impGDFees = {};     // {processing, instant, netSales}
 
 function renderImportPage() {
@@ -12505,9 +12860,9 @@ function renderImportPage() {
 function renderBackupList(){
   var wrap=document.getElementById('backup-list-wrap');
   if(!wrap)return;
-  var backups=listBackups();
+  listBackups().then(function(backups){
   if(!backups.length){
-    wrap.innerHTML='尚無備份紀錄（第一次使用「一鍵全部寫入」或「覆蓋寫入」時會自動建立）';
+    wrap.innerHTML='尚無備份紀錄（第一次使用「一鍵同步」或「依上表寫入」時會自動建立）';
     return;
   }
   wrap.innerHTML=backups.map(function(b){
@@ -12517,6 +12872,7 @@ function renderBackupList(){
       +'<button onclick="restoreBackup('+b.index+')" style="margin-left:auto;padding:4px 12px;background:#8A5F1A;color:#fff;border:none;border-radius:6px;font-size:11px;font-weight:600;cursor:pointer;font-family:inherit">↩ 還原這份備份</button>'
       +'</div>';
   }).join('');
+  });
 }
 
 // ── File handlers ──
@@ -12561,11 +12917,12 @@ function impHandleGDFiles(files) {
 }
 window.impHandleGDFiles = impHandleGDFiles;
 
-function impHandleGDCsvMulti(files) {
+function impHandleGDCsvMulti(files, done) {
   var allTxns = [];
   var remaining = files.length;
-  // 清空舊資料
+  // 清空舊資料（以前沒清 impGDData，同一個 CSV 上傳兩次金額會變兩倍）
   Object.keys(impGDTxns).forEach(function(k){ delete impGDTxns[k]; });
+  impGDData = {};
   Array.from(files).forEach(function(file) {
     var reader = new FileReader();
     reader.onload = function(e) {
@@ -12578,37 +12935,55 @@ function impHandleGDCsvMulti(files) {
         var iTip  = headers.indexOf('Tip amount');
         var iType = headers.indexOf('Type');
         var iPayout = headers.indexOf('Amount in Payout');
+        var iL4 = headers.indexOf('Card last 4');
         if (iDate >= 0 && iSale >= 0) {
           for (var i = 1; i < lines.length; i++) {
             var cols = parseCSVLine(lines[i]);
             if (cols.length < 3) continue;
             var type = iType >= 0 ? (cols[iType]||'').trim() : 'Sale';
-            if (type !== 'Sale') continue;
             var dateRaw = (cols[iDate]||'').trim();
+            if (type !== 'Sale') {
+              // Void / Refund：撥款是負的，也要算進當天的 Payout，逐筆比對才會看到「刷了又取消」
+              var dp0 = dateRaw.split(' ')[0].split('/');
+              if (dp0.length >= 3) {
+                var ds0 = dp0[2]+'-'+dp0[0].padStart(2,'0')+'-'+dp0[1].padStart(2,'0');
+                var po0 = iPayout >= 0 ? parseFloat((cols[iPayout]||'').replace(/[$,]/g,''))||0 : 0;
+                if (po0) allTxns.push({date:ds0, sale:0, tip:0, payout:po0, type:type, time:impTo12h(dateRaw.split(' ')[1]||''), last4:iL4>=0?(cols[iL4]||'').trim():''});
+              }
+              continue;
+            }
             var dateParts = dateRaw.split(' ')[0].split('/');
             if (dateParts.length < 3) continue;
             var dateStr = dateParts[2]+'-'+dateParts[0].padStart(2,'0')+'-'+dateParts[1].padStart(2,'0');
             var sale = parseFloat((cols[iSale]||'').replace(/[$,]/g,''))||0;
             var tip  = iTip >= 0 ? parseFloat((cols[iTip]||'').replace(/[$,]/g,''))||0 : 0;
             var payout = iPayout >= 0 ? parseFloat((cols[iPayout]||'').replace(/[$,]/g,''))||0 : sale+tip;
-            allTxns.push({date:dateStr, sale:sale, tip:tip, payout:payout});
+            allTxns.push({date:dateStr, sale:sale, tip:tip, payout:payout, type:'Sale', time:impTo12h(dateRaw.split(' ')[1]||''), last4:iL4>=0?(cols[iL4]||'').trim():''});
           }
         }
       }
       remaining--;
       if (remaining === 0) {
         // All files read - commit to impGDTxns
-        var byDate = {};
+        var byDate = {}, sumByDate = {};
+        Object.keys(impGDTxnsFull).forEach(function(k){ delete impGDTxnsFull[k]; });
         allTxns.forEach(function(t) {
+          if (!sumByDate[t.date]) sumByDate[t.date] = [];
+          sumByDate[t.date].push(t);
+          if (!impGDTxnsFull[t.date]) impGDTxnsFull[t.date] = [];
+          impGDTxnsFull[t.date].push({date:t.date, time:t.time, type:t.type, sale:t.sale, tip:t.tip, amt:r2(t.payout), last4:t.last4});
+          if (t.type !== 'Sale') return;
           if (!byDate[t.date]) byDate[t.date] = [];
           byDate[t.date].push({sale:t.sale, tip:t.tip, amt:t.sale+t.tip, payout:t.payout});
         });
         Object.keys(byDate).forEach(function(d) {
           if (!impGDTxns[d]) impGDTxns[d] = [];
           impGDTxns[d] = impGDTxns[d].concat(byDate[d]);
+        });
+        Object.keys(sumByDate).forEach(function(d) {
           // 填入 impGDData 讓 GD×Square 對帳區塊顯示（用 Amount in Payout 合計）
           if (!impGDData[d]) impGDData[d] = 0;
-          impGDData[d] += byDate[d].reduce(function(s,t){return s+(t.payout||t.sale+t.tip);},0);
+          impGDData[d] += sumByDate[d].reduce(function(s,t){return s+(t.payout||t.sale+t.tip);},0);
           impGDData[d]=Math.round(impGDData[d]*100)/100;
         });
         var days = Object.keys(byDate).length;
@@ -12616,6 +12991,7 @@ function impHandleGDCsvMulti(files) {
         if (stEl) stEl.textContent = '✅ '+files.length+' 個 CSV，'+allTxns.length+' 筆，'+days+' 天';
         var btn = document.getElementById('imp-merge-btn');
         if (btn) { btn.disabled = false; btn.style.opacity = '1'; }
+        if (typeof done === 'function') done();
       }
     };
     reader.readAsText(file);
@@ -12789,8 +13165,15 @@ function impMerge() {
     // Parse raw strings into the formats mergeSqFiles expects
     sqItemsRaw = parseSqItemsCSV(impItemsRaw);
     sqTxnRaw = parseSqTxnCSV(impTxnRaw);
+    impParsedItems = sqItemsRaw; impParsedTxn = sqTxnRaw;
     sqRows = [];
-    mergeSqFiles(); // This populates sqRows and shows sq-content
+    // 預覽時只「算」會抓到幾筆產品／出庫，不真的寫進去；按「依上表寫入」才寫
+    var realP = _D.products, realS = _D.stockOut;
+    _D.products = JSON.parse(JSON.stringify(realP || {}));
+    _D.stockOut = JSON.parse(JSON.stringify(realS || []));
+    window._suppressSave = true;
+    try { mergeSqFiles(); } // This populates sqRows and shows sq-content
+    finally { window._suppressSave = false; _D.products = realP; _D.stockOut = realS; }
     impRows = sqRows.slice(); // Copy the merged rows
     // Restore Square import state
     sqItemsRaw = prevItems; sqTxnRaw = prevTxn; sqRows = prevRows;
@@ -12809,14 +13192,15 @@ function impMerge() {
   var extraMsgs=[];
   if(detect.productsAdded>0)extraMsgs.push('產品銷售 '+detect.productsAdded+' 筆');
   if(detect.stockOutAdded>0)extraMsgs.push('庫存出庫 '+detect.stockOutAdded+' 筆');
-  if (el) el.textContent = '✓ 整合完成，共 ' + impRows.length + ' 筆'+(extraMsgs.length?'，另外自動抓到：'+extraMsgs.join('、'):'');
+  if (el) el.textContent = '✓ 整合完成，共 ' + impRows.length + ' 筆'+(extraMsgs.length?'，寫入時會另外登記：'+extraMsgs.join('、')+'（已經登記過的不會重複）':'');
   impBuildFilters();
   impRenderTable();
   impRenderGDRecon();
   var preview = document.getElementById('imp-preview');
   if (preview) preview.style.display = 'block';
+  impRenderMonthPlan();
   // Auto-expand the GD recon section if we have GD data
-  if (Object.keys(impGDData).length) {
+  if (Object.keys(impGDData).length && Object.keys(impGDData).length <= 31) {
     setTimeout(function() {
       var recon = document.getElementById('imp-gd-recon');
       if (recon) recon.scrollIntoView({behavior:'smooth', block:'start'});
@@ -12827,6 +13211,12 @@ function impMerge() {
 function impBuildFilters() {
   var dateSel = document.getElementById('imp-filter-date');
   if (!dateSel) return;
+  var moSel = document.getElementById('imp-filter-month');
+  if (moSel) {
+    var mos = [...new Set(impRows.map(function(r){return r.date.slice(0,7);}))].sort();
+    moSel.innerHTML = '<option value="">全部月份</option>' + mos.map(function(m){return '<option value="'+m+'">'+m+'</option>';}).join('');
+    if (mos.length > 1) moSel.value = mos[mos.length-1]; // 資料很多時，預設只顯示最後一個月，避免畫面卡住
+  }
   var dates = [...new Set(impRows.map(function(r){return r.date;}))].sort();
   dateSel.innerHTML = '<option value="">全部日期</option>' +
     dates.map(function(d){return '<option value="'+d+'">'+d+'</option>';}).join('');
@@ -12840,9 +13230,10 @@ function impRenderTable() {
 
   var storeF = (document.getElementById('imp-filter-store')||{}).value || '';
   var dateF = (document.getElementById('imp-filter-date')||{}).value || '';
+  var moF = (document.getElementById('imp-filter-month')||{}).value || '';
 
   var rows = impRows.filter(function(r) {
-    return (!storeF || r.store === storeF) && (!dateF || r.date === dateF);
+    return (!storeF || r.store === storeF) && (!dateF || r.date === dateF) && (!moF || r.date.slice(0,7) === moF);
   });
 
   var totSvc = 0, totTip = 0, totCash = 0;
@@ -13312,8 +13703,8 @@ function impRenderGDRecon() {
     + '</tr></thead>'
     + '<tbody>'+feeRow+rows+'</tbody>'
     + '</table>';
-  // Auto-expand all date rows so issues are immediately visible
-  allDates.forEach(function(d) {
+  // Auto-expand all date rows so issues are immediately visible（整年資料太多就不自動展開，點日期再看）
+  if (allDates.length <= 31) allDates.forEach(function(d) {
     var el = document.getElementById('gddet'+d.replace(/-/g,''));
     if (el) el.style.display = '';
   });
@@ -13328,6 +13719,7 @@ function impDetectMembershipSales(){
   if(!_D.members)_D.members=[];
   var added=0,skipped=0,names=[];
   impRows.forEach(function(r){
+    if(impPlan[r.date.slice(0,7)]==='skip')return;
     var desc=(r.desc||'').toLowerCase();
     var m=desc.match(/membership\s*(299|99)\b/);
     if(!m)return;
@@ -13539,109 +13931,346 @@ function impCommitCash() {
   if (el) { el.textContent = '✓ ' + added + ' 筆現金已寫入現金櫃'; el.style.display = 'block'; }
 }
 
-function impCommitGD() {
-  if (!Object.keys(impGDData).length) { alert('尚未上傳 GoDaddy PDF'); return; }
-  var mo = mk();
-  if (!_D.gdImport) _D.gdImport = {};
-  if (!_D.gdImport[mo]) _D.gdImport[mo] = {};
-  if (!_D.gd) _D.gd = {};
-  if (!_D.gd[mo]) _D.gd[mo] = {};
-  if (!_D.gdFeeManual) _D.gdFeeManual = {};
-  if (!_D.gdFeeManual[mo]) _D.gdFeeManual[mo] = {};
-  var datesInThisMonth = Object.keys(impGDData).filter(function(d){return d.startsWith(mo);});
-  Object.keys(impGDData).forEach(function(dateStr) {
-    if (dateStr.startsWith(mo)) {
-      var amt = Math.round((impGDData[dateStr]||0)*100)/100;
-      // Write to gdImport (used by getGDActForDay / bank page)
-      _D.gdImport[mo][dateStr] = amt;
-      // ALSO write to _D.gd[mo][d].act so GoDaddy table shows the payout
-      var d = parseInt(dateStr.slice(8), 10);
-      if (!_D.gd[mo][d]) _D.gd[mo][d] = {};
-      // Only overwrite if not already manually set by user
-      if (_D.gd[mo][d].act === '' || _D.gd[mo][d].act === undefined || _D.gd[mo][d].act === null) {
-        _D.gd[mo][d].act = amt;
-      }
+
+// ════════ 整年匯入：每個月份自己選寫入方式 ════════
+//   skip ＝ 不動這個月
+//   fill ＝ 只補每日記帳還是空白的日子（已經有資料的日子不動）
+//   over ＝ 用 Square 重新整理這個月：手動改過的標記（付款方式、禮品卡、ClassPass、小費方式、現金小費已收、技師、名字…）
+//          只要對得上同一位客人就保留；Square 找不到的舊紀錄會刪掉（會員卡銷售／兌換紀錄一定保留）
+function impNormName(s){ return String(s||'').split('（')[0].split('(')[0].trim().toLowerCase(); }
+function impGroupEntries(){
+  var g={};
+  impRows.forEach(function(r){
+    var mo=r.date.slice(0,7), key=r.store+'|'+mo+'|'+r.day;
+    if(!g[key])g[key]={store:r.store,mo:mo,day:r.day,entries:[]};
+    g[key].entries.push(r);
+  });
+  return g;
+}
+// 把 Square 的這一天，跟每日記帳原本的這一天合併；回傳新的 clients 陣列（不會改到原本的資料）
+function impMergeDay(oldClients, entries, keepUnmatched){
+  var old=(oldClients||[]).map(function(c,i){return {c:c,i:i,used:false};});
+  var assign=new Array(entries.length);
+  var same=function(o,e){return Math.abs(gv(o.c.svc)-(e.gross||0))<0.01;};
+  // 第一輪：很確定是同一筆（同名同金額、同時間同金額）
+  entries.forEach(function(e,k){
+    var en=impNormName(e.customer), et=String(e.time||'').slice(0,5);
+    var cand=old.find(function(o){return !o.used&&en&&impNormName(o.c.clientName)===en&&same(o,e);})
+      ||old.find(function(o){return !o.used&&et&&String(o.c.time||'').slice(0,5)===et&&same(o,e);});
+    if(cand){cand.used=true;assign[k]=cand;}
+  });
+  // 第二輪：剩下的再放寬（同名同技師；以前手動打、沒名字的同金額；同技師同金額），避免同一位客人變兩筆
+  entries.forEach(function(e,k){
+    if(assign[k])return;
+    var en=impNormName(e.customer), et=e.tech||'';
+    var cand=old.find(function(o){return !o.used&&en&&impNormName(o.c.clientName)===en&&(o.c.tech||'')===et;})
+      ||old.find(function(o){return !o.used&&same(o,e)&&!o.c.clientName&&(!o.c.tech||!et||o.c.tech===et);})
+      ||old.find(function(o){return !o.used&&same(o,e)&&o.c.tech&&o.c.tech===et;});
+    if(cand){cand.used=true;assign[k]=cand;}
+  });
+  var out=[], idxMap={}, kept=0, added=0;
+  entries.forEach(function(e,k){
+    var fresh={svc:e.gross,pay:e.pay,cp:e.cp||false,gcAmt:'',topup:'',topupPay:'card',tip:e.tip>0?e.tip:'',tipPay:e.pay==='cash'?'cash':'card',tech:e.tech||'',time:e.time||'',clientName:e.customer||''};
+    var cand=assign[k];
+    if(cand){
+      kept++;
+      var c=Object.assign({},cand.c);
+      delete c.sqMissing;
+      c.svc=e.gross; c.time=e.time||c.time||'';
+      if(!c.tech)c.tech=e.tech||''; if(!c.clientName)c.clientName=e.customer||'';
+      if(e.cp)c.cp=true;
+      var oldTp=c.tipPay||'card';
+      if(e.tip>0)c.tip=e.tip;
+      else if(!(oldTp==='cash'||oldTp==='venmo'||oldTp==='gc'))c.tip=''; // 現金／Venmo／禮品卡小費 Square 看不到，保留原本的
+      if(!c.tipPay)c.tipPay=fresh.tipPay;
+      idxMap[cand.i]=out.length; out.push(c);
+    } else { added++; out.push(fresh); }
+  });
+  var dropped=[], missing=[];
+  old.forEach(function(o){
+    if(o.used)return;
+    if(o.c.isMemberCardSale||o.c.isMemberRedeem){ idxMap[o.i]=out.length; out.push(o.c); kept++; return; }
+    if(!gv(o.c.svc)&&!gv(o.c.tip))return; // 空白列直接拿掉
+    if(keepUnmatched){ // 智慧同步：Square 找不到的不刪，只標記讓你看
+      var c2=Object.assign({},o.c); c2.sqMissing=true;
+      idxMap[o.i]=out.length; out.push(c2); missing.push(o.c); return;
+    }
+    dropped.push(o.c);
+  });
+  return {clients:out,idxMap:idxMap,kept:kept,added:added,dropped:dropped,missing:missing};
+}
+// 依照每個月的方式跑一次；dryRun=true 只算結果不寫入
+function impApplyPlan(plan, dryRun){
+  var stats={}, groups=impGroupEntries();
+  Object.keys(groups).forEach(function(k){
+    var g=groups[k], mode=plan[g.mo]||'sync';
+    var st=stats[g.mo]||(stats[g.mo]={filled:0,skipped:0,over:0,sync:0,kept:0,added:0,dropped:[],missing:[],locked:0});
+    if(mode==='skip')return;
+    var day=_D[g.store]&&_D[g.store][g.mo]&&_D[g.store][g.mo][g.day];
+    if(day&&day.done===true){st.locked++;return;} // 每日記帳已經打勾（對帳完成）的日子，完全不動
+    var hasOld=day&&Array.isArray(day.clients)&&day.clients.some(function(c){return gv(c.svc)||gv(c.tip)||c.clientName;});
+    var res;
+    if(mode==='fill'){
+      if(hasOld){st.skipped++;return;}
+      res=impMergeDay([],g.entries); st.filled++; st.added+=res.added;
+    } else if(mode==='sync'){
+      res=impMergeDay(day?day.clients:[],g.entries,true); st.sync++; st.kept+=res.kept; st.added+=res.added;
+      res.missing.forEach(function(c){st.missing.push({date:g.mo+'-'+String(g.day).padStart(2,'0'),store:g.store,name:c.clientName||'（沒填名字）',svc:gv(c.svc),pay:c.pay||''});});
+    } else {
+      res=impMergeDay(day?day.clients:[],g.entries); st.over++; st.kept+=res.kept; st.added+=res.added;
+      res.dropped.forEach(function(c){st.dropped.push({date:g.mo+'-'+String(g.day).padStart(2,'0'),store:g.store,name:c.clientName||'（沒填名字）',svc:gv(c.svc),pay:c.pay||''});});
+    }
+    if(dryRun)return;
+    if(!_D[g.store])_D[g.store]={};
+    if(!_D[g.store][g.mo])_D[g.store][g.mo]={};
+    if(!_D[g.store][g.mo][g.day])_D[g.store][g.mo][g.day]={clients:[],sqOther:'',sqCash:'',sqTip:'',sqGC:'',sqTotal:'',note:''};
+    _D[g.store][g.mo][g.day].clients=res.clients;
+    // 小費分配是用「第幾位客人」記的，位置變了要跟著搬
+    var ts=_D.tipSplitState&&_D.tipSplitState[g.mo]&&_D.tipSplitState[g.mo][g.day];
+    if(ts&&(mode==='over'||mode==='sync')){
+      var nts={};
+      Object.keys(ts).forEach(function(key){
+        var p=key.split('_'); if(p[0]!==g.store){nts[key]=ts[key];return;}
+        var ni=res.idxMap[parseInt(p[1],10)]; if(ni!==undefined)nts[g.store+'_'+ni]=ts[key];
+      });
+      _D.tipSplitState[g.mo][g.day]=nts;
     }
   });
-  // 如果這次上傳的 PDF 只涵蓋一天，而且有抓到「Fees」這個數字，順便自動把手續費也填進去
-  // （PDF 涵蓋多天的話沒辦法知道每天各自的手續費是多少，這種情況就不自動填，讓使用者自己手動分天填）
+  return stats;
+}
+function impGetPlan(){
+  var mos=impPlanMonths();
+  mos.forEach(function(m){ if(!impPlan[m])impPlan[m]='sync'; });
+  return impPlan;
+}
+function impPlanMonths(){
+  var set={};
+  impRows.forEach(function(r){set[r.date.slice(0,7)]=1;});
+  Object.keys(impGDData).forEach(function(d){set[d.slice(0,7)]=1;});
+  return Object.keys(set).sort();
+}
+function impSetPlan(mo,v){ impPlan[mo]=v; impRenderMonthPlan(); }
+function impSetPlanAll(v){ impPlanMonths().forEach(function(m){impPlan[m]=v;}); impRenderMonthPlan(); }
+window.impSetPlan=impSetPlan; window.impSetPlanAll=impSetPlanAll;
+function impRenderMonthPlan(){
+  var el=document.getElementById('imp-month-plan'); if(!el)return;
+  var mos=impPlanMonths(); if(!mos.length){el.innerHTML='';return;}
+  var plan=impGetPlan();
+  var dry=impApplyPlan(plan,true); // 先算照目前的設定會怎樣，給你看
+  var esc=function(v){return String(v||'').replace(/&/g,'&amp;').replace(/</g,'&lt;');};
+  var rows=mos.map(function(mo){
+    var sq=impRows.filter(function(r){return r.date.slice(0,7)===mo;});
+    var sqSvc=r2(sq.reduce(function(t,r){return t+(r.gross||0);},0));
+    var appSvc=0, appN=0;
+    ['mv','sr'].forEach(function(st){ var md=(_D[st]&&_D[st][mo])||{};
+      Object.keys(md).forEach(function(d){ (md[d].clients||[]).forEach(function(c){ if(gv(c.svc)||gv(c.tip)){appN++;appSvc+=gv(c.svc);} }); }); });
+    appSvc=r2(appSvc);
+    var dSvc=r2(appSvc-sqSvc);
+    var gdPay=r2(Object.keys(impGDData).filter(function(d){return d.slice(0,7)===mo;}).reduce(function(t,d){return t+impGDData[d];},0));
+    var gdAct=0; var gm=(_D.gd&&_D.gd[mo])||{}; Object.keys(gm).forEach(function(d){ var a=gm[d]&&gm[d].act; if(a!==''&&a!==undefined&&a!==null)gdAct+=gv(a); }); gdAct=r2(gdAct);
+    var o=dry[mo]||{kept:0,added:0,dropped:[],missing:[],filled:0,skipped:0}, f=o;
+    var mode=plan[mo];
+    var sel='<select onchange="impSetPlan(\''+mo+'\',this.value)" style="border:1px solid var(--border);border-radius:5px;padding:3px 6px;font-size:11.5px;font-family:inherit;background:'+(mode==='over'?'var(--warn-bg)':mode==='skip'?'var(--bg)':mode==='sync'?'var(--mv-bg)':'var(--ok-bg)')+'">'
+      +'<option value="sync"'+(mode==='sync'?' selected':'')+'>🔄 智慧同步（建議）</option>'
+      +'<option value="fill"'+(mode==='fill'?' selected':'')+'>只補空白的日子</option>'
+      +'<option value="over"'+(mode==='over'?' selected':'')+'>用 Square 重新整理</option>'
+      +'<option value="skip"'+(mode==='skip'?' selected':'')+'>不動</option></select>';
+    var lockTxt=(mode!=='skip'&&o.locked)?'<span style="color:var(--ok)">・'+o.locked+' 天已打勾不動</span>':'';
+    var effect=mode==='skip'?'<span style="color:var(--faint)">不會改這個月</span>'
+      :mode==='sync'?'更新 '+o.kept+' 筆（標記保留）・新增 '+o.added+' 筆'+(o.missing.length?'・<span style="color:#B45309">'+o.missing.length+' 筆 Square 找不到（保留＋標 ⚠）</span>':'')
+      :mode==='fill'?(f.filled?'補 '+f.filled+' 天':'沒有空白的日子')+(f.skipped?'<span style="color:var(--faint)">，'+f.skipped+' 天已有資料不動</span>':'')
+      :'保留標記 '+o.kept+' 筆・新增 '+o.added+' 筆'+(o.dropped.length?'・<b style="color:var(--warn)">刪除 '+o.dropped.length+' 筆</b>':'');
+    var dropList=(mode==='sync'&&o.missing.length)?'<details style="grid-column:1 / -1;font-size:11px;margin:2px 0 4px"><summary style="cursor:pointer;color:#B45309">Square 找不到的 '+o.missing.length+' 筆（不會刪，點開看）</summary>'
+      +o.missing.map(function(x){return '<div style="padding:1px 0 1px 14px;color:var(--sub)">'+x.date.slice(5)+' '+(x.store==='mv'?'MV':'SR')+' · '+esc(x.name)+' · $'+x.svc.toFixed(2)+(x.pay&&x.pay!=='card'?' · '+x.pay:'')+'</div>';}).join('')
+      +'<div style="padding:3px 0 0 14px;color:var(--faint)">這些會留在每日記帳、名字下面標「⚠ Square 找不到」。如果是重複的，到那天手動刪掉就好。</div></details>'
+      :(mode==='over'&&o.dropped.length)?'<details style="grid-column:1 / -1;font-size:11px;margin:2px 0 4px"><summary style="cursor:pointer;color:var(--warn)">會刪掉的 '+o.dropped.length+' 筆（Square 找不到，點開看）</summary>'
+      +o.dropped.map(function(x){return '<div style="padding:1px 0 1px 14px;color:var(--sub)">'+x.date.slice(5)+' '+(x.store==='mv'?'MV':'SR')+' · '+esc(x.name)+' · $'+x.svc.toFixed(2)+(x.pay&&x.pay!=='card'?' · '+x.pay:'')+'</div>';}).join('')
+      +'<div style="padding:3px 0 0 14px;color:var(--faint)">如果這些其實是真的（例如只收現金、沒在 Square 結帳），這個月就選「只補空白的日子」或之後手動補回。</div></details>':'';
+    var num=function(v,c){return '<span style="text-align:right;font-family:monospace;'+(c?'color:'+c:'')+'">'+v+'</span>';};
+    return '<div style="display:grid;grid-template-columns:70px 110px 110px 90px 150px 1fr 150px;gap:8px;align-items:center;padding:6px 10px;border-bottom:1px solid var(--border);font-size:12px">'
+      +'<b>'+mo+'</b>'
+      +num('$'+sqSvc.toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2})+' <span style="color:var(--faint);font-size:10px">('+sq.length+')</span>')
+      +num(appN?'$'+appSvc.toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2})+' <span style="color:var(--faint);font-size:10px">('+appN+')</span>':'空白','var(--sub)')
+      +num(appN?(Math.abs(dSvc)<1?'✓':sgnMoney(dSvc)):'—',appN&&Math.abs(dSvc)>=1?'var(--warn)':'var(--ok)')
+      +num(gdPay?'$'+gdPay.toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2})+(gdAct&&Math.abs(gdAct-gdPay)>=1?' <span style="color:var(--warn);font-size:10px">已填 $'+gdAct.toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2})+'</span>':''):'—')
+      +'<span style="font-size:11px">'+effect+lockTxt+'</span>'
+      +sel+dropList+'</div>';
+  }).join('');
+  el.innerHTML='<div style="border:1px solid var(--border);border-radius:8px;overflow:hidden">'
+    +'<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:8px 10px;background:var(--bg)">'
+      +'<span style="font-size:12px;font-weight:700">每個月要怎麼寫入？</span>'
+      +'<span style="font-size:11px;color:var(--sub)">預設「智慧同步」：用 Square 更新、補上漏掉的，手動改過的標記保留，什麼都不刪。寫入前會自動備份。</span>'
+      +'<span style="margin-left:auto;font-size:11px">全部改成：'
+        +'<button onclick="impSetPlanAll(\'sync\')" style="font-size:11px;padding:2px 8px;border:1px solid var(--border);border-radius:5px;background:var(--white);cursor:pointer;font-family:inherit">智慧同步</button> '
+        +'<button onclick="impSetPlanAll(\'fill\')" style="font-size:11px;padding:2px 8px;border:1px solid var(--border);border-radius:5px;background:var(--white);cursor:pointer;font-family:inherit">只補空白</button> '
+        +'<button onclick="impSetPlanAll(\'over\')" style="font-size:11px;padding:2px 8px;border:1px solid var(--border);border-radius:5px;background:var(--white);cursor:pointer;font-family:inherit">重新整理</button> '
+        +'<button onclick="impSetPlanAll(\'skip\')" style="font-size:11px;padding:2px 8px;border:1px solid var(--border);border-radius:5px;background:var(--white);cursor:pointer;font-family:inherit">不動</button></span></div>'
+    +'<div style="display:grid;grid-template-columns:70px 110px 110px 90px 150px 1fr 150px;gap:8px;padding:5px 10px;font-size:10px;color:var(--sub);font-weight:600;border-bottom:1.5px solid var(--border)">'
+      +'<span>月份</span><span style="text-align:right">Square 服務費(筆)</span><span style="text-align:right">每日記帳現在(筆)</span><span style="text-align:right">差額</span><span style="text-align:right">GoDaddy Payout</span><span>寫入後會怎樣</span><span>寫入方式</span></div>'
+    +rows+'</div>';
+}
+window.impRenderMonthPlan=impRenderMonthPlan;
+
+
+// ── 🔄 一鍵同步：自動認檔案 → 整合 → 每個月都用「智慧同步」寫入 ──
+function impAutoSync(fileList){
+  var files=Array.from(fileList||[]); var st=document.getElementById('sync-st');
+  var say=function(h){ if(st)st.innerHTML=h; };
+  if(!files.length)return;
+  say('讀取檔案中…');
+  Promise.all(files.map(function(f){ return new Promise(function(res){ var r=new FileReader(); r.onload=function(e){res({f:f,text:e.target.result});}; r.readAsText(f); }); }))
+  .then(function(list){
+    var items=null, txn=null, pay=[], unknown=[];
+    list.forEach(function(x){
+      var head=String(x.text).split('\n')[0];
+      if(head.indexOf('Amount in Payout')>=0) pay.push(x.f);
+      else if(head.indexOf('Itemization Type')>=0||head.indexOf('Price Point Name')>=0) items=x;
+      else if(head.indexOf('Total Collected')>=0) txn=x;
+      else unknown.push(x.f.name);
+    });
+    if(!items||!txn){
+      say('<span style="color:var(--warn)">⚠ 需要 Items CSV 和 Transactions CSV 兩個都在'+(items?'（缺 Transactions）':txn?'（缺 Items）':'')+'</span>'+(unknown.length?'<br>認不出來的檔案：'+unknown.join('、'):''));
+      return;
+    }
+    impItemsRaw=items.text; impTxnRaw=txn.text;
+    var si=document.getElementById('imp-items-st'), stx=document.getElementById('imp-txn-st');
+    if(si){si.textContent='✓ '+items.f.name;si.style.color='var(--ok)';}
+    if(stx){stx.textContent='✓ '+txn.f.name;stx.style.color='var(--ok)';}
+    var go=function(){
+      say('整理資料中…（整年的資料大約要幾秒）');
+      setTimeout(function(){
+        try{
+          impMerge();
+          impPlan={}; impPlanMonths().forEach(function(m){impPlan[m]='sync';});
+          impCommitAll(true);
+          impRenderMonthPlan();
+          var cs=document.getElementById('imp-commit-status');
+          say('<b style="color:var(--ok)">✓ 同步完成</b>　'+(cs?cs.innerHTML:'')+(unknown.length?'<div style="color:var(--faint)">略過認不出來的檔案：'+unknown.join('、')+'</div>':''));
+          renderBackupList();
+        }catch(e){ console.error(e); say('<span style="color:var(--warn)">同步失敗：'+e.message+'</span>'); }
+      },30);
+    };
+    if(pay.length) impHandleGDCsvMulti(pay, go);
+    else { impGDData={}; impGDTxns={}; impGDFees={}; impGDTxnsFull={}; go(); }
+  });
+}
+window.impAutoSync=impAutoSync;
+
+function impCommitGD(fromAll) {
+  if (!Object.keys(impGDData).length) { if(!fromAll)alert('尚未上傳 GoDaddy PDF 或 CSV'); return 0; }
+  var plan = impGetPlan();
+  if (!fromAll) backupSnapshot('匯入中心-寫入 GoDaddy Payout 前自動備份');
+  if (!_D.gdImport) _D.gdImport = {};
+  if (!_D.gd) _D.gd = {};
+  if (!_D.gdTxns) _D.gdTxns = {};
+  if (!_D.gdFeeManual) _D.gdFeeManual = {};
+  var dates = Object.keys(impGDData).sort(), count = 0;
+  dates.forEach(function(dateStr) {
+    var mo = dateStr.slice(0,7), mode = plan[mo] || 'sync';
+    if (mode === 'skip') return;
+    var d = parseInt(dateStr.slice(8), 10);
+    var amt = Math.round((impGDData[dateStr]||0)*100)/100;
+    if (!_D.gdImport[mo]) _D.gdImport[mo] = {};
+    if (!_D.gd[mo]) _D.gd[mo] = {};
+    _D.gdImport[mo][dateStr] = amt;
+    if (!_D.gd[mo][d]) _D.gd[mo][d] = {};
+    var a = _D.gd[mo][d].act;
+    var gdLocked = !!((_D.gdDayOk && _D.gdDayOk[mo] && _D.gdDayOk[mo][d]) || (_D.gdExplain && _D.gdExplain[mo] && (_D.gdExplain[mo][d]||[]).length));
+    var hasAct = !(a === '' || a === undefined || a === null);
+    if (mode === 'sync' && gdLocked && hasAct) return; // GoDaddy 對帳頁已確認／已寫說明的日子，同步不動
+    // 「重新整理」的月份：以 Payout 為準直接覆蓋；「只補空白」：只填還沒填的
+    if (mode === 'over' || mode === 'sync' || a === '' || a === undefined || a === null) { if (gv(a) !== amt || a === '' || a === undefined || a === null) count++; _D.gd[mo][d].act = amt; }
+    // CSV 有逐筆明細的話，順便填好「GoDaddy 逐筆比對」，不用再一天一天貼
+    var full = impGDTxnsFull[dateStr];
+    if (full && full.length) {
+      if (!_D.gdTxns[mo]) _D.gdTxns[mo] = {};
+      if (mode === 'over' || mode === 'sync' || !_D.gdTxns[mo][d]) _D.gdTxns[mo][d] = full.map(function(x){return Object.assign({},x);});
+    }
+  });
   var feeMsg='';
-  if (datesInThisMonth.length === 1 && impGDFees && impGDFees.processing > 0) {
-    var onlyDate = datesInThisMonth[0];
-    var dOnly = parseInt(onlyDate.slice(8), 10);
-    _D.gdFeeManual[mo][dOnly] = Math.round(impGDFees.processing * 100) / 100;
-    feeMsg = '，手續費 $' + impGDFees.processing.toFixed(2) + ' 已自動填入 ' + onlyDate.slice(5);
+  if (dates.length === 1 && impGDFees && impGDFees.processing > 0) {
+    var mo1 = dates[0].slice(0,7), d1 = parseInt(dates[0].slice(8), 10);
+    if (!_D.gdFeeManual[mo1]) _D.gdFeeManual[mo1] = {};
+    _D.gdFeeManual[mo1][d1] = Math.round(impGDFees.processing * 100) / 100;
+    feeMsg = '，手續費 $' + impGDFees.processing.toFixed(2) + ' 已自動填入 ' + dates[0].slice(5);
   }
-  save();
-  buildGDTable();
-  renderBnkPage();
-  var el = document.getElementById('imp-commit-status');
-  var count = Object.keys(impGDData).filter(function(d){return d.startsWith(mo);}).length;
-  if (el) { el.textContent = '✓ GoDaddy Payout 已寫入（'+count+' 天），GoDaddy 對帳頁已同步'+feeMsg; el.style.display = 'block'; }
+  if (!fromAll) {
+    save(); buildGDTable(); renderBnkPage(); updateAll(); impRenderMonthPlan();
+    var el = document.getElementById('imp-commit-status');
+    if (el) { el.textContent = '✓ GoDaddy Payout 已寫入（'+count+' 天），逐筆明細也一起放進 GoDaddy 對帳頁'+feeMsg; el.style.display = 'block'; }
+  }
+  return count;
 }
 
-function impCommitAll() {
-  if (!impRows.length) { alert('沒有資料，請先整合並預覽'); return; }
+function impCommitAll(silent) {
+  if (!impRows.length && !Object.keys(impGDData).length) { alert('沒有資料，請先整合並預覽'); return; }
+  var plan = impGetPlan();
+  var mos = impPlanMonths().filter(function(m){return plan[m]!=='skip';});
+  if (!mos.length) { alert('每個月都選了「不動」，沒有東西要寫入'); return; }
+  var overMos = mos.filter(function(m){return plan[m]==='over';});
+  var dry = impApplyPlan(plan, true);
+  var dropN = overMos.reduce(function(t,m){return t+((dry[m]&&dry[m].dropped.length)||0);},0);
+  var msg = '要寫入這些月份：'+mos.join('、');
+  if (overMos.length) msg += '\n\n其中「用 Square 重新整理」：'+overMos.join('、')+'\n手動改過的標記會盡量保留'+(dropN?'，會刪掉 '+dropN+' 筆 Square 找不到的紀錄':'')+'。';
+  msg += '\n\n寫入前會自動備份，有問題可以在「資料備份」還原。確定嗎？';
+  if (!silent && !confirm(msg)) return;
+  backupSnapshot('匯入中心-整批寫入前自動備份（'+mos[0]+(mos.length>1?' ~ '+mos[mos.length-1]:'')+'）');
 
-  // 改用安全版寫入：只補空白的日子，已經有資料的日子絕不覆蓋，避免「上傳後東西不見」
-  var dailyResult = impCommitDailySmart();
+  var stats = impApplyPlan(plan, false);
+  var prodRes = impParsedItems ? detectSqProductsAndStockOut(impParsedItems.filter(function(it){
+      var mo=it.date.slice(0,7), dd=parseInt(it.date.slice(8,10),10), st=it.store==='sr'?'sr':'mv';
+      var day=_D[st]&&_D[st][mo]&&_D[st][mo][dd];
+      return plan[mo]!=='skip' && !(day&&day.done===true); // 打勾的日子連產品也不加
+    }), impParsedTxn) : {productsAdded:0,stockOutAdded:0};
   window.impLastMemberResult = impDetectMembershipSales();
-  save();
-  if (Object.keys(impGDData).length) impCommitGD();
-  var cashRows = impRows.filter(function(r){return r.pay==='cash';});
-  if (cashRows.length) impCommitCash();
+  var gdDays = impCommitGD(true);
 
-  // ── 自動寫入 Lucy & Luter 薪資 ──
-  var payrollMo = impRows.length > 0 ? impRows[0].date.slice(0,7) : mk();
-  var byDate = {};
+  // ── Lucy & Luter 薪資：每個月分開更新 ──
+  var byMo = {};
   impRows.forEach(function(r) {
+    var mo = r.date.slice(0,7); if (plan[mo]==='skip') return;
     var tech = (r.tech || '').trim();
     if (!tech.includes('Lucy') && !tech.includes('Luter')) return;
-    if (!byDate[r.date]) byDate[r.date]={lucy_net:0,lucy_tip:0,luter_net:0,luter_tip:0};
-    var d=byDate[r.date];
+    if (!byMo[mo]) byMo[mo] = {};
+    if (!byMo[mo][r.date]) byMo[mo][r.date]={lucy_net:0,lucy_tip:0,luter_net:0,luter_tip:0};
+    var d=byMo[mo][r.date];
     if(tech.includes('Lucy')){d.lucy_net+=r.gross||0;d.lucy_tip+=r.tip||0;}
     else{d.luter_net+=r.gross||0;d.luter_tip+=r.tip||0;}
   });
-  var prRows=Object.keys(byDate).sort().map(function(date){
-    var v=byDate[date];
-    return{date:date,lucy_net:Math.round(v.lucy_net*100)/100,lucy_tip:Math.round(v.lucy_tip*100)/100,
-           luter_net:Math.round(v.luter_net*100)/100,luter_tip:Math.round(v.luter_tip*100)/100};
+  if(!_D.payroll)_D.payroll={};
+  Object.keys(byMo).forEach(function(mo){
+    var rows=Object.keys(byMo[mo]).sort().map(function(date){ var v=byMo[mo][date];
+      return{date:date,lucy_net:r2(v.lucy_net),lucy_tip:r2(v.lucy_tip),luter_net:r2(v.luter_net),luter_tip:r2(v.luter_tip)}; });
+    var ex=_D.payroll[mo]||{data:[],adjustments:[]};
+    ex.data=rows; _D.payroll[mo]=ex; prSave(mo);
   });
-  var prUpdated = false;
-  if(prRows.length){
-    if(!_D.payroll)_D.payroll={};
-    var existing=_D.payroll[payrollMo]||{data:[],adjustments:[]};
-    existing.data=prRows;
-    _D.payroll[payrollMo]=existing;
-    prSave(payrollMo);
-    prUpdated=true;
-  }
 
+  save();
+  renderAll();
+  impRenderMonthPlan();
   var el = document.getElementById('imp-commit-status');
   if (el) {
-    var parts = ['✓ 全部寫入完成！'];
-    if(dailyResult.written.length) parts.push('新寫入 '+dailyResult.written.length+' 天每日記帳');
-    if (Object.keys(impGDData).length) parts.push('GoDaddy Payout 已記錄');
-    if (cashRows.length) parts.push(cashRows.length+'筆現金已入現金櫃');
-    if (prUpdated) parts.push('💜 Lucy & Luter 薪資已更新');
-    if (window.impLastMemberResult && window.impLastMemberResult.added > 0) {
-      parts.push('💳 自動新增 '+window.impLastMemberResult.added+' 位會員卡會員：'+window.impLastMemberResult.names.join('、'));
-    }
-    parts.push('小費可到「小費分配」頁面確認');
-    el.innerHTML = parts.join(' ｜ ');
-    if(dailyResult.skipped.length){
-      el.innerHTML += '<div style="margin-top:8px;padding:8px 12px;background:#FBF0EC;border:1px solid #F0B8A8;border-radius:6px;color:#B83010;font-weight:600">'
-        +'⚠ 以下 '+dailyResult.skipped.length+' 天因為已經有客人紀錄，為了保護既有資料，自動跳過沒有覆蓋：<br>'
-        +dailyResult.skipped.join('、')
-        +'<div style="font-weight:400;margin-top:4px;font-size:11px">如果確定要用這次匯入的資料取代這幾天，請到「每日記帳」頁面手動核對，或用下方「📅 寫入每日記帳」按鈕（會再次詢問確認）。</div>'
-        +'</div>';
-    }
+    var lines = mos.map(function(m){
+      var st = stats[m] || {filled:0,skipped:0,over:0,sync:0,kept:0,added:0,dropped:[],missing:[],locked:0};
+      var lk = st.locked ? '，<span style="color:var(--ok)">'+st.locked+' 天已打勾沒動</span>' : '';
+      if (plan[m]==='sync') return '<div>'+m+'：同步 '+st.sync+' 天（更新 '+st.kept+'、新增 '+st.added+(st.missing.length?'、<span style="color:#B45309">'+st.missing.length+' 筆 Square 找不到已標 ⚠</span>':'')+'）'+lk+'</div>';
+      return '<div>'+m+'：'+(plan[m]==='over'
+        ? '重新整理 '+st.over+' 天（保留標記 '+st.kept+'、新增 '+st.added+(st.dropped.length?'、刪除 '+st.dropped.length:'')+'）'
+        : '補了 '+st.filled+' 天'+(st.skipped?'，'+st.skipped+' 天已有資料沒動':''))+lk+'</div>';
+    }).join('');
+    var extra = [];
+    if (gdDays) extra.push('GoDaddy Payout 寫入 '+gdDays+' 天（逐筆明細也一起放進 GoDaddy 對帳頁）');
+    if (Object.keys(byMo).length) extra.push('💜 Lucy & Luter 薪資已更新 '+Object.keys(byMo).length+' 個月');
+    if (prodRes.productsAdded || prodRes.stockOutAdded) extra.push('🛍 產品銷售 '+prodRes.productsAdded+' 筆、📦 庫存出庫 '+prodRes.stockOutAdded+' 筆');
+    if (window.impLastMemberResult && window.impLastMemberResult.added > 0) extra.push('💳 自動新增 '+window.impLastMemberResult.added+' 位會員');
+    el.innerHTML = '<b>✓ 寫入完成</b>'+lines+(extra.length?'<div style="margin-top:4px">'+extra.join(' ｜ ')+'</div>':'')
+      +'<div style="margin-top:4px;color:var(--sub)">接下來到「GoDaddy 對帳」一個月一個月看，首頁右邊的整年表會標出還有 ⚠ 的月份。</div>';
     el.style.display = 'block';
   }
 }
 
 function impReset() {
-  impItemsRaw = null; impTxnRaw = null; impRows = []; impGDData = {}; impGDTxns = {}; impGDFees = {};
+  impItemsRaw = null; impTxnRaw = null; impRows = []; impGDData = {}; impGDTxns = {}; impGDFees = {}; impGDTxnsFull = {}; impPlan = {}; impParsedItems = null; impParsedTxn = null;
   ['imp-items-st','imp-txn-st','imp-gd-st'].forEach(function(id) {
     var el = document.getElementById(id);
     if (el) { el.textContent = id==='imp-gd-st'?'尚未上傳（選填）':'尚未上傳'; el.style.color='var(--faint)'; }
