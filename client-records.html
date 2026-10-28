@@ -201,6 +201,13 @@ input[type=file]{font-size:12px;font-family:'Inter',sans-serif;color:var(--sub)}
         <input type="text" id="gc-search" placeholder="Search / 搜索 name, code…" oninput="filterGC()" style="border:1.5px solid var(--border);border-radius:8px;padding:8px 12px;font-size:13px;font-family:inherit;outline:none;width:200px">
       </div>
     </div>
+    <div style="background:var(--white);border:1.5px solid #F0C8C0;border-radius:12px;padding:12px 16px;margin-bottom:14px;display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+      <span style="font-size:13px;font-weight:600">🔎 卡號後四位 Last 4</span>
+      <input type="text" id="gc-last4" maxlength="4" placeholder="例 1234" autocomplete="off" oninput="gcLast4Lookup()" style="border:1.5px solid var(--border);border-radius:8px;padding:8px 12px;font-size:16px;font-family:monospace;letter-spacing:.15em;outline:none;width:110px;text-transform:uppercase">
+      <button type="button" onclick="document.getElementById('gc-last4').value='';gcLast4Lookup()" style="font-size:12px;padding:6px 10px;border:1px solid var(--border);border-radius:6px;background:var(--white);color:var(--sub);cursor:pointer;font-family:inherit">清除 Clear</button>
+      <span id="gc-last4-msg" style="font-size:12px;color:var(--sub)">輸入卡號最後 4 碼，卡片會直接顯示在下面 Enter the last 4 of the code</span>
+      <div id="gc-last4-result" style="width:100%"></div>
+    </div>
     <div id="gc-list"><div style="text-align:center;padding:40px;color:var(--sub)">Loading… 载入中…</div></div>
   </div>
 
@@ -567,7 +574,7 @@ function renderGCCard(g) {
   var markBtn = g.used
     ? '<button onclick="markGCUnused(\''+g.id+'\')" style="font-size:11px;padding:4px 10px;border:1px solid var(--border);border-radius:6px;background:var(--white);color:var(--sub);cursor:pointer;font-family:inherit">↩ 取消已使用 Undo</button>'
     : '<button onclick="markGCUsed(\''+g.id+'\')" style="font-size:11px;padding:4px 10px;border:1px solid #C0392B;border-radius:6px;background:#FFF0EE;color:#C0392B;cursor:pointer;font-family:inherit;font-weight:600">✓ 標記已使用 Mark Used</button>';
-  var delBtn = '<button onclick="deleteGCRecord(\''+g.id+'\',\''+g.code+'\')" style="font-size:11px;padding:4px 10px;border:1px solid var(--border);border-radius:6px;background:var(--white);color:var(--sub);cursor:pointer;font-family:inherit;margin-left:6px">🗑 刪除 Delete</button>';
+  var delBtn = '<button onclick="deleteGCRecord(\''+g.id+'\',\''+String(g.code||'').replace(/[\\'"<>]/g,'')+'\')" style="font-size:11px;padding:4px 10px;border:1px solid var(--border);border-radius:6px;background:var(--white);color:var(--sub);cursor:pointer;font-family:inherit;margin-left:6px">🗑 刪除 Delete</button>';
   return '<div style="background:var(--white);border:1px solid var(--border);border-radius:12px;padding:16px 20px;margin-bottom:10px;box-shadow:0 1px 6px rgba(0,0,0,.05)'+(g.used?';opacity:0.6':'')+'\">'
     +'<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:8px">'
       +storeTag
@@ -595,15 +602,29 @@ function renderGCCard(g) {
   +'</div>';
 }
 
+// 用加州時間分月份（issuedAt 存的是 UTC，傍晚賣的卡以前會被分到下一天／下個月）
+function gcLocalMonth(v) {
+  var t = String(v || '');
+  if (!t) return '_unknown';
+  if (t.indexOf('T') < 0) return t.slice(0, 7);
+  var d = new Date(t);
+  if (isNaN(d.getTime())) return t.slice(0, 7) || '_unknown';
+  return d.toLocaleDateString('en-CA', { timeZone: 'America/Los_Angeles' }).slice(0, 7);
+}
+var _gcOpen = null; // 哪些月份是打開的；重新畫面時保持原樣，不會全部收起來跳回最上面
+function gcToggleMonth(key, open){ if(!_gcOpen)_gcOpen={}; _gcOpen[key]=open; }
+window.gcToggleMonth = gcToggleMonth;
 function renderGCList(list) {
   var el = document.getElementById('gc-list');
   if (!el) return;
+  var sy = window.scrollY;
+  var searching = !!((document.getElementById('gc-search')||{}).value || (document.getElementById('gc-status')||{}).value);
   if (!list.length) { el.innerHTML = '<div style="text-align:center;padding:40px;color:var(--sub)">No records found 無記錄</div>'; return; }
 
   // 依發行月份分組 group by issued month
   var groups = {}, order = [];
   list.forEach(function(g) {
-    var key = g.issuedAt ? g.issuedAt.slice(0, 7) : '_unknown';
+    var key = gcLocalMonth(g.issuedAt);
     if (!groups[key]) { groups[key] = []; order.push(key); }
     groups[key].push(g);
   });
@@ -617,7 +638,8 @@ function renderGCList(list) {
     var items = groups[key];
     var activeCount = items.filter(function(g){ return !g.used; }).length;
     var usedCount = items.length - activeCount;
-    return '<details class="gc-month"' + (idx === 0 ? ' open' : '') + '>'
+    var isOpen = searching ? true : (_gcOpen && key in _gcOpen ? _gcOpen[key] : idx === 0);
+    return '<details class="gc-month"' + (isOpen ? ' open' : '') + (searching ? ' data-r="1"' : '') + ' ontoggle="if(!this.dataset.r)gcToggleMonth(\'' + key + '\', this.open)">'
       + '<summary>'
         + '<span>📅 ' + gcMonthLabel(key) + ' <span style="font-weight:400;color:var(--sub)">(' + items.length + ')</span></span>'
         + '<span class="gc-month-counts">有效 Active ' + activeCount + ' · 已使用 Used ' + usedCount + '</span>'
@@ -625,7 +647,25 @@ function renderGCList(list) {
       + '<div class="gc-month-body">' + items.map(renderGCCard).join('') + '</div>'
     + '</details>';
   }).join('');
+  requestAnimationFrame(function(){ window.scrollTo(0, sy); });
+  gcLast4Lookup(true);
 }
+// 輸入卡號後四位 → 直接把那張卡顯示出來（不用打開月份找）
+function gcLast4Lookup(quiet) {
+  var inp = document.getElementById('gc-last4'), out = document.getElementById('gc-last4-result'), msg = document.getElementById('gc-last4-msg');
+  if (!inp || !out) return;
+  var v = String(inp.value || '').replace(/[^0-9a-z]/gi, '').toUpperCase();
+  if (inp.value !== v) inp.value = v;
+  if (v.length < 4) {
+    out.innerHTML = '';
+    if (msg) msg.textContent = v.length ? '再輸入 ' + (4 - v.length) + ' 碼 ' + (4 - v.length) + ' more' : '輸入卡號最後 4 碼，卡片會直接顯示在下面 Enter the last 4 of the code';
+    return;
+  }
+  var hits = _gcList.filter(function(g){ return String(g.code || '').replace(/[^0-9a-z]/gi, '').toUpperCase().slice(-4) === v; });
+  if (msg) msg.textContent = hits.length ? '找到 ' + hits.length + ' 張 Found ' + hits.length : '找不到後四位是 ' + v + ' 的卡 No card ending in ' + v;
+  out.innerHTML = hits.length ? '<div style="margin-top:10px">' + hits.map(renderGCCard).join('') + '</div>' : '';
+}
+window.gcLast4Lookup = gcLast4Lookup;
 async function deleteGCRecord(id, code) {
   if(!confirm('確定刪除「'+code+'」？此操作無法復原。\nDelete "'+code+'"? This cannot be undone.')) return;
   try {
