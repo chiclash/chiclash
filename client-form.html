@@ -556,7 +556,7 @@ body.text-xl .field-row{grid-template-columns:1fr}
 
 <script type="module">
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
-import { getFirestore, collection, addDoc, doc, updateDoc } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
+import { getFirestore, collection, addDoc, doc, updateDoc, getDocs, query, where, limit } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
 const app = initializeApp({
   apiKey:"AIzaSyCbiJE0WiBy9oOPp0Vh0AdsEOcPjyNsVwk",
   authDomain:"chiclash-2a154.firebaseapp.com",
@@ -572,6 +572,11 @@ window._doc = doc;
 window._updateDoc = updateDoc;
 window._gcSave = async function(data) {
   return await addDoc(collection(getFirestore(app), 'gift_certificates'), data);
+};
+// 檢查卡號是否已存在 Check whether a gift certificate code is already taken
+window._gcCodeExists = async function(code) {
+  const snap = await getDocs(query(collection(getFirestore(app), 'gift_certificates'), where('code', '==', code), limit(1)));
+  return !snap.empty;
 };
 
 // 從 chiclash 主系統讀取員工名單
@@ -1534,8 +1539,18 @@ function pickGCPay(method, el) {
 }
 
 function gcGenCode(store) {
-  var rand = Math.floor(Math.random()*9000+1000);
+  var rand = Math.floor(Math.random()*900000+100000); // 6 位數 6 digits
   return 'CLB' + (store||'CL').toUpperCase() + '-' + rand;
+}
+
+// 產生未使用過的卡號；無法確認時不發卡 Never issue a code that could not be verified as unused
+async function gcUniqueCode(store) {
+  if (!window._gcCodeExists) throw new Error('Database not ready');
+  for (var i = 0; i < 20; i++) {
+    var code = gcGenCode(store);
+    if (!(await window._gcCodeExists(code))) return code;
+  }
+  throw new Error('Could not generate a unique code');
 }
 
 function updateGCPreview() {
@@ -1577,12 +1592,12 @@ async function submitGC() {
   var noteVal = (document.getElementById('gc-note')?.value||'').trim();
   var soldBy  = (document.getElementById('gc-soldby')?.value||'').trim();
   var tipAmt  = Math.max(0, Math.round((parseFloat(document.getElementById('gc-tip')?.value)||0)*100)/100);
-  var code    = gcGenCode(_gcStore);
   var today   = new Date().toLocaleDateString('en-US');
   var expDisp = expVal ? new Date(expVal+'T12:00:00').toLocaleDateString('en-US') : '—';
   var btn = document.getElementById('gc-submit-btn');
   btn.disabled = true; btn.textContent = 'Saving 儲存中…';
 
+  var code = '';
   var data = {
     type:'gift_certificate', code:code, store:_gcStore,
     giftFor:forVal, purchaser:fromVal, amount:amt, balance:amt,
@@ -1591,6 +1606,8 @@ async function submitGC() {
     note:noteVal, issuedAt:new Date().toISOString(), used:false
   };
   try {
+    code = await gcUniqueCode(_gcStore);
+    data.code = code;
     if (window._gcSave) await window._gcSave(data);
     // Fill reference screen
     document.getElementById('gc-fill-for').textContent       = forVal;

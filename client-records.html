@@ -202,10 +202,10 @@ input[type=file]{font-size:12px;font-family:'Inter',sans-serif;color:var(--sub)}
       </div>
     </div>
     <div style="background:var(--white);border:1.5px solid #F0C8C0;border-radius:12px;padding:12px 16px;margin-bottom:14px;display:flex;align-items:center;gap:10px;flex-wrap:wrap">
-      <span style="font-size:13px;font-weight:600">🔎 卡號後四位 Last 4</span>
-      <input type="text" id="gc-last4" maxlength="4" placeholder="例 1234" autocomplete="off" oninput="gcLast4Lookup()" style="border:1.5px solid var(--border);border-radius:8px;padding:8px 12px;font-size:16px;font-family:monospace;letter-spacing:.15em;outline:none;width:110px;text-transform:uppercase">
+      <span style="font-size:13px;font-weight:600">🔎 卡號後 4–6 碼 Last 4–6</span>
+      <input type="text" id="gc-last4" maxlength="6" placeholder="例 1234" autocomplete="off" oninput="gcLast4Lookup()" style="border:1.5px solid var(--border);border-radius:8px;padding:8px 12px;font-size:16px;font-family:monospace;letter-spacing:.15em;outline:none;width:130px;text-transform:uppercase">
       <button type="button" onclick="document.getElementById('gc-last4').value='';gcLast4Lookup()" style="font-size:12px;padding:6px 10px;border:1px solid var(--border);border-radius:6px;background:var(--white);color:var(--sub);cursor:pointer;font-family:inherit">清除 Clear</button>
-      <span id="gc-last4-msg" style="font-size:12px;color:var(--sub)">輸入卡號最後 4 碼，卡片會直接顯示在下面 Enter the last 4 of the code</span>
+      <span id="gc-last4-msg" style="font-size:12px;color:var(--sub)">輸入卡號最後 4–6 碼，卡片會直接顯示在下面 Enter the last 4–6 of the code</span>
       <div id="gc-last4-result" style="width:100%"></div>
     </div>
     <div id="gc-list"><div style="text-align:center;padding:40px;color:var(--sub)">Loading… 载入中…</div></div>
@@ -658,11 +658,15 @@ function gcLast4Lookup(quiet) {
   if (inp.value !== v) inp.value = v;
   if (v.length < 4) {
     out.innerHTML = '';
-    if (msg) msg.textContent = v.length ? '再輸入 ' + (4 - v.length) + ' 碼 ' + (4 - v.length) + ' more' : '輸入卡號最後 4 碼，卡片會直接顯示在下面 Enter the last 4 of the code';
+    if (msg) msg.textContent = v.length ? '再輸入 ' + (4 - v.length) + ' 碼 ' + (4 - v.length) + ' more' : '輸入卡號最後 4–6 碼，卡片會直接顯示在下面 Enter the last 4–6 of the code';
     return;
   }
-  var hits = _gcList.filter(function(g){ return String(g.code || '').replace(/[^0-9a-z]/gi, '').toUpperCase().slice(-4) === v; });
-  if (msg) msg.textContent = hits.length ? '找到 ' + hits.length + ' 張 Found ' + hits.length : '找不到後四位是 ' + v + ' 的卡 No card ending in ' + v;
+  var hits = _gcList.filter(function(g){ return String(g.code || '').replace(/[^0-9a-z]/gi, '').toUpperCase().slice(-v.length) === v; });
+  if (msg) {
+    msg.textContent = hits.length > 1
+      ? '⚠ 找到 ' + hits.length + ' 張，請核對姓名和金額 Found ' + hits.length + ' — check name and amount'
+      : hits.length ? '找到 1 張 Found 1' : '找不到結尾是 ' + v + ' 的卡 No card ending in ' + v;
+  }
   out.innerHTML = hits.length ? '<div style="margin-top:10px">' + hits.map(renderGCCard).join('') + '</div>' : '';
 }
 window.gcLast4Lookup = gcLast4Lookup;
