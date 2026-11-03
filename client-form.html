@@ -340,7 +340,7 @@ body.text-xl .field-row{grid-template-columns:1fr}
       <input type="text" id="gc-from" placeholder="e.g. Shannon" autocomplete="off" oninput="updateGCPreview()">
     </div>
     <div class="field" style="margin-bottom:0">
-      <label>Expire Date 到期日</label>
+      <label>Expire Date 到期日<br><span style="font-weight:400;font-size:11px;color:var(--faint)">Staff only · 僅限員工更改</span></label>
       <select id="gc-exp-sel" onchange="pickExpiry(parseInt(this.value,10))" style="width:100%;border:1.5px solid var(--border);border-radius:9px;padding:12px 14px;font-size:16px;font-family:'Inter',sans-serif;color:var(--ink);background:var(--white);outline:none;margin-bottom:8px;box-sizing:border-box">
         <option value="3">3 Months 三個月</option>
         <option value="1">1 Month 一個月</option>
@@ -369,6 +369,7 @@ body.text-xl .field-row{grid-template-columns:1fr}
     <select id="gc-soldby" onchange="validateGC()" style="width:100%;border:1.5px solid var(--border);border-radius:9px;padding:12px 14px;font-size:17px;font-family:'Inter',sans-serif;color:var(--ink);background:var(--white);outline:none;-webkit-appearance:none">
       <option value="">⏳ Loading staff... 載入中</option>
     </select>
+    <div id="gc-soldby-hint" style="display:none;margin-top:8px;font-size:13px;color:var(--sub)"></div>
   </div>
 
   <!-- Staff Note -->
@@ -579,49 +580,95 @@ window._gcCodeExists = async function(code) {
   return !snap.empty;
 };
 
-// 從 chiclash 主系統讀取員工名單
-(async function loadStaffList(){
-  try {
-    const { getDoc, doc: fsDoc } = await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js');
-    const snap = await getDoc(fsDoc(getFirestore(app), 'chic lash', 'data'));
-    const sel = document.getElementById('gc-soldby');
-    if (snap.exists() && sel) {
-      const data = snap.data();
-      // 優先用 staff 陣列（在職員工），fallback 到 staffPay keys
-      const staffArray = data.staff || [];
-      const staffPay = data.staffPay || {};
-      const names = staffArray.length > 0
-        ? staffArray.filter(n => n && n !== 'undefined').sort()
-        : Object.keys(staffPay).filter(n => n && n !== 'undefined').sort();
-      if (names.length > 0) {
-        sel.innerHTML = '<option value="">-- Select staff 選擇員工 --</option>';
-        names.forEach(function(name) {
-          const opt = document.createElement('option');
-          opt.value = name; opt.textContent = name;
-          sel.appendChild(opt);
-        });
-        if(typeof validateGC === 'function') validateGC();
-        return;
-      }
-    }
-    // 載入失敗或沒有員工 → 改成文字輸入框
-    fallbackSoldByToInput();
-  } catch(e) {
-    console.warn('Staff list load failed:', e);
-    fallbackSoldByToInput();
+// 從 chiclash 主系統讀取員工名單：失敗會自動重試，並保留上次成功的名單
+const SOLDBY_STYLE = "width:100%;border:1.5px solid var(--border);border-radius:9px;padding:12px 14px;font-size:17px;font-family:'Inter',sans-serif;color:var(--ink);background:var(--white);outline:none;box-sizing:border-box";
+const STAFF_CACHE_KEY = 'gcStaffNames';
+let staffLoaded = false, staffLoading = false;
+
+function staffHint(text){
+  const el = document.getElementById('gc-soldby-hint');
+  if (el) { el.textContent = text; el.style.display = text ? 'block' : 'none'; }
+}
+function showStaffSelect(names){
+  let sel = document.getElementById('gc-soldby');
+  if (!sel) return;
+  if (sel.tagName !== 'SELECT') {
+    if (sel.value.trim()) return; // 員工已經手動輸入名字，不要蓋掉
+    const fresh = document.createElement('select');
+    fresh.id = 'gc-soldby';
+    fresh.onchange = validateGC;
+    fresh.style.cssText = SOLDBY_STYLE + ';-webkit-appearance:none';
+    sel.parentNode.replaceChild(fresh, sel);
+    sel = fresh;
   }
-})();
+  const keep = sel.value;
+  sel.innerHTML = '<option value="">-- Select staff 選擇員工 --</option>';
+  names.forEach(function(name) {
+    const opt = document.createElement('option');
+    opt.value = name; opt.textContent = name;
+    sel.appendChild(opt);
+  });
+  if (names.includes(keep)) sel.value = keep;
+  if (typeof validateGC === 'function') validateGC();
+}
+async function fetchStaffNames(){
+  const { getDoc, doc: fsDoc } = await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js');
+  const snap = await getDoc(fsDoc(getFirestore(app), 'chic lash', 'data'));
+  if (!snap.exists()) return [];
+  const data = snap.data();
+  // 優先用 staff 陣列（在職員工），fallback 到 staffPay keys
+  const raw = (data.staff && data.staff.length) ? data.staff : Object.keys(data.staffPay || {});
+  return [...new Set(raw.map(n => typeof n === 'string' ? n : (n && n.name) || '').filter(n => n && n !== 'undefined'))].sort();
+}
+async function loadStaffList(){
+  if (staffLoaded || staffLoading) return;
+  staffLoading = true;
+  let cached = null;
+  try { cached = JSON.parse(localStorage.getItem(STAFF_CACHE_KEY)); } catch(e) {}
+  if (cached && cached.length) showStaffSelect(cached);
+  let problem = '';
+  for (let attempt = 0; attempt < 3 && !staffLoaded; attempt++) {
+    if (attempt) await new Promise(r => setTimeout(r, attempt * 1500));
+    try {
+      const names = await fetchStaffNames();
+      if (names.length) {
+        staffLoaded = true;
+        showStaffSelect(names);
+        staffHint('');
+        try { localStorage.setItem(STAFF_CACHE_KEY, JSON.stringify(names)); } catch(e) {}
+      } else {
+        problem = 'empty';
+        break; // 資料庫連得上但沒有員工，重試也沒用
+      }
+    } catch(e) {
+      console.warn('Staff list load failed:', e);
+      problem = 'failed';
+    }
+  }
+  staffLoading = false;
+  if (staffLoaded) return;
+  if (cached && cached.length) {
+    staffHint('目前顯示上次的員工名單 Showing the last saved staff list');
+  } else {
+    fallbackSoldByToInput();
+    staffHint(problem === 'empty'
+      ? '主系統沒有員工資料，請先手動輸入名字 No staff found. Type the name for now.'
+      : '員工名單載入失敗，請檢查網路或重新整理頁面 Staff list didn\'t load. Check WiFi or refresh.');
+  }
+}
+window.loadStaffList = loadStaffList;
+loadStaffList();
 
 function fallbackSoldByToInput(){
   var sel = document.getElementById('gc-soldby');
-  if (!sel) return;
+  if (!sel || sel.tagName !== 'SELECT') return;
   var input = document.createElement('input');
   input.type = 'text';
   input.id = 'gc-soldby';
   input.placeholder = 'Staff name · 員工姓名';
   input.autocomplete = 'off';
   input.oninput = validateGC;
-  input.style.cssText = 'width:100%;border:1.5px solid var(--border);border-radius:9px;padding:12px 14px;font-size:17px;font-family:\'Inter\',sans-serif;color:var(--ink);background:var(--white);outline:none;box-sizing:border-box';
+  input.style.cssText = SOLDBY_STYLE;
   sel.parentNode.replaceChild(input, sel);
 }
 window.fallbackSoldByToInput = fallbackSoldByToInput;
@@ -1506,6 +1553,7 @@ function showGiftCardForm() {
   window.scrollTo(0,0);
   // 直接呼叫 pickExpiry 設定預設值並更新預覽
   pickExpiry(3);
+  if (window.loadStaffList) window.loadStaffList(); // 名單之前沒載入成功時再試一次
 }
 
 function goBackFromGC() {
@@ -1646,7 +1694,7 @@ function resetGC() {
   ['gc-for','gc-from','gc-amount','gc-tip','gc-note','gc-soldby'].forEach(id => {
     var el = document.getElementById(id); if (el) el.value = '';
   });
-  // Reset expiry to 1 year default
+  // Reset expiry to default
   pickExpiry(3);
   document.querySelectorAll('.gc-pay-btn').forEach(b => b.classList.remove('sel'));
   ['gc-store-mv','gc-store-sr'].forEach(id => {
