@@ -1,0 +1,960 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#FAF7F4">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>店務清單</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#FAF7F4;--white:#fff;--ink:#1A1714;--sub:#6B6560;--faint:#8F867D;
+  --border:#E8E2DC;--rose:#9E4F47;--rose-light:#F5EDED;
+  --ok:#2F6B4B;--ok-bg:#EDF5F0;--warn:#B83010;--warn-bg:#FBF0EC;
+}
+*{box-sizing:border-box;margin:0;-webkit-tap-highlight-color:transparent}
+html{scrollbar-gutter:stable;scroll-padding-top:160px;-webkit-text-size-adjust:100%}
+body{background:var(--bg);color:var(--ink);font:16px/1.45 'Noto Sans TC',-apple-system,BlinkMacSystemFont,'PingFang TC',sans-serif;min-height:100vh;padding-bottom:calc(48px + env(safe-area-inset-bottom))}
+button,input,select,textarea{font:inherit;color:inherit}
+input,select,textarea{font-size:16px} /* 小於 16px 時 iPhone 會自動放大畫面 */
+button{cursor:pointer;background:none;border:0;padding:0}
+:focus-visible{outline:2px solid var(--rose);outline-offset:2px}
+[hidden]{display:none!important}
+.wrap{max-width:680px;margin:0 auto;padding:0 16px}
+
+/* Top */
+.top{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:calc(16px + env(safe-area-inset-top)) 0 12px}
+h1{font-size:20px;font-weight:700}
+.who{min-height:40px;padding:6px 14px;border:1px solid var(--border);border-radius:20px;background:var(--white);font-weight:500;white-space:nowrap;max-width:60%;overflow:hidden;text-overflow:ellipsis}
+.who.empty{background:var(--rose);border-color:var(--rose);color:#fff}
+
+/* Sticky navigation: fixed heights so nothing below shifts */
+.nav{position:sticky;top:0;z-index:5;background:var(--bg);padding-bottom:12px;border-bottom:1px solid var(--border);margin-bottom:16px}
+.stores{display:grid;grid-template-columns:1fr 1fr;gap:8px;padding-top:8px}
+.store{height:62px;border:1.5px solid var(--border);border-radius:10px;background:var(--white);text-align:left;padding:8px 12px;overflow:hidden}
+.store b{display:block;font-size:16px;font-weight:700;white-space:nowrap}
+.store small{display:block;font-size:12px;color:var(--sub);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.store[aria-pressed=true]{background:var(--ink);border-color:var(--ink);color:#fff}
+.store[aria-pressed=true] small{color:#D8D2CC}
+.tabs{display:grid;grid-template-columns:repeat(3,1fr);margin-top:8px;gap:4px}
+.tab{height:48px;border-radius:8px;line-height:1.25;font-size:13.5px;font-weight:500;color:var(--sub);white-space:nowrap;overflow:hidden}
+.tab small{display:block;font-size:12px;font-weight:400;font-variant-numeric:tabular-nums}
+.tab[aria-selected=true]{background:var(--rose-light);color:var(--rose);font-weight:700}
+
+/* Banner */
+.banner{background:var(--warn-bg);color:var(--warn);border-radius:8px;padding:10px 12px;font-size:14px;margin-bottom:12px}
+
+/* Date */
+.datebar{display:grid;grid-template-columns:44px 1fr 44px;align-items:center;margin-bottom:12px}
+.datebar button{height:44px;font-size:20px;border-radius:8px}
+.datebar button:disabled{opacity:.25;cursor:default}
+.datebar .d{font-weight:700;text-align:center;font-variant-numeric:tabular-nums}
+
+/* Lists */
+.sect{display:flex;align-items:baseline;justify-content:space-between;gap:8px;margin:20px 0 8px;font-size:15px;font-weight:700}
+.sect:first-child{margin-top:0}
+.sect small{font-weight:400;color:var(--sub);font-size:13px;font-variant-numeric:tabular-nums}
+.list{background:var(--white);border:1px solid var(--border);border-radius:10px;overflow:hidden}
+.list:empty{display:none}
+.row{display:flex;align-items:center;gap:12px;padding:10px 12px;min-height:64px;cursor:pointer;border-top:1px solid var(--border)}
+.row:first-child{border-top:0}
+.row.readonly{cursor:default}
+.check{width:26px;height:26px;border:2px solid var(--faint);border-radius:50%;flex:none;position:relative}
+.row.done .check{background:var(--ok);border-color:var(--ok)}
+.row.done .check::after{content:'';position:absolute;left:7px;top:3px;width:6px;height:11px;border:solid #fff;border-width:0 2px 2px 0;transform:rotate(45deg)}
+.body{flex:1;min-width:0}
+.body .t{overflow-wrap:anywhere}
+.row.done .t{color:var(--sub);text-decoration:line-through}
+.body .m{font-size:13px;color:var(--sub)}
+.body .m.old{color:var(--warn)}
+.thumb{width:48px;height:48px;object-fit:cover;border-radius:6px;flex:none;border:1px solid var(--border);cursor:zoom-in}
+.x{width:36px;height:36px;flex:none;color:var(--faint);font-size:18px;border-radius:50%}
+.empty{padding:20px 16px;background:var(--white);border:1px dashed var(--border);border-radius:10px;color:var(--sub);font-size:14px;text-align:center}
+.link{color:var(--rose);font-weight:500;font-size:14px;min-height:44px;padding:0 4px}
+.foot{display:flex;justify-content:flex-end;gap:8px;margin-top:8px}
+
+/* Forms */
+.field{width:100%;min-height:44px;background:var(--white);border:1px solid var(--border);border-radius:8px;padding:8px 12px;outline:none}
+.field:focus{border-color:var(--rose)}
+.addrow{display:flex;gap:8px}
+.addrow .field{flex:1;min-width:0}
+.btn{min-height:44px;padding:0 16px;border-radius:8px;background:var(--rose);color:#fff;font-weight:500;white-space:nowrap}
+.btn.ghost{background:var(--white);border:1px solid var(--border);color:var(--ink)}
+.composer{background:var(--white);border:1px solid var(--border);border-radius:10px;padding:12px;display:grid;gap:8px}
+.opts{display:grid;grid-template-columns:1fr auto;gap:8px;align-items:center}
+.opts .seg{grid-column:1/-1}
+.seg button{flex:1}
+.seg{display:flex;border:1px solid var(--border);border-radius:8px;overflow:hidden}
+.seg button{min-height:44px;padding:0 12px;font-size:14px;white-space:nowrap}
+.seg button[aria-pressed=true]{background:var(--rose);color:#fff;font-weight:500}
+.opts select{min-width:0}
+.tpl{display:flex;align-items:center;gap:4px;padding:8px;border-top:1px solid var(--border)}
+.tpl:first-child{border-top:0}
+.tpl input{flex:1;min-width:0}
+.tpl .mv{width:36px;height:44px;color:var(--sub)}
+.tpl .mv:disabled{opacity:.25}
+
+/* Cash */
+.tally{background:var(--white);border:1px solid var(--border);border-radius:10px;padding:4px 12px}
+.den{display:grid;grid-template-columns:56px 1fr 96px;align-items:center;gap:12px;padding:6px 0;border-top:1px solid var(--border);font-variant-numeric:tabular-nums}
+.den:first-child{border-top:0}
+.den label{font-weight:500}
+.den input{width:100%;min-height:42px;text-align:right;border:1px solid var(--border);border-radius:8px;padding:0 10px;background:var(--bg);font-variant-numeric:tabular-nums;outline:none}
+.den input:focus{border-color:var(--rose);background:#fff}
+.den output{text-align:right;color:var(--sub)}
+.den output.has{color:var(--ink);font-weight:500}
+.sum{margin-top:12px;background:var(--ink);color:#fff;border-radius:10px;padding:14px 16px;font-variant-numeric:tabular-nums}
+.sum .big{display:flex;justify-content:space-between;align-items:baseline;gap:12px;font-size:15px}
+.sum .big b{font-size:32px;font-weight:700;line-height:1.2}
+.sum .ln{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-top:8px;padding-top:8px;border-top:1px solid #4A443E;font-size:15px}
+.sum input{width:110px;min-height:40px;text-align:right;border:0;border-radius:8px;padding:0 10px;background:#fff;color:var(--ink);font-variant-numeric:tabular-nums}
+.sum .neg{color:#FFB4A0}
+.note{margin-top:12px}
+textarea.field{resize:vertical;min-height:64px;display:block}
+.savebar{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:12px}
+.savebar .st{font-size:13px;color:var(--sub);flex:1}
+.savebar .st.ok{color:var(--ok)}
+.hist{display:grid;grid-template-columns:1fr auto;gap:12px;align-items:center;width:100%;padding:10px 12px;text-align:left;border-top:1px solid var(--border);font-variant-numeric:tabular-nums;min-height:52px}
+.hist:first-child{border-top:0}
+.hist small{display:block;color:var(--sub);font-size:13px}
+.hist b{font-weight:500}
+
+/* Dialogs */
+dialog{border:0;border-radius:12px;padding:20px;width:min(420px,calc(100vw - 32px));color:var(--ink);background:var(--white);margin:auto}
+dialog::backdrop{background:rgba(26,23,20,.5)}
+dialog h2{font-size:18px;margin-bottom:12px}
+.names{display:grid;grid-template-columns:repeat(auto-fill,minmax(110px,1fr));gap:8px;margin-bottom:12px;max-height:50vh;overflow:auto}
+.names button{min-height:48px;border:1px solid var(--border);border-radius:8px;padding:4px 8px;font-weight:500;overflow-wrap:anywhere}
+.names button.on{background:var(--ink);color:#fff;border-color:var(--ink)}
+.dlg-foot{display:flex;justify-content:flex-end;gap:8px;margin-top:12px}
+#photoDlg{padding:8px;width:auto;max-width:94vw;background:#000}
+#photoDlg img{display:block;max-width:100%;max-height:82vh;border-radius:6px}
+#photoDlg button{display:block;margin:8px auto 0;color:#fff;min-height:44px;padding:0 16px}
+.toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom));transform:translateX(-50%);background:var(--ink);color:#fff;border-radius:8px;padding:10px 16px;font-size:14px;z-index:20;white-space:nowrap}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
+@media (max-width:380px){.store b{font-size:15px}.tab{font-size:12.5px}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <h1>店務清單</h1>
+    <button class="who empty" id="who">選名字</button>
+  </header>
+
+  <nav class="nav">
+    <div class="stores" id="stores"></div>
+    <div class="tabs" role="tablist">
+      <button class="tab" role="tab" data-tab="daily"><span>每日 Daily</span><small id="tabDaily">&nbsp;</small></button>
+      <button class="tab" role="tab" data-tab="next"><span>隔天 Next day</span><small id="tabNext">&nbsp;</small></button>
+      <button class="tab" role="tab" data-tab="cash"><span>點鈔 Cash</span><small id="tabCash">&nbsp;</small></button>
+    </div>
+  </nav>
+
+  <div class="banner" id="banner" role="alert" hidden></div>
+
+  <!-- 每日清單 -->
+  <section id="panel-daily" hidden>
+    <div class="datebar" id="dailyDate"></div>
+    <div class="composer" id="dailyAdd" style="margin-bottom:16px">
+      <div class="addrow">
+        <input class="field" id="tplInput" placeholder="新增每日項目 New item" autocomplete="off" maxlength="120" aria-label="新增每日項目">
+        <button class="btn" id="tplAdd">新增 Add</button>
+      </div>
+    </div>
+    <div id="dailyView">
+      <div class="sect"><span id="dailyTitle"></span><small id="dailyCount"></small></div>
+      <div class="list" id="dailyList"></div>
+      <div class="empty" id="dailyEmpty" hidden></div>
+      <div class="foot"><button class="link" id="editTpl">改名、排序、刪除 Edit items</button></div>
+    </div>
+    <div id="tplView" hidden>
+      <div class="sect"><span id="tplTitle"></span></div>
+      <div class="list" id="tplList"></div>
+      <button class="btn ghost" id="tplCopy" style="width:100%;margin-top:8px" hidden></button>
+      <div class="foot"><button class="btn ghost" id="tplDone">完成編輯 Done</button></div>
+    </div>
+  </section>
+
+  <!-- 隔天清單 -->
+  <section id="panel-next" hidden>
+    <div class="composer">
+      <div class="addrow">
+        <input class="field" id="taskInput" placeholder="新增項目 New item" autocomplete="off" maxlength="300" aria-label="新增項目">
+        <button class="btn" id="taskAdd">新增 Add</button>
+      </div>
+      <div class="opts">
+        <div class="seg" role="group" aria-label="日期">
+          <button id="dueTomorrow" aria-pressed="true">明天 Tomorrow</button>
+          <button id="dueToday" aria-pressed="false">今天 Today</button>
+        </div>
+        <select class="field" id="assign" aria-label="指派給"></select>
+        <button class="btn ghost" id="photoBtn">相片 Photo</button>
+        <input type="file" id="photoFile" accept="image/*" hidden>
+      </div>
+    </div>
+    <div class="sect"><span id="todayTitle"></span><small id="todayCount"></small></div>
+    <div class="list" id="todayList"></div>
+    <div class="empty" id="todayEmpty" hidden>今天沒有交辦事項 Nothing left from yesterday</div>
+    <div class="sect"><span id="tmrTitle"></span><small id="tmrCount"></small></div>
+    <div class="list" id="tmrList"></div>
+    <div class="empty" id="tmrEmpty" hidden>還沒有留給明天的事 Nothing for tomorrow yet</div>
+  </section>
+
+  <!-- 每日點鈔 -->
+  <section id="panel-cash" hidden>
+    <div class="datebar" id="cashDate"></div>
+    <div class="banner" id="cashConflict" hidden>
+      <span id="cashConflictText"></span>
+      <button class="link" id="cashLoadRemote">改用對方的數字 Use their count</button>
+    </div>
+    <div class="tally" id="tally"></div>
+    <div class="sum">
+      <div class="big"><span>現金總額 Total</span><b id="cashTotal">$0.00</b></div>
+      <div class="ln"><label for="cashFloat">備用金 Float</label><input id="cashFloat" inputmode="decimal" autocomplete="off" placeholder="0.00"></div>
+      <div class="ln"><span>應存入 To deposit</span><b id="cashDeposit">$0.00</b></div>
+    </div>
+    <div class="note"><textarea class="field" id="cashNote" placeholder="備註（選填） Note (optional)" maxlength="300" aria-label="備註"></textarea></div>
+    <div class="savebar">
+      <div class="st" id="cashStatus"></div>
+      <button class="btn" id="cashSave">儲存點鈔 Save count</button>
+    </div>
+    <div class="sect"><span>最近紀錄 Recent counts</span></div>
+    <div class="list" id="cashHist"></div>
+    <div class="empty" id="cashHistEmpty" hidden>還沒有點鈔紀錄 No counts saved yet</div>
+  </section>
+</div>
+
+<dialog id="nameDlg" aria-labelledby="nameTitle">
+  <h2 id="nameTitle">你是誰？ Who's working?</h2>
+  <div class="names" id="names"></div>
+  <div class="addrow">
+    <input class="field" id="otherName" placeholder="其他名字 Other name" maxlength="30" autocomplete="off" aria-label="其他名字">
+    <button class="btn ghost" id="otherUse">使用 Use</button>
+  </div>
+  <div class="dlg-foot"><button class="btn ghost" id="nameCancel">取消 Cancel</button></div>
+</dialog>
+
+<dialog id="confirmDlg">
+  <h2 id="confirmText"></h2>
+  <div class="dlg-foot">
+    <button class="btn ghost" id="confirmNo">取消 Cancel</button>
+    <button class="btn" id="confirmYes">刪除 Delete</button>
+  </div>
+</dialog>
+
+<dialog id="photoDlg"><img id="photoImg" alt="交辦事項相片"><button id="photoClose">關閉 Close</button></dialog>
+<div class="toast" id="toast" role="status" hidden></div>
+
+<script>
+setTimeout(function(){
+  if (window.__slReady) return;
+  var b = document.getElementById('banner');
+  b.textContent = '頁面無法載入，請檢查 WiFi 後重新整理。The page didn\'t load. Check WiFi and refresh.';
+  b.hidden = false;
+}, 6000);
+</script>
+<script type="module">
+import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
+import { getFirestore, doc, setDoc, getDoc, onSnapshot, deleteField } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
+
+const app = initializeApp({
+  apiKey:"AIzaSyCbiJE0WiBy9oOPp0Vh0AdsEOcPjyNsVwk",
+  authDomain:"chiclash-2a154.firebaseapp.com",
+  projectId:"chiclash-2a154",
+  storageBucket:"chiclash-2a154.firebasestorage.app",
+  messagingSenderId:"77248539857",
+  appId:"1:77248539857:web:54e80b840160a2e30569f0"
+});
+const db = getFirestore(app);
+
+const STORES = [{id:'mv',name:'Mill Valley'},{id:'sr',name:'San Rafael'}];
+const DENOMS = [10000,5000,2000,1000,500,100,25,10,5,1]; // cents
+const WEEK = ['日','一','二','三','四','五','六'];
+const $ = id => document.getElementById(id);
+
+/* ---------- small helpers ---------- */
+const LS = {
+  get(k){ try { return JSON.parse(localStorage.getItem(k)); } catch { return null; } },
+  set(k,v){ try { localStorage.setItem(k,JSON.stringify(v)); } catch {} },
+  del(k){ try { localStorage.removeItem(k); } catch {} }
+};
+const pad = n => String(n).padStart(2,'0');
+const ymd = d => `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+const parseDay = s => { const [y,m,d] = s.split('-').map(Number); return new Date(y,m-1,d); };
+const addDays = (s,n) => { const d = parseDay(s); d.setDate(d.getDate()+n); return ymd(d); };
+const shortDay = s => { const d = parseDay(s); return `${d.getMonth()+1}/${d.getDate()}`; };
+const clock = iso => iso ? new Date(iso).toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'}) : '';
+const money = c => (c<0?'-':'') + '$' + (Math.abs(c)/100).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});
+const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2,7);
+const setText = (el,t) => { if (el.textContent !== t) el.textContent = t; };
+const setVal = (el,v) => { if (document.activeElement !== el && el.value !== v) el.value = v; };
+
+// 只更新有變動的那一列，不重畫整個清單：這是不再亂跳的關鍵
+function syncList(parent, rows, keyOf, make, update) {
+  const old = new Map([...parent.children].map(el => [el.dataset.key, el]));
+  let cursor = parent.firstElementChild;
+  for (const row of rows) {
+    const key = keyOf(row);
+    let el = old.get(key);
+    if (!el) { el = make(row); el.dataset.key = key; }
+    old.delete(key);
+    update(el,row);
+    if (el === cursor) cursor = cursor.nextElementSibling;
+    else parent.insertBefore(el,cursor);
+  }
+  old.forEach(el => el.remove());
+}
+
+/* ---------- state ---------- */
+let today = ymd(new Date());
+let store = STORES.some(s => s.id === LS.get('sl.store')) ? LS.get('sl.store') : 'mv';
+let tab = ['daily','next','cash'].includes(LS.get('sl.tab')) ? LS.get('sl.tab') : 'daily';
+let viewDate = today;
+let editing = false;
+let staff = [];
+let name = (() => { const s = LS.get('sl.name'); return s && s.date === today ? s.name : ''; })();
+let dueTarget = 'tomorrow';
+let pendingPhoto = '';
+let dbError = '';
+
+const data = {};
+STORES.forEach(s => { data[s.id] = { board:null, cash:null, checks:{}, subs:{} }; });
+
+const refOf = {
+  board: s => doc(db,'myListApp',`store_${s}_board`),
+  cash: s => doc(db,'myListApp',`store_${s}_cash`),
+  checks: (s,d) => doc(db,'myListApp',`store_${s}_checks_${d}`)
+};
+
+function showDbError(e) {
+  console.error(e);
+  dbError = e && e.code === 'permission-denied'
+    ? '資料庫拒絕存取，需要在 Firebase 規則開放 myListApp。Database access was denied.'
+    : '無法連線到資料庫，請檢查 WiFi。Can\'t reach the database. Check WiFi.';
+  renderBanner();
+}
+function write(p) { return p.catch(e => { showDbError(e); throw e; }); }
+function renderBanner() {
+  const offline = navigator.onLine === false;
+  const msg = dbError || (offline ? '目前離線，連上網路後才會同步。You\'re offline. Changes sync when you reconnect.' : '');
+  setText($('banner'),msg);
+  $('banner').hidden = !msg;
+}
+addEventListener('online', () => { dbError = ''; renderBanner(); });
+addEventListener('offline', renderBanner);
+
+/* ---------- live data ---------- */
+function watchChecks(s,d) {
+  const box = data[s];
+  if (box.subs[d]) return;
+  box.subs[d] = onSnapshot(refOf.checks(s,d), snap => {
+    box.checks[d] = snap.exists() ? (snap.data().items || {}) : {};
+    render();
+  }, showDbError);
+}
+function dropOldWatches() {
+  STORES.forEach(({id}) => {
+    const box = data[id];
+    Object.keys(box.subs).forEach(d => {
+      if (d !== today && d !== viewDate) { box.subs[d](); delete box.subs[d]; delete box.checks[d]; }
+    });
+  });
+}
+function watchDates() {
+  STORES.forEach(({id}) => { watchChecks(id,today); watchChecks(id,viewDate); });
+  dropOldWatches();
+}
+
+const pruned = {};
+function pruneTasks(s,tasks) {
+  if (pruned[s]) return;
+  pruned[s] = true;
+  const cutoff = Date.now() - 14*864e5;
+  const gone = {};
+  Object.entries(tasks).forEach(([id,t]) => {
+    if (t.done && t.doneAt && new Date(t.doneAt).getTime() < cutoff) gone[id] = deleteField();
+  });
+  if (Object.keys(gone).length) write(setDoc(refOf.board(s),{tasks:gone},{merge:true})).catch(()=>{});
+}
+STORES.forEach(({id}) => {
+  onSnapshot(refOf.board(id), snap => {
+    data[id].board = snap.exists() ? snap.data() : {};
+    pruneTasks(id, data[id].board.tasks || {});
+    render();
+  }, showDbError);
+  onSnapshot(refOf.cash(id), snap => {
+    data[id].cash = snap.exists() ? snap.data() : {};
+    render();
+  }, showDbError);
+});
+watchDates();
+
+(async function loadStaff() {
+  try {
+    const snap = await getDoc(doc(db,'chic lash','data'));
+    if (snap.exists()) {
+      const raw0 = snap.data();
+      // 主系統現在把資料打包成 _json 字串（_fmt:2），舊格式才是直接放在欄位裡
+      const d = raw0._fmt === 2 ? JSON.parse(raw0._json || '{}') : raw0;
+      const raw = (d.staff && d.staff.length) ? d.staff : Object.keys(d.staffPay || {});
+      const left = d.staffLeft || {};
+      const mo = today.slice(0,7);
+      staff = [...new Set(raw.map(n => typeof n === 'string' ? n : (n && n.name) || '').filter(n => n && n !== 'undefined' && !(left[n] && String(left[n]).slice(0,7) < mo)))].sort();
+    }
+  } catch (e) { console.warn('staff list', e); }
+  renderAssign();
+  renderNames();
+})();
+
+/* ---------- who ---------- */
+function setName(n) {
+  name = n;
+  if (n) LS.set('sl.name',{name:n,date:today}); else LS.del('sl.name');
+  const w = $('who');
+  setText(w, n || '選名字');
+  w.classList.toggle('empty',!n);
+}
+let nameResolve = null;
+function renderNames() {
+  const box = $('names');
+  box.replaceChildren(...staff.map(n => {
+    const b = document.createElement('button');
+    b.textContent = n;
+    b.classList.toggle('on', n === name);
+    b.onclick = () => closeNames(n);
+    return b;
+  }));
+  box.hidden = !staff.length;
+}
+function openNames() {
+  renderNames();
+  $('otherName').value = '';
+  if (!$('nameDlg').open) $('nameDlg').showModal();
+  return new Promise(res => { nameResolve = res; });
+}
+function closeNames(n) {
+  if (n) setName(n);
+  if ($('nameDlg').open) $('nameDlg').close();
+  if (nameResolve) { nameResolve(n || ''); nameResolve = null; }
+}
+const needName = async () => name || await openNames();
+$('who').onclick = () => openNames();
+$('nameCancel').onclick = () => closeNames('');
+$('nameDlg').addEventListener('cancel', e => { e.preventDefault(); closeNames(''); });
+$('otherUse').onclick = () => { const v = $('otherName').value.trim(); if (v) closeNames(v); };
+$('otherName').addEventListener('keydown', e => { if (e.key === 'Enter') $('otherUse').click(); });
+
+function confirmDelete(text) {
+  $('confirmText').textContent = text;
+  $('confirmDlg').showModal();
+  return new Promise(res => {
+    $('confirmYes').onclick = () => { $('confirmDlg').close(); res(true); };
+    $('confirmNo').onclick = () => { $('confirmDlg').close(); res(false); };
+    $('confirmDlg').oncancel = () => res(false);
+  });
+}
+let toastTimer;
+function toast(msg) {
+  const t = $('toast');
+  t.textContent = msg; t.hidden = false;
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => { t.hidden = true; }, 2200);
+}
+
+/* ---------- derived ---------- */
+const board = s => data[s].board || {};
+const templateOf = s => Object.entries(board(s).template || {})
+  .map(([id,v]) => ({id,...v}))
+  .sort((a,b) => (a.order||0)-(b.order||0) || a.id.localeCompare(b.id));
+function dailyRows(s,d) {
+  const checks = data[s].checks[d] || {};
+  const tpl = templateOf(s).filter(t => d === today || !t.created || t.created <= d);
+  const ids = new Set(tpl.map(t => t.id));
+  const removed = Object.entries(checks).filter(([id]) => !ids.has(id))
+    .map(([id,c]) => ({id,text:c.text,order:1e15}));
+  return [...tpl,...removed].map(t => ({...t,check:checks[t.id]||null}));
+}
+const taskList = s => Object.entries(board(s).tasks || {})
+  .map(([id,v]) => ({id,...v}))
+  .sort((a,b) => String(a.createdAt).localeCompare(String(b.createdAt)) || a.id.localeCompare(b.id));
+const todayTasks = s => taskList(s).filter(t => t.due <= today && (!t.done || (t.doneAt && ymd(new Date(t.doneAt)) === today)));
+const tomorrowTasks = s => taskList(s).filter(t => t.due > today);
+function leftCount(s) {
+  const daily = dailyRows(s,today).filter(r => !r.check).length;
+  return daily + todayTasks(s).filter(t => !t.done).length;
+}
+
+/* ---------- date bars ---------- */
+function makeDateBar(host) {
+  const prev = document.createElement('button'); prev.textContent = '‹'; prev.setAttribute('aria-label','前一天 Previous day');
+  const label = document.createElement('div'); label.className = 'd';
+  const next = document.createElement('button'); next.textContent = '›'; next.setAttribute('aria-label','後一天 Next day');
+  prev.onclick = () => goDate(addDays(viewDate,-1));
+  next.onclick = () => goDate(addDays(viewDate,1));
+  host.append(prev,label,next);
+  return {label,next};
+}
+const bars = [makeDateBar($('dailyDate')),makeDateBar($('cashDate'))];
+function goDate(d) {
+  if (d > today) return;
+  viewDate = d;
+  watchDates();
+  render();
+}
+function renderDateBars() {
+  const d = parseDay(viewDate);
+  const t = `${d.getMonth()+1}/${d.getDate()}（${WEEK[d.getDay()]}）` + (viewDate === today ? ' 今天 Today' : '');
+  bars.forEach(b => { setText(b.label,t); b.next.disabled = viewDate >= today; });
+}
+
+/* ---------- daily ---------- */
+function makeRow() {
+  const el = document.createElement('div');
+  el.className = 'row';
+  el.innerHTML = '<button class="check"></button><div class="body"><div class="t"></div><div class="m"></div></div>';
+  return el;
+}
+function renderDaily() {
+  const rows = dailyRows(store,viewDate);
+  const loaded = data[store].board && data[store].checks[viewDate];
+  const ro = viewDate !== today;
+  $('dailyView').hidden = editing;
+  $('tplView').hidden = !editing;
+  setText($('dailyTitle'), `${storeName(store)} 固定項目`);
+  setText($('dailyCount'), rows.length ? `${rows.filter(r=>r.check).length} / ${rows.length} 完成` : '');
+  syncList($('dailyList'), rows, r => r.id, makeRow, (el,r) => {
+    el.classList.toggle('done',!!r.check);
+    el.classList.toggle('readonly',ro);
+    const b = el.querySelector('.check');
+    b.disabled = ro;
+    b.setAttribute('aria-pressed',String(!!r.check));
+    b.setAttribute('aria-label',r.text);
+    setText(el.querySelector('.t'),r.text||'');
+    const m = el.querySelector('.m');
+    setText(m, r.check ? `${r.check.by}  ${clock(r.check.at)}` : '');
+    m.hidden = !r.check;
+  });
+  const empty = $('dailyEmpty');
+  empty.hidden = rows.length > 0;
+  setText(empty, !loaded ? '載入中… Loading…' : ro ? '這天沒有紀錄 No record for this day' : '還沒有每日項目，請在上方新增 No daily items yet. Add the first one above.');
+  $('editTpl').hidden = ro;
+  $('dailyAdd').hidden = ro;
+  if (editing) renderTemplate();
+}
+function renderTemplate() {
+  const tpl = templateOf(store);
+  setText($('tplTitle'), `編輯 ${storeName(store)} 每日項目`);
+  syncList($('tplList'), tpl, t => t.id, () => {
+    const el = document.createElement('div');
+    el.className = 'tpl';
+    el.innerHTML = '<input class="field" maxlength="120" aria-label="項目名稱"><button class="mv" data-dir="-1" aria-label="上移 Move up">↑</button><button class="mv" data-dir="1" aria-label="下移 Move down">↓</button><button class="x" aria-label="刪除 Delete">×</button>';
+    return el;
+  }, (el,t) => {
+    setVal(el.querySelector('input'),t.text||'');
+    const i = tpl.findIndex(x => x.id === t.id);
+    el.querySelector('[data-dir="-1"]').disabled = i === 0;
+    el.querySelector('[data-dir="1"]').disabled = i === tpl.length-1;
+  });
+  const other = STORES.find(s => s.id !== store).id;
+  const n = templateOf(other).length;
+  const c = $('tplCopy');
+  c.hidden = !(tpl.length === 0 && n > 0);
+  setText(c, `從 ${storeName(other)} 複製 ${n} 項 Copy ${n} items`);
+}
+const storeName = s => STORES.find(x => x.id === s).name;
+function saveTpl(obj) { return write(setDoc(refOf.board(store),{template:obj},{merge:true})).catch(()=>{}); }
+
+$('dailyList').addEventListener('click', async e => {
+  const row = e.target.closest('.row');
+  if (!row || viewDate !== today) return;
+  const id = row.dataset.key;
+  const s = store, d = today;
+  const cur = (data[s].checks[d] || {})[id];
+  if (cur) {
+    write(setDoc(refOf.checks(s,d),{items:{[id]:deleteField()}},{merge:true})).catch(()=>{});
+    return;
+  }
+  const who = await needName();
+  if (!who) return;
+  const r = dailyRows(s,d).find(x => x.id === id);
+  if (!r) return;
+  write(setDoc(refOf.checks(s,d),{items:{[id]:{by:who,at:new Date().toISOString(),text:r.text}}},{merge:true})).catch(()=>{});
+});
+$('editTpl').onclick = () => { editing = true; render(); };
+$('tplDone').onclick = () => { editing = false; render(); };
+function addTpl() {
+  const v = $('tplInput').value.trim();
+  if (!v) return;
+  const tpl = templateOf(store);
+  const order = tpl.length ? (tpl[tpl.length-1].order||0)+1 : 1;
+  saveTpl({[uid()]:{text:v,order,created:today}});
+  $('tplInput').value = '';
+  $('tplInput').focus();
+  toast(`已新增「${v}」 Added`);
+}
+$('tplAdd').onclick = addTpl;
+$('tplInput').addEventListener('keydown', e => { if (e.key === 'Enter' && !e.isComposing) addTpl(); });
+$('tplCopy').onclick = () => {
+  const other = STORES.find(s => s.id !== store).id;
+  const out = {};
+  templateOf(other).forEach((t,i) => { out[uid()+i] = {text:t.text,order:i+1,created:today}; });
+  saveTpl(out);
+};
+$('tplList').addEventListener('change', e => {
+  if (!e.target.matches('input')) return;
+  const id = e.target.closest('.tpl').dataset.key;
+  const v = e.target.value.trim();
+  if (v) saveTpl({[id]:{text:v}});
+  else e.target.value = (board(store).template||{})[id]?.text || '';
+});
+$('tplList').addEventListener('click', async e => {
+  const row = e.target.closest('.tpl');
+  if (!row) return;
+  const id = row.dataset.key;
+  if (e.target.matches('.mv')) {
+    const tpl = templateOf(store);
+    const i = tpl.findIndex(t => t.id === id), j = i + Number(e.target.dataset.dir);
+    if (!tpl[j]) return;
+    // 兩項對調排序；同時重編號，避免舊資料順序值相同
+    const out = {};
+    tpl.forEach((t,k) => { out[t.id] = {order: k===i ? j+1 : k===j ? i+1 : k+1}; });
+    saveTpl(out);
+  } else if (e.target.matches('.x')) {
+    const t = (board(store).template||{})[id];
+    if (await confirmDelete(`刪除「${t?.text||''}」？ Delete this daily item?`)) saveTpl({[id]:deleteField()});
+  }
+});
+
+/* ---------- next day ---------- */
+function renderAssign() {
+  const sel = $('assign');
+  const keep = sel.value;
+  sel.replaceChildren(new Option('不指定 Anyone',''),...staff.map(n => new Option(n,n)));
+  sel.value = keep;
+}
+function makeTask() {
+  const el = document.createElement('div');
+  el.className = 'row';
+  el.innerHTML = '<button class="check"></button><img class="thumb" alt="相片" hidden><div class="body"><div class="t"></div><div class="m"></div></div><button class="x" aria-label="刪除 Delete">×</button>';
+  return el;
+}
+function updateTask(el,t) {
+  el.classList.toggle('done',!!t.done);
+  const b = el.querySelector('.check');
+  b.setAttribute('aria-pressed',String(!!t.done));
+  b.setAttribute('aria-label',t.text);
+  setText(el.querySelector('.t'),t.text);
+  const parts = [];
+  if (t.assignee) parts.push(`給 ${t.assignee}`);
+  if (t.done) parts.push(`${t.doneBy} 完成 ${clock(t.doneAt)}`);
+  else if (t.due < today) parts.push(`${shortDay(t.due)} 留下來的`);
+  else if (t.by) parts.push(`${t.by} 新增`);
+  const m = el.querySelector('.m');
+  setText(m,parts.join('，'));
+  m.classList.toggle('old',!t.done && t.due < today);
+  const img = el.querySelector('.thumb');
+  if (t.imageUrl) { if (img.getAttribute('src') !== t.imageUrl) img.src = t.imageUrl; img.hidden = false; }
+  else img.hidden = true;
+}
+function renderNext() {
+  const a = todayTasks(store), b = tomorrowTasks(store);
+  setText($('todayTitle'),`今天要做 Today ${shortDay(today)}`);
+  setText($('tmrTitle'),`明天要做 Tomorrow ${shortDay(addDays(today,1))}`);
+  setText($('todayCount'),a.length ? `${a.filter(t=>t.done).length} / ${a.length} 完成` : '');
+  setText($('tmrCount'),b.length ? `${b.length} 項` : '');
+  syncList($('todayList'),a,t=>t.id,makeTask,updateTask);
+  syncList($('tmrList'),b,t=>t.id,makeTask,updateTask);
+  $('todayEmpty').hidden = a.length > 0;
+  $('tmrEmpty').hidden = b.length > 0;
+}
+function setDue(v) {
+  dueTarget = v;
+  $('dueTomorrow').setAttribute('aria-pressed',String(v==='tomorrow'));
+  $('dueToday').setAttribute('aria-pressed',String(v==='today'));
+}
+$('dueTomorrow').onclick = () => setDue('tomorrow');
+$('dueToday').onclick = () => setDue('today');
+async function addTask() {
+  const text = $('taskInput').value.trim();
+  if (!text && !pendingPhoto) return;
+  const who = await needName();
+  if (!who) return;
+  const id = uid();
+  write(setDoc(refOf.board(store),{tasks:{[id]:{
+    text:text||'（相片）', due:dueTarget==='tomorrow'?addDays(today,1):today,
+    done:false, by:who, assignee:$('assign').value, createdAt:new Date().toISOString(),
+    imageUrl:pendingPhoto
+  }}},{merge:true})).catch(()=>{});
+  $('taskInput').value = '';
+  $('assign').value = '';
+  pendingPhoto = '';
+  setText($('photoBtn'),'相片 Photo');
+  $('taskInput').focus();
+}
+$('taskAdd').onclick = addTask;
+$('taskInput').addEventListener('keydown', e => { if (e.key === 'Enter' && !e.isComposing) addTask(); });
+async function taskClick(e) {
+  const row = e.target.closest('.row');
+  if (!row) return;
+  const id = row.dataset.key;
+  const t = (board(store).tasks||{})[id];
+  if (!t) return;
+  if (e.target.matches('.thumb')) {
+    $('photoImg').src = t.imageUrl;
+    $('photoDlg').showModal();
+  } else if (e.target.matches('.x')) {
+    if (await confirmDelete(`刪除「${t.text}」？ Delete this item?`))
+      write(setDoc(refOf.board(store),{tasks:{[id]:deleteField()}},{merge:true})).catch(()=>{});
+  } else if (t.done) {
+    write(setDoc(refOf.board(store),{tasks:{[id]:{done:false,doneBy:'',doneAt:''}}},{merge:true})).catch(()=>{});
+  } else {
+    const who = await needName();
+    if (!who) return;
+    write(setDoc(refOf.board(store),{tasks:{[id]:{done:true,doneBy:who,doneAt:new Date().toISOString()}}},{merge:true})).catch(()=>{});
+  }
+}
+$('todayList').addEventListener('click',taskClick);
+$('tmrList').addEventListener('click',taskClick);
+$('photoClose').onclick = () => $('photoDlg').close();
+$('photoBtn').onclick = () => $('photoFile').click();
+$('photoFile').addEventListener('change', async () => {
+  const f = $('photoFile').files[0];
+  if (!f) return;
+  setText($('photoBtn'),'上傳中 Uploading');
+  try {
+    const { getStorage, ref, uploadBytes, getDownloadURL } = await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-storage.js');
+    const r = ref(getStorage(app),`listImages/${uid()}_${f.name.replace(/[^\w.-]/g,'_')}`);
+    await uploadBytes(r,f);
+    pendingPhoto = await getDownloadURL(r);
+    setText($('photoBtn'),'已加相片 Added');
+  } catch (e) {
+    console.error(e);
+    setText($('photoBtn'),'相片 Photo');
+    toast('相片上傳失敗，請再試一次 Photo upload failed. Try again.');
+  }
+  $('photoFile').value = '';
+});
+
+/* ---------- cash ---------- */
+const drafts = {};
+const draftKey = () => `${store}|${viewDate}`;
+const lsDraft = k => `sl.cash.${k}`;
+const entryOf = (s,d) => (data[s].cash || {})[d] || null;
+function previousFloat(s,d) {
+  const prev = Object.keys(data[s].cash || {}).filter(x => x < d).sort().pop();
+  return prev ? data[s].cash[prev].floatCents : null;
+}
+const centsToField = c => c == null ? '' : (c/100).toFixed(2);
+function draftFromEntry(s,d) {
+  const e = entryOf(s,d);
+  const counts = {};
+  DENOMS.forEach(v => { const n = e?.counts?.[v]; counts[v] = n ? String(n) : ''; });
+  return { counts, float:centsToField(e ? e.floatCents : previousFloat(s,d)), note:e?.note||'', baseAt:e?(e.editedAt||e.at):'', dirty:false };
+}
+function currentDraft() {
+  const k = draftKey();
+  let dr = drafts[k];
+  if (!dr) {
+    const saved = LS.get(lsDraft(k));
+    dr = drafts[k] = saved && saved.dirty ? saved : draftFromEntry(store,viewDate);
+  } else if (!dr.dirty) {
+    drafts[k] = dr = draftFromEntry(store,viewDate);
+  }
+  return dr;
+}
+function totals(dr) {
+  const total = DENOMS.reduce((sum,v) => sum + v*(parseInt(dr.counts[v],10)||0),0);
+  const float = Math.round((parseFloat(dr.float)||0)*100);
+  return {total,float,deposit:total-float};
+}
+DENOMS.forEach(v => {
+  const row = document.createElement('div');
+  row.className = 'den';
+  const label = v >= 100 ? `$${v/100}` : `${v}¢`;
+  row.innerHTML = `<label for="den${v}">${label}</label><input id="den${v}" data-den="${v}" inputmode="numeric" autocomplete="off" placeholder="0" maxlength="5" aria-label="${label} 數量"><output id="sub${v}">$0.00</output>`;
+  $('tally').append(row);
+});
+function renderCash() {
+  const dr = currentDraft();
+  DENOMS.forEach(v => {
+    setVal($('den'+v),dr.counts[v]||'');
+    const sub = v*(parseInt(dr.counts[v],10)||0);
+    const o = $('sub'+v);
+    setText(o,money(sub));
+    o.classList.toggle('has',sub>0);
+  });
+  setVal($('cashFloat'),dr.float);
+  setVal($('cashNote'),dr.note);
+  const t = totals(dr);
+  setText($('cashTotal'),money(t.total));
+  setText($('cashDeposit'),money(t.deposit));
+  $('cashDeposit').classList.toggle('neg',t.deposit<0);
+
+  const e = entryOf(store,viewDate);
+  const st = $('cashStatus');
+  let msg = '尚未點鈔 Not counted yet', ok = false;
+  if (dr.dirty) msg = '尚未儲存 Not saved yet';
+  else if (e) {
+    msg = `${e.by} 已點 ${clock(e.at)}` + (e.editedBy ? `，${e.editedBy} 修改 ${clock(e.editedAt)}` : '');
+    ok = true;
+  }
+  setText(st,msg);
+  st.classList.toggle('ok',ok);
+
+  const changed = dr.dirty && e && (e.editedAt||e.at) !== dr.baseAt;
+  $('cashConflict').hidden = !changed;
+  if (changed) setText($('cashConflictText'),`${e.editedBy||e.by} 剛存了這天的點鈔 ${money(e.totalCents)}。 `);
+
+  const hist = Object.entries(data[store].cash||{}).sort((a,b) => b[0].localeCompare(a[0])).slice(0,7);
+  syncList($('cashHist'),hist,h=>h[0],() => {
+    const b = document.createElement('button');
+    b.className = 'hist';
+    b.innerHTML = '<span><span class="hd"></span><small></small></span><b></b>';
+    return b;
+  },(el,[d,en]) => {
+    const dd = parseDay(d);
+    setText(el.querySelector('.hd'),`${dd.getMonth()+1}/${dd.getDate()}（${WEEK[dd.getDay()]}）`);
+    setText(el.querySelector('small'),en.editedBy ? `${en.by}，${en.editedBy} 修改` : en.by);
+    setText(el.querySelector('b'),money(en.totalCents));
+  });
+  $('cashHistEmpty').hidden = hist.length > 0;
+}
+function markDirty() {
+  const k = draftKey();
+  const dr = drafts[k];
+  dr.dirty = true;
+  LS.set(lsDraft(k),dr);
+  renderCash();
+  renderTabs();
+}
+$('tally').addEventListener('input', e => {
+  if (!e.target.dataset.den) return;
+  const clean = e.target.value.replace(/\D/g,'');
+  if (clean !== e.target.value) e.target.value = clean;
+  currentDraft().counts[e.target.dataset.den] = clean;
+  markDirty();
+});
+$('tally').addEventListener('focusin', e => { if (e.target.select) e.target.select(); });
+$('cashFloat').addEventListener('input', e => {
+  const clean = e.target.value.replace(/[^\d.]/g,'');
+  if (clean !== e.target.value) e.target.value = clean;
+  currentDraft().float = clean;
+  markDirty();
+});
+$('cashNote').addEventListener('input', e => { currentDraft().note = e.target.value; markDirty(); });
+$('cashLoadRemote').onclick = () => {
+  const k = draftKey();
+  drafts[k] = draftFromEntry(store,viewDate);
+  LS.del(lsDraft(k));
+  DENOMS.forEach(v => { $('den'+v).value = drafts[k].counts[v]; });
+  $('cashFloat').value = drafts[k].float;
+  $('cashNote').value = drafts[k].note;
+  render();
+};
+$('cashSave').onclick = async () => {
+  const who = await needName();
+  if (!who) return;
+  const s = store, d = viewDate, k = draftKey();
+  const dr = currentDraft();
+  const t = totals(dr);
+  const prior = entryOf(s,d);
+  const now = new Date().toISOString();
+  const counts = {};
+  DENOMS.forEach(v => { counts[v] = parseInt(dr.counts[v],10)||0; });
+  const entry = {
+    counts, totalCents:t.total, floatCents:t.float, depositCents:t.deposit, note:dr.note.trim(),
+    by:prior?prior.by:who, at:prior?prior.at:now,
+    editedBy:prior?who:'', editedAt:prior?now:''
+  };
+  const btn = $('cashSave');
+  setText(btn,'儲存中 Saving…');
+  dr.baseAt = now;
+  dr.dirty = false;
+  try {
+    await write(setDoc(refOf.cash(s),{[d]:entry},{merge:true}));
+    LS.del(lsDraft(k)); // 確定寫入後才清掉本機草稿
+    toast(`已儲存 ${money(t.total)} Saved`);
+  } catch {
+    dr.dirty = true;
+    LS.set(lsDraft(k),dr);
+  }
+  setText(btn,'儲存點鈔 Save count');
+  render();
+};
+$('cashHist').addEventListener('click', e => {
+  const b = e.target.closest('.hist');
+  if (b) { goDate(b.dataset.key); scrollTo(0,0); }
+});
+
+/* ---------- top level ---------- */
+const storeBtns = STORES.map(s => {
+  const b = document.createElement('button');
+  b.className = 'store';
+  b.innerHTML = `<b>${s.name}</b><small></small>`;
+  b.onclick = () => {
+    if (store === s.id) return;
+    store = s.id; LS.set('sl.store',store);
+    editing = false;
+    scrollTo(0,0);
+    render();
+  };
+  $('stores').append(b);
+  return {b,s};
+});
+document.querySelectorAll('.tab').forEach(t => {
+  t.onclick = () => {
+    if (tab === t.dataset.tab) return;
+    tab = t.dataset.tab; LS.set('sl.tab',tab);
+    editing = false;
+    scrollTo(0,0);
+    render();
+  };
+});
+function renderTabs() {
+  storeBtns.forEach(({b,s}) => {
+    b.setAttribute('aria-pressed',String(s.id===store));
+    const ready = data[s.id].board && data[s.id].checks[today];
+    const n = ready ? leftCount(s.id) : null;
+    setText(b.querySelector('small'), n===null ? ' ' : n ? `今天還有 ${n} 項` : '今天沒有待辦');
+  });
+  document.querySelectorAll('.tab').forEach(t => t.setAttribute('aria-selected',String(t.dataset.tab===tab)));
+  const rows = dailyRows(store,today);
+  setText($('tabDaily'),rows.length ? `${rows.filter(r=>r.check).length} / ${rows.length}` : ' ');
+  const left = todayTasks(store).filter(t=>!t.done).length;
+  setText($('tabNext'),left ? `今天 ${left} 項` : ' ');
+  setText($('tabCash'),entryOf(store,today) ? '今天已點' : '今天未點');
+}
+function render() {
+  renderBanner();
+  renderTabs();
+  renderDateBars();
+  ['daily','next','cash'].forEach(p => { $('panel-'+p).hidden = p !== tab; });
+  if (tab === 'daily') renderDaily();
+  if (tab === 'next') renderNext();
+  if (tab === 'cash') renderCash();
+}
+
+// iPad 整晚開著也會自動換到新的一天，並清掉昨天選的名字
+function checkNewDay() {
+  const now = ymd(new Date());
+  if (now === today) return;
+  const wasToday = viewDate === today;
+  const holding = tab === 'cash' && drafts[draftKey()]?.dirty;
+  today = now;
+  if (wasToday && !holding) viewDate = now;
+  setName('');
+  watchDates();
+  render();
+}
+setInterval(checkNewDay,30000);
+document.addEventListener('visibilitychange',() => { if (!document.hidden) checkNewDay(); });
+
+setName(name);
+renderAssign();
+render();
+window.__slReady = true;
+</script>
+</body>
+</html>

@@ -615,10 +615,14 @@ async function fetchStaffNames(){
   const { getDoc, doc: fsDoc } = await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js');
   const snap = await getDoc(fsDoc(getFirestore(app), 'chic lash', 'data'));
   if (!snap.exists()) return [];
-  const data = snap.data();
-  // 優先用 staff 陣列（在職員工），fallback 到 staffPay keys
+  const raw0 = snap.data();
+  // 主系統現在把資料打包成 _json 字串（_fmt:2），舊格式才是直接放在欄位裡
+  const data = raw0._fmt === 2 ? JSON.parse(raw0._json || '{}') : raw0;
+  // 優先用 staff 陣列；和主系統一樣，已離職且過了離職月份的員工不顯示
   const raw = (data.staff && data.staff.length) ? data.staff : Object.keys(data.staffPay || {});
-  return [...new Set(raw.map(n => typeof n === 'string' ? n : (n && n.name) || '').filter(n => n && n !== 'undefined'))].sort();
+  const left = data.staffLeft || {};
+  const d = new Date(), mo = d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0');
+  return [...new Set(raw.map(n => typeof n === 'string' ? n : (n && n.name) || '').filter(n => n && n !== 'undefined' && !(left[n] && String(left[n]).slice(0,7) < mo)))].sort();
 }
 async function loadStaffList(){
   if (staffLoaded || staffLoading) return;
