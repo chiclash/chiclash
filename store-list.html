@@ -3,227 +3,211 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="theme-color" content="#FAF7F4">
+<meta name="theme-color" content="#F4F2EF">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <title>店務清單</title>
-<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+TC:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
+/* 顏色、字型比照 chiclash.html 主系統 */
 :root{
-  --bg:#FAF7F4;--white:#fff;--ink:#1A1714;--sub:#6B6560;--faint:#8F867D;
-  --border:#E8E2DC;--rose:#9E4F47;--rose-light:#F5EDED;
-  --ok:#2F6B4B;--ok-bg:#EDF5F0;--warn:#B83010;--warn-bg:#FBF0EC;
+  --bg:#F4F2EF;--white:#FFF;--border:#E0DBD5;--border2:#C8C2BA;
+  --ink:#1C1A17;--sub:#7A746C;--faint:#B0AAA2;
+  --ok:#1A7A45;--ok-bg:#EBF5F0;--warn:#B83010;--warn-bg:#FBF0EC;
 }
 *{box-sizing:border-box;margin:0;-webkit-tap-highlight-color:transparent}
-html{scrollbar-gutter:stable;scroll-padding-top:160px;-webkit-text-size-adjust:100%}
-body{background:var(--bg);color:var(--ink);font:16px/1.45 'Noto Sans TC',-apple-system,BlinkMacSystemFont,'PingFang TC',sans-serif;min-height:100vh;padding-bottom:calc(48px + env(safe-area-inset-bottom))}
-button,input,select,textarea{font:inherit;color:inherit}
-input,select,textarea{font-size:16px} /* 小於 16px 時 iPhone 會自動放大畫面 */
+html{-webkit-text-size-adjust:100%}
+body{font-family:'IBM Plex Sans TC',system-ui,-apple-system,'PingFang TC',sans-serif;background:var(--bg);color:var(--ink);font-size:15px;line-height:1.5;-webkit-font-smoothing:antialiased;padding-bottom:calc(40px + env(safe-area-inset-bottom))}
+button,input,select{font:inherit;color:inherit}
+input,select{font-size:16px}
 button{cursor:pointer;background:none;border:0;padding:0}
-:focus-visible{outline:2px solid var(--rose);outline-offset:2px}
+:focus-visible{outline:2px solid var(--c,var(--ink));outline-offset:1px}
 [hidden]{display:none!important}
-.wrap{max-width:680px;margin:0 auto;padding:0 16px}
+.wrap{max-width:1200px;margin:0 auto;padding:0 24px}
 
-/* Top */
-.top{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:calc(16px + env(safe-area-inset-top)) 0 12px}
-h1{font-size:20px;font-weight:700}
-.who{min-height:40px;padding:6px 14px;border:1px solid var(--border);border-radius:20px;background:var(--white);font-weight:500;white-space:nowrap;max-width:60%;overflow:hidden;text-overflow:ellipsis}
-.who.empty{background:var(--rose);border-color:var(--rose);color:#fff}
+/* 頂部 */
+.hero{display:flex;align-items:center;gap:12px;padding:calc(20px + env(safe-area-inset-top)) 0 4px;position:relative;flex-wrap:wrap}
+.brand{font-size:12px;font-weight:700;letter-spacing:.14em;color:var(--sub);width:100%}
+.datebtn{display:flex;align-items:baseline;gap:10px;min-height:44px;text-align:left;padding:0 6px;margin-left:-6px;border-radius:8px}
+.datebtn:hover{background:var(--white)}
+#dateLabel{font-size:26px;font-weight:700;letter-spacing:-.01em}
+#dateSub{font-size:14px;color:var(--sub)}
+#dateSub::after{content:' ▾';color:var(--faint)}
+.hero-r{display:flex;align-items:center;gap:8px;margin-left:auto}
+.plain{min-height:38px;padding:0 14px;border:1px solid var(--border);border-radius:8px;background:var(--white);font-size:14px;font-weight:500;color:var(--sub);white-space:nowrap}
+.plain:hover{border-color:var(--border2);color:var(--ink)}
+.who{min-height:38px;padding:0 14px;border:1px solid var(--border);border-radius:8px;background:var(--white);font-size:14px;font-weight:600;white-space:nowrap;max-width:150px;overflow:hidden;text-overflow:ellipsis}
+.who::before{content:'👤 ';font-weight:400}
+.who.empty{background:var(--warn);border-color:var(--warn);color:#fff}
+.calpop{position:absolute;top:100%;left:0;width:320px;max-width:calc(100vw - 32px);background:var(--white);border:1px solid var(--border);border-radius:10px;padding:12px;box-shadow:0 10px 30px rgba(28,26,23,.14);z-index:12}
+.cal-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:6px}
+.cal-head b{font-weight:600}
+.arrow{width:38px;height:38px;border-radius:8px;color:var(--sub);flex:none;font-size:16px}
+.arrow:hover{background:var(--bg);color:var(--ink)}
+.cal{display:grid;grid-template-columns:repeat(7,1fr);text-align:center}
+.cal .wd{font-size:12px;color:var(--faint);height:26px;line-height:26px}
+.cal button{height:38px;width:38px;margin:auto;border-radius:8px;position:relative;font-variant-numeric:tabular-nums}
+.cal button:hover{background:var(--bg)}
+.cal button.off{color:#CEC8C0}
+.cal button.today,.day.today .n{box-shadow:inset 0 0 0 1.5px var(--ink)}
+.cal button.sel,.day.sel .n{background:var(--ink);color:#fff;font-weight:600;box-shadow:none}
+.cal button.dot::after,.day.dot .n::after{content:'';position:absolute;left:50%;bottom:3px;width:4px;height:4px;margin-left:-2px;border-radius:50%;background:var(--warn)}
+.cal button.sel.dot::after,.day.sel.dot .n::after{background:#fff}
 
-/* Sticky navigation: fixed heights so nothing below shifts */
-.nav{position:sticky;top:0;z-index:5;background:var(--bg);padding-bottom:12px;border-bottom:1px solid var(--border);margin-bottom:16px}
-.stores{display:grid;grid-template-columns:1fr 1fr;gap:8px;padding-top:8px}
-.store{height:62px;border:1.5px solid var(--border);border-radius:10px;background:var(--white);text-align:left;padding:8px 12px;overflow:hidden}
-.store b{display:block;font-size:16px;font-weight:700;white-space:nowrap}
-.store small{display:block;font-size:12px;color:var(--sub);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.store[aria-pressed=true]{background:var(--ink);border-color:var(--ink);color:#fff}
-.store[aria-pressed=true] small{color:#D8D2CC}
-.tabs{display:grid;grid-template-columns:repeat(3,1fr);margin-top:8px;gap:4px}
-.tab{height:48px;border-radius:8px;line-height:1.25;font-size:13.5px;font-weight:500;color:var(--sub);white-space:nowrap;overflow:hidden}
-.tab small{display:block;font-size:12px;font-weight:400;font-variant-numeric:tabular-nums}
-.tab[aria-selected=true]{background:var(--rose-light);color:var(--rose);font-weight:700}
+/* 週列 */
+.strip{position:sticky;top:0;z-index:10;background:var(--bg);padding:8px 0 12px}
+.weekrow{display:flex;align-items:center;gap:4px;background:var(--white);border:1px solid var(--border);border-radius:10px;padding:4px}
+.week{flex:1;display:grid;grid-template-columns:repeat(7,1fr);min-width:0}
+.day{display:flex;flex-direction:column;align-items:center;min-height:54px;justify-content:center;border-radius:8px}
+.day:hover{background:var(--bg)}
+.day .w{font-size:11px;color:var(--sub)}
+.day .n{width:32px;height:32px;line-height:32px;border-radius:8px;position:relative;font-weight:500;font-variant-numeric:tabular-nums;text-align:center}
+.banner{background:var(--warn-bg);color:var(--warn);border:1px solid #F0B8A8;padding:10px 14px;font-size:14px;border-radius:8px;margin-bottom:12px}
 
-/* Banner */
-.banner{background:var(--warn-bg);color:var(--warn);border-radius:8px;padding:10px 12px;font-size:14px;margin-bottom:12px}
+/* 手機分頁，同現金櫃的 MV / SR 分頁 */
+.tabs{display:none;gap:2px;margin-top:10px;border-bottom:2px solid var(--border);overflow-x:auto}
+.tab{min-height:42px;padding:0 20px;font-size:14px;font-weight:600;color:var(--sub);white-space:nowrap;border-bottom:3px solid transparent;margin-bottom:-2px;border-radius:8px 8px 0 0}
+.tab[aria-selected=true]{color:var(--c);border-bottom-color:var(--c);background:var(--white)}
 
-/* Date */
-.datebar{display:grid;grid-template-columns:44px 1fr 44px;align-items:center;margin-bottom:12px}
-.datebar button{height:44px;font-size:20px;border-radius:8px}
-.datebar button:disabled{opacity:.25;cursor:default}
-.datebar .d{font-weight:700;text-align:center;font-variant-numeric:tabular-nums}
+/* 兩間店 */
+.parts{display:grid;grid-template-columns:repeat(auto-fit,minmax(400px,1fr));gap:16px;align-items:start}
+.part{--c:#8A5F1A;--c-bg:#FAF3E5;--c-bd:#E6D3AE;background:var(--white);border:1.5px solid var(--c-bd);border-radius:12px;min-width:0;overflow:hidden}
+.part[data-store=mv]{--c:#1656A0;--c-bg:#EBF2FA;--c-bd:#B8D0EF}
+.part[data-store=sr]{--c:#5E35B1;--c-bg:#F0EBF9;--c-bd:#C9B8EF}
+.part-head{display:flex;align-items:center;gap:10px;padding:12px 18px;background:var(--c-bg);border-bottom:1px solid var(--c-bd)}
+.part-head h2{font-size:17px;font-weight:700;color:var(--c)}
+.part-head small{font-size:12px;font-weight:600;color:var(--c);background:var(--white);border:1px solid var(--c-bd);border-radius:10px;padding:1px 9px}
+.part-head small:empty{display:none}
+.part-head .x{margin-left:auto}
+.sec{padding:16px 18px 4px}
+.sec h3{display:flex;align-items:center;gap:7px;font-size:12px;font-weight:700;letter-spacing:.06em;color:var(--sub);margin-bottom:8px}
+.sec h3 .num{background:var(--c);color:#fff;border-radius:50%;width:19px;height:19px;display:inline-flex;align-items:center;justify-content:center;font-size:11px;flex:none;letter-spacing:0}
+.sec h3 small{margin-left:auto;font-weight:600;font-size:12px;letter-spacing:0;color:var(--sub);font-variant-numeric:tabular-nums}
+.panel{background:var(--c-bg);border:1px solid var(--c-bd);border-radius:10px;padding:10px 12px}
+.part>.sec:last-child{padding-bottom:18px}
 
-/* Lists */
-.sect{display:flex;align-items:baseline;justify-content:space-between;gap:8px;margin:20px 0 8px;font-size:15px;font-weight:700}
-.sect:first-child{margin-top:0}
-.sect small{font-weight:400;color:var(--sub);font-size:13px;font-variant-numeric:tabular-nums}
-.list{background:var(--white);border:1px solid var(--border);border-radius:10px;overflow:hidden}
+/* 新增列 */
+.add{display:flex;gap:6px}
+.add .field{flex:1}
+.add select{flex:none;width:96px;min-height:40px;border:1px solid var(--border);border-radius:6px;background:var(--white);padding:0 6px;font-size:14px;color:var(--sub);outline:none}
+.field{width:100%;min-height:40px;background:var(--white);border:1px solid var(--border);border-radius:6px;padding:6px 10px;outline:none;min-width:0}
+.field:focus,.add select:focus{border-color:var(--c,var(--ink))}
+.field::placeholder{color:var(--faint)}
+.plus,.btn{min-height:40px;padding:0 16px;border-radius:6px;background:var(--c,var(--ink));color:#fff;font-size:14px;font-weight:700;white-space:nowrap;flex:none}
+.plus:hover,.btn:hover{filter:brightness(1.1)}
+.btn:disabled{opacity:.4;cursor:default}
+.btn.line{background:var(--white);border:1px solid var(--border);color:var(--ink);font-weight:500}
+
+/* 清單列 */
+.list{margin-top:8px;background:var(--white);border:1px solid var(--c-bd,var(--border));border-radius:8px;padding:0 10px}
 .list:empty{display:none}
-.row{display:flex;align-items:center;gap:12px;padding:10px 12px;min-height:64px;cursor:pointer;border-top:1px solid var(--border)}
-.row:first-child{border-top:0}
-.row.readonly{cursor:default}
-.check{width:26px;height:26px;border:2px solid var(--faint);border-radius:50%;flex:none;position:relative}
+.row{display:flex;align-items:center;gap:10px;min-height:48px;padding:6px 0;border-bottom:1px solid var(--border);cursor:pointer}
+.row:last-child{border-bottom:0}
+.row.ro{cursor:default}
+.check{width:22px;height:22px;border:1.5px solid var(--border2);border-radius:5px;flex:none;position:relative;background:var(--white)}
+.row:not(.ro):hover .check{border-color:var(--c)}
 .row.done .check{background:var(--ok);border-color:var(--ok)}
-.row.done .check::after{content:'';position:absolute;left:7px;top:3px;width:6px;height:11px;border:solid #fff;border-width:0 2px 2px 0;transform:rotate(45deg)}
-.body{flex:1;min-width:0}
-.body .t{overflow-wrap:anywhere}
-.row.done .t{color:var(--sub);text-decoration:line-through}
-.body .m{font-size:13px;color:var(--sub)}
-.body .m.old{color:var(--warn)}
-.thumb{width:48px;height:48px;object-fit:cover;border-radius:6px;flex:none;border:1px solid var(--border);cursor:zoom-in}
-.x{width:36px;height:36px;flex:none;color:var(--faint);font-size:18px;border-radius:50%}
-.empty{padding:20px 16px;background:var(--white);border:1px dashed var(--border);border-radius:10px;color:var(--sub);font-size:14px;text-align:center}
-.link{color:var(--rose);font-weight:500;font-size:14px;min-height:44px;padding:0 4px}
-.foot{display:flex;justify-content:flex-end;gap:8px;margin-top:8px}
+.row.done .check::after{content:'';position:absolute;left:6px;top:2px;width:6px;height:11px;border:solid #fff;border-width:0 2px 2px 0;transform:rotate(45deg)}
+.body{flex:1;min-width:0;overflow-wrap:anywhere;font-size:15px}
+.row.done .t{color:var(--faint);text-decoration:line-through}
+.m{font-size:12px;color:var(--sub)}
+.m.old{color:var(--warn);font-weight:600}
+.x{width:30px;height:30px;flex:none;color:var(--faint);font-size:17px;border-radius:6px}
+.x:hover{background:var(--bg);color:var(--warn)}
+.none{color:var(--sub);font-size:13px;padding:4px 0}
+.link{color:var(--c);font-size:13px;font-weight:600;min-height:36px;margin-top:2px}
 
-/* Forms */
-.field{width:100%;min-height:44px;background:var(--white);border:1px solid var(--border);border-radius:8px;padding:8px 12px;outline:none}
-.field:focus{border-color:var(--rose)}
+/* 點鈔，同現金櫃 */
+.when{font-size:13px;color:var(--sub);margin-bottom:8px;font-variant-numeric:tabular-nums}
+.when span{font-weight:700;color:var(--c)}
+.when small{font-size:12px;margin-left:6px}
+.dens{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
+.den{display:flex;align-items:center;gap:6px;background:var(--white);border-radius:8px;padding:5px 8px;min-width:0}
+.den label{font-size:13px;font-weight:600;color:var(--sub);flex:none;min-width:30px}
+.den label::after{content:' ×';color:var(--faint);font-weight:400}
+.den input{width:100%;min-width:0;min-height:34px;border:1px solid var(--border);border-radius:6px;background:var(--white);text-align:right;padding:0 8px;outline:none;font-weight:600;font-variant-numeric:tabular-nums}
+.den input:focus{border-color:var(--c)}
+.den input::placeholder{color:#CEC8C0;font-weight:400}
+.totalrow{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:10px}
+.total{font-size:15px;font-weight:700;color:var(--c);font-variant-numeric:tabular-nums}
+.total small{font-size:15px;font-weight:700}
+.total small::after{content:'：'}
+.c-total{font-size:20px}
+.cmp{margin-top:10px;border-radius:8px;padding:8px 12px;background:var(--white);border:1px solid var(--c-bd);font-size:14px;font-variant-numeric:tabular-nums}
+.cmp div{display:flex;justify-content:space-between;gap:12px}
+.cmp .c-exp{font-weight:700;color:var(--c)}
+.cmp .ok{color:var(--ok);font-weight:700}.cmp .bad{color:var(--warn);font-weight:700}
+.hint{font-size:12px;color:var(--sub);margin-top:6px}
+.hint.err{color:var(--warn);font-weight:600}
+.counts{margin-top:8px}
+.cnt{display:flex;flex-wrap:wrap;justify-content:space-between;gap:0 12px;padding:8px 0;border-bottom:1px solid var(--border);font-size:14px;font-variant-numeric:tabular-nums}
+.cnt:last-child{border-bottom:0}
+.cnt b{font-weight:700}
+.cnt .res{width:100%;font-size:12px;color:var(--sub)}
+.cnt .res.ok{color:var(--ok);font-weight:600}.cnt .res.bad{color:var(--warn);font-weight:600}
+.addpart{display:block;margin:16px auto 0;min-height:42px;padding:0 20px;border:1.5px dashed var(--border2);border-radius:10px;color:var(--sub);font-size:14px;font-weight:500}
+.addpart:hover{border-color:var(--sub);color:var(--ink)}
+
+/* 對話框 */
+dialog{border:0;border-radius:12px;padding:20px;width:min(440px,calc(100vw - 24px));max-height:calc(100dvh - 24px);color:var(--ink);background:var(--white);margin:auto}
+dialog::backdrop{background:rgba(28,26,23,.45)}
+dialog h2{font-size:17px;font-weight:700;margin-bottom:12px}
 .addrow{display:flex;gap:8px}
-.addrow .field{flex:1;min-width:0}
-.btn{min-height:44px;padding:0 16px;border-radius:8px;background:var(--rose);color:#fff;font-weight:500;white-space:nowrap}
-.btn.ghost{background:var(--white);border:1px solid var(--border);color:var(--ink)}
-.composer{background:var(--white);border:1px solid var(--border);border-radius:10px;padding:12px;display:grid;gap:8px}
-.opts{display:grid;grid-template-columns:1fr auto;gap:8px;align-items:center}
-.opts .seg{grid-column:1/-1}
-.seg button{flex:1}
-.seg{display:flex;border:1px solid var(--border);border-radius:8px;overflow:hidden}
-.seg button{min-height:44px;padding:0 12px;font-size:14px;white-space:nowrap}
-.seg button[aria-pressed=true]{background:var(--rose);color:#fff;font-weight:500}
-.opts select{min-width:0}
-.tpl{display:flex;align-items:center;gap:4px;padding:8px;border-top:1px solid var(--border)}
-.tpl:first-child{border-top:0}
-.tpl input{flex:1;min-width:0}
-.tpl .mv{width:36px;height:44px;color:var(--sub)}
-.tpl .mv:disabled{opacity:.25}
-
-/* Cash */
-.tally{background:var(--white);border:1px solid var(--border);border-radius:10px;padding:4px 12px}
-.den{display:grid;grid-template-columns:56px 1fr 96px;align-items:center;gap:12px;padding:6px 0;border-top:1px solid var(--border);font-variant-numeric:tabular-nums}
-.den:first-child{border-top:0}
-.den label{font-weight:500}
-.den input{width:100%;min-height:42px;text-align:right;border:1px solid var(--border);border-radius:8px;padding:0 10px;background:var(--bg);font-variant-numeric:tabular-nums;outline:none}
-.den input:focus{border-color:var(--rose);background:#fff}
-.den output{text-align:right;color:var(--sub)}
-.den output.has{color:var(--ink);font-weight:500}
-.sum{margin-top:12px;background:var(--ink);color:#fff;border-radius:10px;padding:14px 16px;font-variant-numeric:tabular-nums}
-.sum .big{display:flex;justify-content:space-between;align-items:baseline;gap:12px;font-size:15px}
-.sum .big b{font-size:32px;font-weight:700;line-height:1.2}
-.sum .ln{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-top:8px;padding-top:8px;border-top:1px solid #4A443E;font-size:15px}
-.sum input{width:110px;min-height:40px;text-align:right;border:0;border-radius:8px;padding:0 10px;background:#fff;color:var(--ink);font-variant-numeric:tabular-nums}
-.sum .neg{color:#FFB4A0}
-.note{margin-top:12px}
-textarea.field{resize:vertical;min-height:64px;display:block}
-.savebar{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:12px}
-.savebar .st{font-size:13px;color:var(--sub);flex:1}
-.savebar .st.ok{color:var(--ok)}
-.hist{display:grid;grid-template-columns:1fr auto;gap:12px;align-items:center;width:100%;padding:10px 12px;text-align:left;border-top:1px solid var(--border);font-variant-numeric:tabular-nums;min-height:52px}
-.hist:first-child{border-top:0}
-.hist small{display:block;color:var(--sub);font-size:13px}
-.hist b{font-weight:500}
-
-/* Dialogs */
-dialog{border:0;border-radius:12px;padding:20px;width:min(420px,calc(100vw - 32px));color:var(--ink);background:var(--white);margin:auto}
-dialog::backdrop{background:rgba(26,23,20,.5)}
-dialog h2{font-size:18px;margin-bottom:12px}
+.foot{display:flex;justify-content:flex-end;gap:8px;margin-top:14px}
 .names{display:grid;grid-template-columns:repeat(auto-fill,minmax(110px,1fr));gap:8px;margin-bottom:12px;max-height:50vh;overflow:auto}
-.names button{min-height:48px;border:1px solid var(--border);border-radius:8px;padding:4px 8px;font-weight:500;overflow-wrap:anywhere}
+.names button{min-height:46px;border:1px solid var(--border);border-radius:8px;padding:4px 8px;font-weight:600;overflow-wrap:anywhere}
+.names button:hover{border-color:var(--border2);background:var(--bg)}
 .names button.on{background:var(--ink);color:#fff;border-color:var(--ink)}
-.dlg-foot{display:flex;justify-content:flex-end;gap:8px;margin-top:12px}
-#photoDlg{padding:8px;width:auto;max-width:94vw;background:#000}
-#photoDlg img{display:block;max-width:100%;max-height:82vh;border-radius:6px}
-#photoDlg button{display:block;margin:8px auto 0;color:#fff;min-height:44px;padding:0 16px}
-.toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom));transform:translateX(-50%);background:var(--ink);color:#fff;border-radius:8px;padding:10px 16px;font-size:14px;z-index:20;white-space:nowrap}
-.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
-@media (max-width:380px){.store b{font-size:15px}.tab{font-size:12.5px}}
+.tplrow{display:flex;align-items:center;gap:2px;padding:4px 0}
+.tplrow .mv{width:34px;height:40px;color:var(--sub);flex:none}
+.tplrow .mv:disabled{opacity:.25}
+.toast{position:fixed;left:50%;bottom:calc(24px + env(safe-area-inset-bottom));transform:translateX(-50%);background:var(--ink);color:#fff;border-radius:8px;padding:10px 16px;font-size:14px;font-weight:500;z-index:20;max-width:90vw}
+
+@media (max-width:860px){
+  .wrap{padding:0 12px}
+  .tabs{display:flex}
+  .parts{display:block}
+  .part:not(.cur){display:none}
+  #dateLabel{font-size:22px}
+  .hero{padding-top:calc(12px + env(safe-area-inset-top))}
+  .sec{padding:14px 12px 2px}
+  .part-head{padding:10px 12px}
+  .arrow{width:30px}
+  .plain{padding:0 10px}
+  .who{max-width:110px;padding:0 10px}
+  .add select{width:78px}
+  .den{padding:4px 6px}
+}
 </style>
 </head>
 <body>
 <div class="wrap">
-  <header class="top">
-    <h1>店務清單</h1>
-    <button class="who empty" id="who">選名字</button>
+  <header class="hero">
+    <div class="brand">CHIC LASH · 店務清單</div>
+    <button class="datebtn" id="dateBtn" aria-expanded="false" aria-label="選擇日期"><span id="dateLabel"></span><span id="dateSub"></span></button>
+    <div class="hero-r">
+      <button class="plain" id="goToday">今天</button>
+      <button class="who empty" id="who">選名字</button>
+    </div>
+    <div class="calpop" id="calpop" hidden>
+      <div class="cal-head">
+        <button class="arrow" id="calPrev" aria-label="上個月">←</button>
+        <b id="calTitle"></b>
+        <button class="arrow" id="calNext" aria-label="下個月">→</button>
+      </div>
+      <div class="cal" id="cal"></div>
+    </div>
   </header>
-
-  <nav class="nav">
-    <div class="stores" id="stores"></div>
-    <div class="tabs" role="tablist">
-      <button class="tab" role="tab" data-tab="daily"><span>每日 Daily</span><small id="tabDaily">&nbsp;</small></button>
-      <button class="tab" role="tab" data-tab="next"><span>隔天 Next day</span><small id="tabNext">&nbsp;</small></button>
-      <button class="tab" role="tab" data-tab="cash"><span>點鈔 Cash</span><small id="tabCash">&nbsp;</small></button>
+  <div class="strip">
+    <div class="weekrow">
+      <button class="arrow" id="dayPrev" aria-label="前一週">←</button>
+      <div class="week" id="week"></div>
+      <button class="arrow" id="dayNext" aria-label="下一週">→</button>
     </div>
-  </nav>
-
+    <div class="tabs" id="tabs" role="tablist"></div>
+  </div>
   <div class="banner" id="banner" role="alert" hidden></div>
-
-  <!-- 每日清單 -->
-  <section id="panel-daily" hidden>
-    <div class="datebar" id="dailyDate"></div>
-    <div class="composer" id="dailyAdd" style="margin-bottom:16px">
-      <div class="addrow">
-        <input class="field" id="tplInput" placeholder="新增每日項目 New item" autocomplete="off" maxlength="120" aria-label="新增每日項目">
-        <button class="btn" id="tplAdd">新增 Add</button>
-      </div>
-    </div>
-    <div id="dailyView">
-      <div class="sect"><span id="dailyTitle"></span><small id="dailyCount"></small></div>
-      <div class="list" id="dailyList"></div>
-      <div class="empty" id="dailyEmpty" hidden></div>
-      <div class="foot"><button class="link" id="editTpl">改名、排序、刪除 Edit items</button></div>
-    </div>
-    <div id="tplView" hidden>
-      <div class="sect"><span id="tplTitle"></span></div>
-      <div class="list" id="tplList"></div>
-      <button class="btn ghost" id="tplCopy" style="width:100%;margin-top:8px" hidden></button>
-      <div class="foot"><button class="btn ghost" id="tplDone">完成編輯 Done</button></div>
-    </div>
-  </section>
-
-  <!-- 隔天清單 -->
-  <section id="panel-next" hidden>
-    <div class="composer">
-      <div class="addrow">
-        <input class="field" id="taskInput" placeholder="新增項目 New item" autocomplete="off" maxlength="300" aria-label="新增項目">
-        <button class="btn" id="taskAdd">新增 Add</button>
-      </div>
-      <div class="opts">
-        <div class="seg" role="group" aria-label="日期">
-          <button id="dueTomorrow" aria-pressed="true">明天 Tomorrow</button>
-          <button id="dueToday" aria-pressed="false">今天 Today</button>
-        </div>
-        <select class="field" id="assign" aria-label="指派給"></select>
-        <button class="btn ghost" id="photoBtn">相片 Photo</button>
-        <input type="file" id="photoFile" accept="image/*" hidden>
-      </div>
-    </div>
-    <div class="sect"><span id="todayTitle"></span><small id="todayCount"></small></div>
-    <div class="list" id="todayList"></div>
-    <div class="empty" id="todayEmpty" hidden>今天沒有交辦事項 Nothing left from yesterday</div>
-    <div class="sect"><span id="tmrTitle"></span><small id="tmrCount"></small></div>
-    <div class="list" id="tmrList"></div>
-    <div class="empty" id="tmrEmpty" hidden>還沒有留給明天的事 Nothing for tomorrow yet</div>
-  </section>
-
-  <!-- 每日點鈔 -->
-  <section id="panel-cash" hidden>
-    <div class="datebar" id="cashDate"></div>
-    <div class="banner" id="cashConflict" hidden>
-      <span id="cashConflictText"></span>
-      <button class="link" id="cashLoadRemote">改用對方的數字 Use their count</button>
-    </div>
-    <div class="tally" id="tally"></div>
-    <div class="sum">
-      <div class="big"><span>現金總額 Total</span><b id="cashTotal">$0.00</b></div>
-      <div class="ln"><label for="cashFloat">備用金 Float</label><input id="cashFloat" inputmode="decimal" autocomplete="off" placeholder="0.00"></div>
-      <div class="ln"><span>應存入 To deposit</span><b id="cashDeposit">$0.00</b></div>
-    </div>
-    <div class="note"><textarea class="field" id="cashNote" placeholder="備註（選填） Note (optional)" maxlength="300" aria-label="備註"></textarea></div>
-    <div class="savebar">
-      <div class="st" id="cashStatus"></div>
-      <button class="btn" id="cashSave">儲存點鈔 Save count</button>
-    </div>
-    <div class="sect"><span>最近紀錄 Recent counts</span></div>
-    <div class="list" id="cashHist"></div>
-    <div class="empty" id="cashHistEmpty" hidden>還沒有點鈔紀錄 No counts saved yet</div>
-  </section>
+  <main class="parts" id="parts"></main>
+  <button class="addpart" id="addStore">＋ 新增店</button>
 </div>
 
 <dialog id="nameDlg" aria-labelledby="nameTitle">
@@ -231,50 +215,45 @@ dialog h2{font-size:18px;margin-bottom:12px}
   <div class="names" id="names"></div>
   <div class="addrow">
     <input class="field" id="otherName" placeholder="其他名字 Other name" maxlength="30" autocomplete="off" aria-label="其他名字">
-    <button class="btn ghost" id="otherUse">使用 Use</button>
+    <button class="btn line" id="otherUse">使用</button>
   </div>
-  <div class="dlg-foot"><button class="btn ghost" id="nameCancel">取消 Cancel</button></div>
+  <div class="foot"><button class="btn line" id="nameCancel">取消</button></div>
 </dialog>
-
+<dialog id="tplDlg" aria-labelledby="tplTitle">
+  <h2 id="tplTitle"></h2>
+  <div id="tplList"></div>
+  <button class="btn line" id="tplCopy" style="width:100%" hidden></button>
+  <div class="foot"><button class="btn" id="tplClose">完成</button></div>
+</dialog>
+<dialog id="storeDlg" aria-labelledby="storeTitle">
+  <h2 id="storeTitle">新增店 Add store</h2>
+  <input class="field" id="storeName" maxlength="40" autocomplete="off" placeholder="店名 Store name" aria-label="店名">
+  <div class="hint">新的店有自己的清單和點鈔紀錄，但不會連到主系統的現金櫃。</div>
+  <div class="foot">
+    <button class="btn line" id="storeCancel">取消</button>
+    <button class="btn" id="storeOk">新增</button>
+  </div>
+</dialog>
 <dialog id="confirmDlg">
   <h2 id="confirmText"></h2>
-  <div class="dlg-foot">
-    <button class="btn ghost" id="confirmNo">取消 Cancel</button>
-    <button class="btn" id="confirmYes">刪除 Delete</button>
+  <div class="foot">
+    <button class="btn line" id="confirmNo">取消</button>
+    <button class="btn" id="confirmYes">確定</button>
   </div>
 </dialog>
-
-<dialog id="photoDlg"><img id="photoImg" alt="交辦事項相片"><button id="photoClose">關閉 Close</button></dialog>
 <div class="toast" id="toast" role="status" hidden></div>
 
-<script>
-setTimeout(function(){
-  if (window.__slReady) return;
-  var b = document.getElementById('banner');
-  b.textContent = '頁面無法載入，請檢查 WiFi 後重新整理。The page didn\'t load. Check WiFi and refresh.';
-  b.hidden = false;
-}, 6000);
-</script>
 <script type="module">
-import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
-import { getFirestore, doc, setDoc, getDoc, onSnapshot, deleteField } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
-
-const app = initializeApp({
-  apiKey:"AIzaSyCbiJE0WiBy9oOPp0Vh0AdsEOcPjyNsVwk",
-  authDomain:"chiclash-2a154.firebaseapp.com",
-  projectId:"chiclash-2a154",
-  storageBucket:"chiclash-2a154.firebasestorage.app",
-  messagingSenderId:"77248539857",
-  appId:"1:77248539857:web:54e80b840160a2e30569f0"
-});
-const db = getFirestore(app);
-
-const STORES = [{id:'mv',name:'Mill Valley'},{id:'sr',name:'San Rafael'}];
-const DENOMS = [10000,5000,2000,1000,500,100,25,10,5,1]; // cents
+const FB = 'https://www.gstatic.com/firebasejs/10.12.0/';
+const LINKED = {mv:'Mill Valley',sr:'San Rafael'}; // 這兩間連到主系統現金櫃
+const CD_DENOMS = [1,5,10,20,50,100];              // 和主系統現金櫃相同的面額
 const WEEK = ['日','一','二','三','四','五','六'];
 const $ = id => document.getElementById(id);
 
-/* ---------- small helpers ---------- */
+// Firebase 在畫面出來之後才載入：就算連不上，畫面也不會空白，還能顯示原因
+let app, db, fs = null;
+
+/* ---------- helpers ---------- */
 const LS = {
   get(k){ try { return JSON.parse(localStorage.getItem(k)); } catch { return null; } },
   set(k,v){ try { localStorage.setItem(k,JSON.stringify(v)); } catch {} },
@@ -285,13 +264,18 @@ const ymd = d => `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`
 const parseDay = s => { const [y,m,d] = s.split('-').map(Number); return new Date(y,m-1,d); };
 const addDays = (s,n) => { const d = parseDay(s); d.setDate(d.getDate()+n); return ymd(d); };
 const shortDay = s => { const d = parseDay(s); return `${d.getMonth()+1}/${d.getDate()}`; };
+const dayLabel = s => { const d = parseDay(s); return `${d.getMonth()+1}/${d.getDate()}（${WEEK[d.getDay()]}）`; };
 const clock = iso => iso ? new Date(iso).toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'}) : '';
-const money = c => (c<0?'-':'') + '$' + (Math.abs(c)/100).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});
+const hhmmLabel = t => { if (!t) return ''; let [h,m] = t.split(':').map(Number); const ap = h>=12?'PM':'AM'; h = h%12||12; return `${h}:${pad(m)} ${ap}`; };
+const nowHHMM = () => { const d = new Date(); return `${pad(d.getHours())}:${pad(d.getMinutes())}`; };
+const money = n => (n<0?'-':'') + '$' + Math.abs(n).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});
 const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2,7);
 const setText = (el,t) => { if (el.textContent !== t) el.textContent = t; };
 const setVal = (el,v) => { if (document.activeElement !== el && el.value !== v) el.value = v; };
-
-// 只更新有變動的那一列，不重畫整個清單：這是不再亂跳的關鍵
+const enterKey = (input,fn) => input.addEventListener('keydown', e => {
+  if (e.key === 'Enter' && !e.isComposing && e.keyCode !== 229) { e.preventDefault(); fn(); }
+});
+// 只更新有變動的那一列，不重畫整個清單，畫面才不會亂跳
 function syncList(parent, rows, keyOf, make, update) {
   const old = new Map([...parent.children].map(el => [el.dataset.key, el]));
   let cursor = parent.firstElementChild;
@@ -309,115 +293,311 @@ function syncList(parent, rows, keyOf, make, update) {
 
 /* ---------- state ---------- */
 let today = ymd(new Date());
-let store = STORES.some(s => s.id === LS.get('sl.store')) ? LS.get('sl.store') : 'mv';
-let tab = ['daily','next','cash'].includes(LS.get('sl.tab')) ? LS.get('sl.tab') : 'daily';
 let viewDate = today;
-let editing = false;
+let calMonth = today.slice(0,7);
+let curStore = LS.get('sl.cur') || 'mv';
 let staff = [];
 let name = (() => { const s = LS.get('sl.name'); return s && s.date === today ? s.name : ''; })();
-let dueTarget = 'tomorrow';
-let pendingPhoto = '';
 let dbError = '';
-
+let storeCfg = {};
+let connected = false;
 const data = {};
-STORES.forEach(s => { data[s.id] = { board:null, cash:null, checks:{}, subs:{} }; });
+let _D = null;      // 主系統資料（每日記帳只讀目前看的月份）
+let mainFailed = '';
+let mainIdx = {};
+const shardHash = {};
 
+function stores() {
+  const custom = Object.entries(storeCfg).filter(([,v]) => !v.hidden && v.name)
+    .sort((a,b) => (a[1].order||0)-(b[1].order||0)).map(([id,v]) => ({id,name:v.name}));
+  return [...Object.entries(LINKED).map(([id,n]) => ({id,name:n})),...custom];
+}
+const storeName = id => (stores().find(s => s.id === id) || {}).name || id;
+const isLinked = id => id in LINKED;
 const refOf = {
-  board: s => doc(db,'myListApp',`store_${s}_board`),
-  cash: s => doc(db,'myListApp',`store_${s}_cash`),
-  checks: (s,d) => doc(db,'myListApp',`store_${s}_checks_${d}`)
+  board: s => fs.doc(db,'myListApp',`store_${s}_board`),
+  cash: s => fs.doc(db,'myListApp',`store_${s}_cash`),
+  checks: (s,d) => fs.doc(db,'myListApp',`store_${s}_checks_${d}`),
+  cfg: () => fs.doc(db,'myListApp','store_config'),
+  main: () => fs.doc(db,'chic lash','data')
 };
-
 function showDbError(e) {
   console.error(e);
   dbError = e && e.code === 'permission-denied'
-    ? '資料庫拒絕存取，需要在 Firebase 規則開放 myListApp。Database access was denied.'
-    : '無法連線到資料庫，請檢查 WiFi。Can\'t reach the database. Check WiFi.';
+    ? '資料庫拒絕存取，需要在 Firebase 規則開放 myListApp。'
+    : '連不上資料庫，請檢查 WiFi 後重新整理。';
   renderBanner();
 }
-function write(p) { return p.catch(e => { showDbError(e); throw e; }); }
+const write = p => p.catch(e => { showDbError(e); throw e; });
 function renderBanner() {
-  const offline = navigator.onLine === false;
-  const msg = dbError || (offline ? '目前離線，連上網路後才會同步。You\'re offline. Changes sync when you reconnect.' : '');
+  const msg = dbError || (navigator.onLine === false ? '目前離線，連上網路後才會同步。' : '');
   setText($('banner'),msg);
   $('banner').hidden = !msg;
 }
-addEventListener('online', () => { dbError = ''; renderBanner(); });
+addEventListener('online', () => { dbError = fs ? '' : dbError; renderBanner(); });
 addEventListener('offline', renderBanner);
+function needDb() {
+  if (fs) return true;
+  toast('還沒連上資料庫，這筆沒有存');
+  return false;
+}
+
+/* ---------- 主系統現金櫃算法：以下函式直接取自 chiclash.html，確保數字和現金櫃頁一致 ---------- */
+const gv = v => v!==''&&v!==undefined&&v!==null?parseFloat(v)||0:0;
+function r2(n){return Math.round((n||0)*100)/100;}
+const fmtDate = ymd;
+function cdData(){return (_D&&_D.cd)||[];}
+function defaultTipNames(){return [];} // 小費不進帳面應有，這裡不需要名單
+window._gcFbAll = [];
+function applyGcPayOverrides(){
+  var ov=(_D&&_D.gcPayOverride)||{};
+  (window._gcFbAll||[]).forEach(function(g){
+    if(g._origPay===undefined)g._origPay=g.payMethod||'';
+    g.payMethod=(g.code&&ov[g.code])?ov[g.code]:g._origPay;
+  });
+}
+function cdAddDays(dateStr,n){var d=new Date(dateStr+'T12:00:00');d.setDate(d.getDate()+n);return fmtDate(d);}
+function cdDupInIds(store){
+  // 櫃台把「客人付的現金」手動記成「放入」：這些錢每日記帳已經算了，不能再加一次。
+  // 判斷：①同一天、金額跟某位客人付的現金一樣，或 ②備註裡有那天客人的名字／技師名字 → 視為營業現金（不加）
+  // 其他的放入（例如老闆補零錢、放備用金）才會加進帳面。
+  var ids={}, byDate={}, info={};
+  var staffAll=(_D.staff||[]).map(function(n){return String(n).toLowerCase();});
+  cdData().forEach(function(e){ if(e.store===store&&e.type==='in')(byDate[e.date]=byDate[e.date]||[]).push(e); });
+  Object.keys(byDate).forEach(function(date){
+    var mo=date.slice(0,7), d=String(parseInt(date.slice(8,10),10));
+    var cands=[], names=[];
+    ['mv','sr'].forEach(function(st){
+      var day=_D[st]&&_D[st][mo]&&_D[st][mo][d];
+      (day&&Array.isArray(day.clients)?day.clients:[]).forEach(function(c){
+        if(c.clientName)names.push({n:String(c.clientName).toLowerCase().split('(')[0].trim(),c:c});
+        if(st!==store)return;
+        var cash=0;
+        if(c.pay==='gc'){ if(c.topupPay==='cash')cash+=gv(c.topup); }
+        else if(c.cp){ if(c.cpTopupPay==='cash')cash+=gv(c.cpTopup); }
+        else if(c.pay==='cash')cash+=gv(c.svc);
+        if(cash>0)cands.push({amt:r2(cash),used:false});
+      });
+    });
+    ((_D.products&&_D.products[mo])||[]).forEach(function(p){ var b=p.store?(p.store===store):(store==='mv'); if(b&&p.date===date&&p.pay==='cash'&&gv(p.amt)>0)cands.push({amt:r2(gv(p.amt)),used:false}); });
+    (_D.gc_cards||[]).forEach(function(g){ if(g.store===store&&g.date===date&&g.pay==='cash')cands.push({amt:r2(g.amt||0),used:false}); });
+    (window._gcFbAll||[]).forEach(function(g){ if(g.store===store&&g.date===date&&g.payMethod==='cash')cands.push({amt:r2((g.amount||0)+gv(g.tip)),used:false}); });
+    byDate[date].forEach(function(e){
+      var c=cands.find(function(x){return !x.used&&Math.abs(x.amt-e.amt)<0.005;});
+      if(c){c.used=true;ids[e.id]=true;info[e.id]='match';return;}
+      var note=String(e.note||'').toLowerCase();
+      var hitClient=names.find(function(x){return x.n&&x.n.length>=3&&note.indexOf(x.n)>=0;});
+      var hitStaff=staffAll.some(function(n){return n&&note.indexOf(n)>=0;});
+      if(hitClient||hitStaff){
+        ids[e.id]=true;
+        var cl=hitClient&&hitClient.c;
+        info[e.id]=cl?(cl.pay==='cash'?'記帳現金是 $'+gv(cl.svc).toFixed(2)+'，金額不同':(cl.pay==='gc'?'記帳是禮品卡':(cl.cp?'記帳是 ClassPass':'記帳是'+(cl.pay==='venmo'?' Venmo':'刷卡')))):'記帳找不到這筆現金';
+      }
+    });
+  });
+  return {ids:ids,info:info};
+}
+function cdHHMM(t){ // '3:12 PM' / '15:12' / '15:12:00' → '15:12'
+  var m=String(t||'').match(/(\d{1,2}):(\d{2})\s*([AaPp][Mm])?/); if(!m)return '';
+  var h=parseInt(m[1],10); if(m[3]){ if(/p/i.test(m[3])&&h<12)h+=12; if(/a/i.test(m[3])&&h===12)h=0; }
+  return String(h).padStart(2,'0')+':'+m[2];
+}
+function cdEntryTime(e){ // 用紀錄建立的時間當成發生時間（當天輸入的才準）；不知道就回傳空
+  if(e&&e.time&&/^\d{2}:\d{2}$/.test(e.time))return e.time; // 手動填的時間最優先
+  var id=e.id||e.at||0; if(!(id>1e12&&id<9e14))return '';
+  var d=new Date(id); if(fmtDate(d)!==e.date)return '';
+  return String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0');
+}
+function cdSalesItems(store,date){ // 這天每一筆進保險箱的現金（含時間）
+  var mo=date.slice(0,7), d=String(parseInt(date.slice(8,10),10)), out=[];
+  var day=_D[store]&&_D[store][mo]&&_D[store][mo][d];
+  var clients=(day&&Array.isArray(day.clients))?day.clients:[];
+  var st=(_D.tipSplitState&&_D.tipSplitState[mo]&&_D.tipSplitState[mo][d])||{};
+  clients.forEach(function(c,ci){
+    // 要平分的現金小費（同一筆分給 2 人以上）：先放保險箱，月底再發 → 算進保險箱，但不是營業額；自己拿的現金小費不算
+    var tip=gv(c.tip);
+    if(tip>0&&(c.tipPay||'card')==='cash'){
+      var nm=st[store+'_'+ci]; if(!nm||!nm.length)nm=defaultTipNames(c,date);
+      nm=nm.filter(function(n,i){return nm.indexOf(n)===i;});
+      if(nm.length>1)out.push({t:cdHHMM(c.time)||'00:00',amt:r2(tip),tip:true,label:(c.clientName||'')+'（'+nm.join('、')+' 平分）'});
+    }
+    var cash=0;
+    if(c.pay==='gc'){ if(c.topupPay==='cash')cash+=gv(c.topup); }
+    else if(c.cp){ if(c.cpTopupPay==='cash')cash+=gv(c.cpTopup); }
+    else if(c.pay==='cash')cash+=gv(c.svc);
+    if(cash>0)out.push({t:cdHHMM(c.time)||'00:00',amt:r2(cash),label:(c.clientName||'')+(c.tech?'（'+c.tech+'）':'')+(c.pay==='gc'?' 禮品卡補差額':(c.cp?' ClassPass加購':''))});
+  });
+  ((_D.products&&_D.products[mo])||[]).forEach(function(p){ var b=p.store?(p.store===store):(store==='mv'); if(b&&p.date===date&&p.pay==='cash'&&gv(p.amt)>0)out.push({t:'00:00',amt:r2(gv(p.amt)),label:'產品 '+(p.name||'')}); });
+  (_D.gc_cards||[]).forEach(function(g){ if(g.store===store&&g.date===date&&g.pay==='cash')out.push({t:'00:00',amt:r2(g.amt||0),label:'禮品卡 '+(g.code||'')}); });
+  (window._gcFbAll||[]).forEach(function(g){ if(g.store===store&&g.date===date&&g.payMethod==='cash')out.push({t:cdHHMM(g.time)||'00:00',amt:r2((g.amount||0)+gv(g.tip)),label:'禮品卡(iPad) '+(g.code||'')+(gv(g.tip)>0?'（含小費 $'+gv(g.tip).toFixed(2)+'）':'')}); });
+  if(!clients.length&&day&&day.sqCash)out.push({t:'00:00',amt:r2(gv(day.sqCash))});
+  return out;
+}
+function cdCompute(store,uptoDate,fromDate){
+  var base=[], countDates={};
+  cdData().forEach(function(e){ if(e.store===store&&e.type==='count'){ countDates[e.date]=1; base.push({date:e.date,t:cdEntryTime(e)||'23:59',amt:e.amt,id:e.id||0,kind:'count'}); } });
+  Object.keys(_D.cdManual||{}).forEach(function(mo){
+    var v=_D.cdManual[mo]&&_D.cdManual[mo][store]; if(v===undefined||v===null)return;
+    var amt=(typeof v==='object')?v.amt:v;
+    if(amt===null||amt===undefined||isNaN(parseFloat(amt)))return;
+    // 「月初保險箱的錢」＝那個月 1 號一開始的金額（不管是哪天才輸入的）
+    base.push({date:mo+'-01',t:'',amt:parseFloat(amt),id:0,kind:'manual'}); // t 空白＝排在 1 號所有事情之前
+  });
+  var key=function(x){return x.date+' '+x.t;};
+  base.sort(function(a,b){return key(a)<key(b)?-1:key(a)>key(b)?1:a.id-b.id;});
+  var usable=base.filter(function(b){return b.date<=uptoDate;});
+  if(!usable.length)return null;
+  var start=null;
+  if(fromDate){
+    // 起點：上個月（31 天內）最後一次「實際點鈔」→ 這樣月初第一次點鈔也能比對；
+    // 沒有的話（例如之前很久沒點鈔、只有手動餘額）→ 用這個月第一次點鈔／手動餘額當起點，避免拿不完整的舊資料一路累加
+    var winStart=cdAddDays(fromDate,-31);
+    // 每個月分開算，不跟上個月混在一起：
+    // 起點＝這個月的「月初保險箱的錢」；沒填的話＝這個月第一次點鈔；這個月都還沒有 → 沒辦法算（請填月初的錢）
+    var monthManual=usable.find(function(b){return b.kind==='manual'&&b.date===fromDate;});
+    start=monthManual||usable.find(function(b){return b.date>=fromDate;})||null;
+    if(!start)return null;
+  }
+  if(!start)start=usable[0];
+  var dup=cdDupInIds(store).ids;
+  var flows=cdData().filter(function(e){return e.store===store&&(e.type==='out'||e.type==='expense'||(e.type==='in'&&!dup[e.id]));});
+  var ev=[];
+  for(var day=start.date;day<=uptoDate;day=cdAddDays(day,1)){
+    cdSalesItems(store,day).forEach(function(x){ if(x.tip)return; ev.push({date:day,t:x.t,o:0,kind:'sale',amt:x.amt}); }); // 小費另外算，不進保險箱帳面
+  }
+  flows.forEach(function(f){ if(f.date<start.date||f.date>uptoDate)return; ev.push({date:f.date,t:cdEntryTime(f)||'12:00',o:1,kind:f.type,amt:f.amt,id:f.id||0}); });
+  base.forEach(function(b){ if(b===start||b.date<start.date||b.date>uptoDate)return; ev.push({date:b.date,t:b.t,o:2,kind:'base',b:b,id:b.id}); });
+  // 只算起點「之後」發生的事（同一天、時間比起點早的不算）
+  ev=ev.filter(function(x){ var kx=key(x), ks=key(start); return kx>ks||(kx===ks&&x.o===2&&(x.id||0)>start.id); });
+  ev.sort(function(a,b){ var ka=key(a),kb=key(b); if(ka!==kb)return ka<kb?-1:1; if(a.o!==b.o)return a.o-b.o; return (a.id||0)-(b.id||0); });
+  var running=start.amt, since={sales:0,in:0,out:0,exp:0,tip:0,tipout:0}, results=[], lastBase=start, atFrom;
+  ev.forEach(function(x){
+    if(fromDate&&atFrom===undefined&&x.date>=fromDate)atFrom=r2(running); // 月初（fromDate 那天開始前）的帳面
+    if(x.kind==='sale'){running+=x.amt;since.sales+=x.amt;}
+    else if(x.kind==='tip'){running+=x.amt;since.tip+=x.amt;}
+    else if(x.kind==='tipout'){running-=x.amt;since.tipout+=x.amt;}
+    else if(x.kind==='in'){running+=x.amt;since.in+=x.amt;}
+    else if(x.kind==='out'){running-=x.amt;since.out+=x.amt;}
+    else if(x.kind==='expense'){running-=x.amt;since.exp+=x.amt;}
+    else if(x.kind==='base'){
+      var exp=r2(running);
+      var ent=x.b.kind==='count'?cdData().find(function(e){return e.id===x.b.id;}):null;
+      results.push({id:x.b.id,reason:(ent&&ent.reason)||'',date:x.b.date,kind:x.b.kind,counted:r2(x.b.amt),expected:exp,diff:r2(x.b.amt-exp),from:lastBase,since:{sales:r2(since.sales),in:r2(since.in),out:r2(since.out),exp:r2(since.exp)}});
+      running=x.b.amt; lastBase=x.b; since={sales:0,in:0,out:0,exp:0,tip:0,tipout:0};
+    }
+  });
+  if(atFrom===undefined)atFrom=r2(running);
+  return {atFrom:atFrom,start:start,now:r2(running),last:lastBase,since:{sales:r2(since.sales),in:r2(since.in),out:r2(since.out),exp:r2(since.exp),tip:r2(since.tip),tipout:r2(since.tipout)},checks:results};
+}
 
 /* ---------- live data ---------- */
-function watchChecks(s,d) {
-  const box = data[s];
-  if (box.subs[d]) return;
-  box.subs[d] = onSnapshot(refOf.checks(s,d), snap => {
-    box.checks[d] = snap.exists() ? (snap.data().items || {}) : {};
+function ensureStore(id) {
+  if (!data[id]) data[id] = {board:null,checks:{},subs:{},cash:{},live:false};
+  if (!fs || data[id].live) return;
+  data[id].live = true;
+  fs.onSnapshot(refOf.board(id), snap => {
+    connected = true;
+    data[id].board = snap.exists() ? snap.data() : {};
+    render();
+  }, showDbError);
+  if (!isLinked(id)) fs.onSnapshot(refOf.cash(id), snap => {
+    data[id].cash = snap.exists() ? snap.data() : {};
     render();
   }, showDbError);
 }
-function dropOldWatches() {
-  STORES.forEach(({id}) => {
+function watchChecks(s,d) {
+  const box = data[s];
+  if (box.subs[d]) return;
+  box.subs[d] = fs.onSnapshot(refOf.checks(s,d), snap => {
+    box.checks[d] = snap.exists() ? (snap.data().items||{}) : {};
+    render();
+  }, showDbError);
+}
+function watchDates() {
+  stores().forEach(({id}) => ensureStore(id));
+  if (!fs) return;
+  stores().forEach(({id}) => {
     const box = data[id];
+    watchChecks(id,today);
+    if (viewDate <= today) watchChecks(id,viewDate);
     Object.keys(box.subs).forEach(d => {
       if (d !== today && d !== viewDate) { box.subs[d](); delete box.subs[d]; delete box.checks[d]; }
     });
   });
 }
-function watchDates() {
-  STORES.forEach(({id}) => { watchChecks(id,today); watchChecks(id,viewDate); });
-  dropOldWatches();
-}
-
-const pruned = {};
-function pruneTasks(s,tasks) {
-  if (pruned[s]) return;
-  pruned[s] = true;
-  const cutoff = Date.now() - 14*864e5;
-  const gone = {};
-  Object.entries(tasks).forEach(([id,t]) => {
-    if (t.done && t.doneAt && new Date(t.doneAt).getTime() < cutoff) gone[id] = deleteField();
-  });
-  if (Object.keys(gone).length) write(setDoc(refOf.board(s),{tasks:gone},{merge:true})).catch(()=>{});
-}
-STORES.forEach(({id}) => {
-  onSnapshot(refOf.board(id), snap => {
-    data[id].board = snap.exists() ? snap.data() : {};
-    pruneTasks(id, data[id].board.tasks || {});
+function startLive() {
+  fs.onSnapshot(refOf.cfg(), snap => {
+    storeCfg = snap.exists() ? (snap.data().stores||{}) : {};
+    watchDates();
     render();
   }, showDbError);
-  onSnapshot(refOf.cash(id), snap => {
-    data[id].cash = snap.exists() ? snap.data() : {};
+  watchDates();
+  // 主系統：員工和現金櫃都在主檔；每日記帳一個月一份，只讀看的那個月
+  fs.onSnapshot(refOf.main(), snap => {
+    try {
+      if (!snap.exists()) { mainFailed = 'none'; render(); return; }
+      const raw = snap.data();
+      const main = raw._fmt === 2 ? JSON.parse(raw._json||'{}') : raw;
+      mainIdx = raw._shards || {};
+      const prev = _D || {};
+      if (raw._fmt === 2) { main.mv = prev.mv||{}; main.sr = prev.sr||{}; }
+      _D = main;
+      mainFailed = '';
+      const rawStaff = (main.staff && main.staff.length) ? main.staff : Object.keys(main.staffPay||{});
+      const left = main.staffLeft||{}, mo = today.slice(0,7);
+      staff = [...new Set(rawStaff.map(n => typeof n === 'string' ? n : (n&&n.name)||'').filter(n => n && n !== 'undefined' && !(left[n] && String(left[n]).slice(0,7) < mo)))].sort();
+      applyGcPayOverrides();
+      loadShards();
+      render();
+    } catch (e) { console.warn('main data',e); mainFailed = 'error'; render(); }
+  }, e => { console.warn('main data',e); mainFailed = 'error'; render(); });
+  fs.onSnapshot(fs.collection(db,'gift_certificates'), snap => {
+    window._gcFbAll = snap.docs.map(d => ({id:d.id,...d.data()}))
+      .filter(g => g.type==='gift_certificate' && g.store && g.issuedAt)
+      .map(g => ({
+        id:g.id, store:g.store, amount:g.amount||0,
+        tip:Math.round((parseFloat(g.tip)||0)*100)/100,
+        payMethod:g.payMethod||'',
+        date:(function(v){var t=String(v||'');if(/^\d{4}-\d{2}-\d{2}$/.test(t)||t.indexOf('T')<0)return t.slice(0,10);var dd=new Date(t);return isNaN(dd.getTime())?t.slice(0,10):dd.toLocaleDateString('en-CA',{timeZone:'America/Los_Angeles'});})(g.issuedAt),
+        code:g.code||'', giftFor:g.giftFor||'',
+        time:(function(v){var t=String(v||'');if(t.indexOf('T')<0)return '';var dd=new Date(t);return isNaN(dd.getTime())?'':dd.toLocaleTimeString('en-US',{timeZone:'America/Los_Angeles',hour:'numeric',minute:'2-digit'});})(g.issuedAt)
+      }));
+    applyGcPayOverrides();
     render();
-  }, showDbError);
-});
-watchDates();
-
-(async function loadStaff() {
-  try {
-    const snap = await getDoc(doc(db,'chic lash','data'));
-    if (snap.exists()) {
-      const raw0 = snap.data();
-      // 主系統現在把資料打包成 _json 字串（_fmt:2），舊格式才是直接放在欄位裡
-      const d = raw0._fmt === 2 ? JSON.parse(raw0._json || '{}') : raw0;
-      const raw = (d.staff && d.staff.length) ? d.staff : Object.keys(d.staffPay || {});
-      const left = d.staffLeft || {};
-      const mo = today.slice(0,7);
-      staff = [...new Set(raw.map(n => typeof n === 'string' ? n : (n && n.name) || '').filter(n => n && n !== 'undefined' && !(left[n] && String(left[n]).slice(0,7) < mo)))].sort();
-    }
-  } catch (e) { console.warn('staff list', e); }
-  renderAssign();
-  renderNames();
-})();
+  }, e => console.warn('gift certificates',e));
+  setTimeout(() => { if (!connected && !dbError) { dbError = '連不上資料庫，請檢查 WiFi 後重新整理。'; renderBanner(); } }, 10000);
+}
+async function loadShards() {
+  if (!fs || !_D || !Object.keys(mainIdx).length) return;
+  const mo = viewDate.slice(0,7);
+  let changed = false;
+  await Promise.all(Object.keys(LINKED).map(async s => {
+    const id = `m_${s}_${mo}`;
+    const h = mainIdx[id];
+    if (!h) return;
+    if (shardHash[id] === h && _D[s]?.[mo]) return;
+    try {
+      const sn = await fs.getDoc(fs.doc(db,'chic lash',id));
+      if (sn.exists()) {
+        if (!_D[s]) _D[s] = {};
+        _D[s][mo] = JSON.parse(sn.data().v);
+        shardHash[id] = h;
+        changed = true;
+      }
+    } catch (e) { console.warn('shard',id,e); }
+  }));
+  if (changed) render();
+}
 
 /* ---------- who ---------- */
 function setName(n) {
   name = n;
   if (n) LS.set('sl.name',{name:n,date:today}); else LS.del('sl.name');
-  const w = $('who');
-  setText(w, n || '選名字');
-  w.classList.toggle('empty',!n);
+  setText($('who'), n || '選名字');
+  $('who').classList.toggle('empty',!n);
 }
 let nameResolve = null;
-function renderNames() {
+function openNames() {
   const box = $('names');
   box.replaceChildren(...staff.map(n => {
     const b = document.createElement('button');
@@ -427,9 +607,6 @@ function renderNames() {
     return b;
   }));
   box.hidden = !staff.length;
-}
-function openNames() {
-  renderNames();
   $('otherName').value = '';
   if (!$('nameDlg').open) $('nameDlg').showModal();
   return new Promise(res => { nameResolve = res; });
@@ -437,16 +614,15 @@ function openNames() {
 function closeNames(n) {
   if (n) setName(n);
   if ($('nameDlg').open) $('nameDlg').close();
-  if (nameResolve) { nameResolve(n || ''); nameResolve = null; }
+  if (nameResolve) { nameResolve(n||''); nameResolve = null; }
 }
 const needName = async () => name || await openNames();
 $('who').onclick = () => openNames();
 $('nameCancel').onclick = () => closeNames('');
 $('nameDlg').addEventListener('cancel', e => { e.preventDefault(); closeNames(''); });
 $('otherUse').onclick = () => { const v = $('otherName').value.trim(); if (v) closeNames(v); };
-$('otherName').addEventListener('keydown', e => { if (e.key === 'Enter') $('otherUse').click(); });
-
-function confirmDelete(text) {
+enterKey($('otherName'),() => $('otherUse').click());
+function confirmIt(text) {
   $('confirmText').textContent = text;
   $('confirmDlg').showModal();
   return new Promise(res => {
@@ -460,501 +636,599 @@ function toast(msg) {
   const t = $('toast');
   t.textContent = msg; t.hidden = false;
   clearTimeout(toastTimer);
-  toastTimer = setTimeout(() => { t.hidden = true; }, 2200);
+  toastTimer = setTimeout(() => { t.hidden = true; }, 2600);
 }
 
 /* ---------- derived ---------- */
-const board = s => data[s].board || {};
-const templateOf = s => Object.entries(board(s).template || {})
+const board = s => data[s]?.board || {};
+const templateOf = s => Object.entries(board(s).template||{})
   .map(([id,v]) => ({id,...v}))
   .sort((a,b) => (a.order||0)-(b.order||0) || a.id.localeCompare(b.id));
 function dailyRows(s,d) {
-  const checks = data[s].checks[d] || {};
-  const tpl = templateOf(s).filter(t => d === today || !t.created || t.created <= d);
+  const checks = data[s]?.checks[d] || {};
+  const tpl = templateOf(s).filter(t => d >= today || !t.created || t.created <= d);
   const ids = new Set(tpl.map(t => t.id));
-  const removed = Object.entries(checks).filter(([id]) => !ids.has(id))
-    .map(([id,c]) => ({id,text:c.text,order:1e15}));
+  const removed = Object.entries(checks).filter(([id]) => !ids.has(id)).map(([id,c]) => ({id,text:c.text,order:1e15}));
   return [...tpl,...removed].map(t => ({...t,check:checks[t.id]||null}));
 }
-const taskList = s => Object.entries(board(s).tasks || {})
+const allTasks = s => Object.entries(board(s).tasks||{})
   .map(([id,v]) => ({id,...v}))
   .sort((a,b) => String(a.createdAt).localeCompare(String(b.createdAt)) || a.id.localeCompare(b.id));
-const todayTasks = s => taskList(s).filter(t => t.due <= today && (!t.done || (t.doneAt && ymd(new Date(t.doneAt)) === today)));
-const tomorrowTasks = s => taskList(s).filter(t => t.due > today);
-function leftCount(s) {
-  const daily = dailyRows(s,today).filter(r => !r.check).length;
-  return daily + todayTasks(s).filter(t => !t.done).length;
+function dayTasks(s,d) {
+  return allTasks(s).filter(t => {
+    const doneDay = t.done && t.doneAt ? ymd(new Date(t.doneAt)) : '';
+    if (d === today) return t.due === today || (t.due < today && (!t.done || doneDay === today));
+    if (d < today) return t.due === d || doneDay === d;
+    return t.due === d;
+  });
+}
+function countsFor(s,d) {
+  if (isLinked(s)) return cdData().filter(e => e.store === s && e.type === 'count' && e.date === d)
+    .slice().sort((a,b) => (a.time||'').localeCompare(b.time||''));
+  return Object.entries(data[s]?.cash||{}).map(([k,v]) => ({...v,id:v.id||k}))
+    .filter(e => e.date === d).sort((a,b) => (a.time||'').localeCompare(b.time||''));
+}
+function bookFor(s,d) { // 帳面應有；這個月沒有起點時回傳 null，還在讀取時回傳 undefined
+  if (!isLinked(s) || !_D) return undefined;
+  const mo = d.slice(0,7);
+  if (!_D[s]?.[mo] && mainIdx[`m_${s}_${mo}`]) return undefined;
+  try { return cdCompute(s,d,mo+'-01'); } catch (e) { console.warn(e); return undefined; }
 }
 
-/* ---------- date bars ---------- */
-function makeDateBar(host) {
-  const prev = document.createElement('button'); prev.textContent = '‹'; prev.setAttribute('aria-label','前一天 Previous day');
-  const label = document.createElement('div'); label.className = 'd';
-  const next = document.createElement('button'); next.textContent = '›'; next.setAttribute('aria-label','後一天 Next day');
-  prev.onclick = () => goDate(addDays(viewDate,-1));
-  next.onclick = () => goDate(addDays(viewDate,1));
-  host.append(prev,label,next);
-  return {label,next};
+/* ---------- date ---------- */
+function markedDays() {
+  const marked = new Set();
+  stores().forEach(({id}) => allTasks(id).forEach(t => marked.add(t.due)));
+  return marked;
 }
-const bars = [makeDateBar($('dailyDate')),makeDateBar($('cashDate'))];
+function renderWeek() {
+  const host = $('week');
+  if (!host.children.length) for (let i = 0; i < 7; i++) {
+    const b = document.createElement('button');
+    b.className = 'day';
+    b.innerHTML = '<span class="w"></span><span class="n"></span>';
+    b.onclick = () => goDate(b.dataset.d);
+    host.append(b);
+  }
+  const marked = markedDays();
+  const v = parseDay(viewDate);
+  const start = new Date(v.getFullYear(),v.getMonth(),v.getDate()-v.getDay());
+  [...host.children].forEach((b,i) => {
+    const d = new Date(start); d.setDate(start.getDate()+i);
+    const s = ymd(d);
+    b.dataset.d = s;
+    setText(b.querySelector('.w'),WEEK[i]);
+    setText(b.querySelector('.n'),String(d.getDate()));
+    b.className = 'day' + (s===today?' today':'') + (s===viewDate?' sel':'') + (marked.has(s)?' dot':'');
+    b.setAttribute('aria-label',s);
+  });
+}
+function renderCal() {
+  const [y,m] = calMonth.split('-').map(Number);
+  setText($('calTitle'),`${y} 年 ${m} 月`);
+  const start = new Date(y,m-1,1-new Date(y,m-1,1).getDay());
+  const marked = markedDays();
+  const cal = $('cal');
+  if (!cal.children.length) {
+    WEEK.forEach(w => { const d = document.createElement('div'); d.className = 'wd'; d.textContent = w; cal.append(d); });
+    for (let i = 0; i < 42; i++) {
+      const b = document.createElement('button');
+      b.onclick = () => { goDate(b.dataset.d); toggleCal(false); };
+      cal.append(b);
+    }
+  }
+  [...cal.querySelectorAll('button')].forEach((b,i) => {
+    const d = new Date(start); d.setDate(start.getDate()+i);
+    const s = ymd(d);
+    b.dataset.d = s;
+    setText(b,String(d.getDate()));
+    b.className = (d.getMonth()!==m-1?'off ':'') + (s===today?'today ':'') + (s===viewDate?'sel ':'') + (marked.has(s)?'dot':'');
+    b.setAttribute('aria-label',s);
+  });
+}
 function goDate(d) {
-  if (d > today) return;
   viewDate = d;
+  calMonth = d.slice(0,7);
   watchDates();
+  loadShards();
   render();
 }
-function renderDateBars() {
-  const d = parseDay(viewDate);
-  const t = `${d.getMonth()+1}/${d.getDate()}（${WEEK[d.getDay()]}）` + (viewDate === today ? ' 今天 Today' : '');
-  bars.forEach(b => { setText(b.label,t); b.next.disabled = viewDate >= today; });
+function toggleCal(open) {
+  $('calpop').hidden = !open;
+  $('dateBtn').setAttribute('aria-expanded',String(open));
+  if (open) { calMonth = viewDate.slice(0,7); renderCal(); }
 }
+$('dayPrev').onclick = () => goDate(addDays(viewDate,-7));
+$('dayNext').onclick = () => goDate(addDays(viewDate,7));
+$('goToday').onclick = () => goDate(today);
+$('dateBtn').onclick = e => { e.stopPropagation(); toggleCal($('calpop').hidden); };
+document.addEventListener('click', e => { if (!$('calpop').hidden && !e.target.closest('#calpop')) toggleCal(false); });
+const shiftMonth = n => { const [y,m] = calMonth.split('-').map(Number); calMonth = ymd(new Date(y,m-1+n,1)).slice(0,7); renderCal(); };
+$('calPrev').onclick = () => shiftMonth(-1);
+$('calNext').onclick = () => shiftMonth(1);
 
-/* ---------- daily ---------- */
+/* ---------- store parts ---------- */
+const parts = {};
+function makePart(id) {
+  const el = document.createElement('section');
+  el.className = 'part';
+  el.dataset.store = id;
+  el.innerHTML = `
+    <div class="part-head"><h2></h2><small class="left"></small><button class="x p-remove" aria-label="移除這間店" hidden>×</button></div>
+    <section class="sec">
+      <h3><span class="num">1</span>當日事項<small class="tcount"></small></h3>
+      <div class="panel">
+      <div class="add q-task">
+        <input class="field i-task" placeholder="新增事項" maxlength="300" autocomplete="off" aria-label="新增當日事項">
+        <select class="i-who" aria-label="指派給"></select>
+        <button class="plus b-task">新增</button>
+      </div>
+      <div class="list tasks"></div>
+      <div class="none n-task" hidden>這天沒有事項</div>
+      </div>
+    </section>
+    <section class="sec">
+      <h3><span class="num">2</span>每日固定<small class="dcount"></small></h3>
+      <div class="panel">
+      <div class="add q-daily">
+        <input class="field i-daily" placeholder="新增每天都要做的事" maxlength="120" autocomplete="off" aria-label="新增每日固定項目">
+        <button class="plus b-daily">新增</button>
+      </div>
+      <div class="list daily"></div>
+      <button class="link c-tpl" hidden>編輯項目</button>
+      </div>
+    </section>
+    <section class="sec">
+      <h3><span class="num">3</span>點鈔：數清楚後按「存入記錄」</h3>
+      <div class="panel">
+      <div class="c-future none" hidden>當天才能點鈔</div>
+      <div class="c-form">
+        <div class="when"><span class="w-text"></span><small class="w-sub"></small></div>
+        <input class="field c-time" type="time" aria-label="點鈔時間" hidden style="margin-bottom:10px">
+        <div class="dens"></div>
+        <div class="totalrow"><div class="total"><small>合計</small><span class="c-total">$0.00</span></div><button class="btn c-save">存入記錄</button></div>
+        <div class="cmp" hidden><div><span>帳面應有</span><span class="c-exp"></span></div><div class="c-diffrow"><span>差額</span><span class="c-diff"></span></div></div>
+        <input class="field c-reason" placeholder="差額原因（選填）" maxlength="200" autocomplete="off" aria-label="差額原因" style="margin-top:8px" hidden>
+        <div class="hint c-hint"></div>
+      </div>
+      <div class="list counts"></div>
+      </div>
+    </section>`;
+  const dens = el.querySelector('.dens');
+  CD_DENOMS.forEach(v => {
+    const d = document.createElement('div');
+    d.className = 'den';
+    d.innerHTML = `<label for="den-${id}-${v}">$${v}</label><input id="den-${id}-${v}" data-den="${v}" inputmode="numeric" maxlength="5" autocomplete="off" placeholder="0">`;
+    dens.append(d);
+  });
+  enterKey(el.querySelector('.i-task'),() => addTask(id));
+  enterKey(el.querySelector('.i-daily'),() => addDaily(id));
+  $('parts').append(el);
+  parts[id] = {el,draftKey:'',draft:null};
+  return parts[id];
+}
 function makeRow() {
   const el = document.createElement('div');
   el.className = 'row';
-  el.innerHTML = '<button class="check"></button><div class="body"><div class="t"></div><div class="m"></div></div>';
+  el.innerHTML = '<button class="check"></button><div class="body"><div class="t"></div><div class="m" hidden></div></div><button class="x" aria-label="刪除" hidden>×</button>';
   return el;
 }
-function renderDaily() {
-  const rows = dailyRows(store,viewDate);
-  const loaded = data[store].board && data[store].checks[viewDate];
-  const ro = viewDate !== today;
-  $('dailyView').hidden = editing;
-  $('tplView').hidden = !editing;
-  setText($('dailyTitle'), `${storeName(store)} 固定項目`);
-  setText($('dailyCount'), rows.length ? `${rows.filter(r=>r.check).length} / ${rows.length} 完成` : '');
-  syncList($('dailyList'), rows, r => r.id, makeRow, (el,r) => {
-    el.classList.toggle('done',!!r.check);
-    el.classList.toggle('readonly',ro);
-    const b = el.querySelector('.check');
-    b.disabled = ro;
-    b.setAttribute('aria-pressed',String(!!r.check));
-    b.setAttribute('aria-label',r.text);
-    setText(el.querySelector('.t'),r.text||'');
-    const m = el.querySelector('.m');
-    setText(m, r.check ? `${r.check.by}  ${clock(r.check.at)}` : '');
-    m.hidden = !r.check;
-  });
-  const empty = $('dailyEmpty');
-  empty.hidden = rows.length > 0;
-  setText(empty, !loaded ? '載入中… Loading…' : ro ? '這天沒有紀錄 No record for this day' : '還沒有每日項目，請在上方新增 No daily items yet. Add the first one above.');
-  $('editTpl').hidden = ro;
-  $('dailyAdd').hidden = ro;
-  if (editing) renderTemplate();
+function taskMeta(t,d) {
+  const parts = [];
+  if (t.time) parts.push(hhmmLabel(t.time));
+  if (t.assignee) parts.push(`給 ${t.assignee}`);
+  if (t.done) parts.push(`${t.doneBy||''} 完成 ${clock(t.doneAt)}`.trim());
+  else if (t.due < d) parts.push(`${shortDay(t.due)} 留下來的`);
+  else if (t.by) parts.push(`${t.by} ${shortDay(String(ymd(new Date(t.createdAt))))} ${clock(t.createdAt)} 新增`);
+  return parts.join('，');
 }
-function renderTemplate() {
-  const tpl = templateOf(store);
-  setText($('tplTitle'), `編輯 ${storeName(store)} 每日項目`);
-  syncList($('tplList'), tpl, t => t.id, () => {
+function draftOf(p,s,d) {
+  const key = `sl.count.${s}|${d}`;
+  if (p.draftKey !== key) {
+    p.draftKey = key;
+    p.draft = LS.get(key) || {counts:{},reason:''};
+    CD_DENOMS.forEach(v => { p.el.querySelector(`[data-den="${v}"]`).value = p.draft.counts[v]||''; });
+    p.el.querySelector('.c-reason').value = p.draft.reason||'';
+    p.el.querySelector('.c-time').value = '';
+    setText(p.el.querySelector('.c-hint'),'');
+  }
+  return p.draft;
+}
+const draftTotal = dr => CD_DENOMS.reduce((n,v) => n + v*(parseInt(dr.counts[v],10)||0),0);
+function renderPart(s) {
+  const id = s.id, d = viewDate, past = d < today, future = d > today;
+  const p = parts[id] || makePart(id);
+  const el = p.el;
+  el.classList.toggle('cur',id===curStore);
+  setText(el.querySelector('h2'),s.name);
+  el.querySelector('.p-remove').hidden = isLinked(id);
+
+  /* tasks */
+  const tasks = dayTasks(id,d);
+  syncList(el.querySelector('.tasks'),tasks,t => t.id,makeRow,(r,t) => {
+    r.classList.toggle('done',!!t.done);
+    r.classList.toggle('ro',past);
+    r.querySelector('.check').setAttribute('aria-pressed',String(!!t.done));
+    r.querySelector('.check').setAttribute('aria-label',t.text);
+    setText(r.querySelector('.t'),t.text);
+    const m = r.querySelector('.m');
+    setText(m,taskMeta(t,d)); m.hidden = !m.textContent;
+    m.classList.toggle('old',!t.done && t.due < d);
+    r.querySelector('.x').hidden = past;
+  });
+  setText(el.querySelector('.tcount'),tasks.length ? `${tasks.filter(t=>t.done).length} / ${tasks.length} 完成` : '');
+  el.querySelector('.q-task').hidden = past;
+  el.querySelector('.n-task').hidden = tasks.length > 0 || !past;
+  const sel = el.querySelector('.i-who');
+  if (sel.options.length !== staff.length+1) {
+    const keep = sel.value;
+    sel.replaceChildren(new Option('指派',''),...staff.map(n => new Option(n,n)));
+    sel.value = keep;
+  }
+
+  /* daily */
+  const rows = dailyRows(id,d);
+  const doneN = rows.filter(r => r.check).length;
+  syncList(el.querySelector('.daily'),rows,r => r.id,makeRow,(r,x) => {
+    r.classList.toggle('done',!!x.check);
+    r.classList.toggle('ro',d !== today);
+    const c = r.querySelector('.check');
+    c.setAttribute('aria-pressed',String(!!x.check));
+    c.setAttribute('aria-label',x.text||'');
+    c.style.visibility = future ? 'hidden' : '';
+    setText(r.querySelector('.t'),x.text||'');
+    const m = r.querySelector('.m');
+    setText(m,x.check ? `${x.check.by} ${clock(x.check.at)}` : ''); m.hidden = !m.textContent;
+  });
+  setText(el.querySelector('.dcount'),rows.length ? `${doneN} / ${rows.length} 完成` : '');
+  el.querySelector('.q-daily').hidden = past;
+  el.querySelector('.c-tpl').hidden = past || !templateOf(id).length;
+  const left = rows.length-doneN+tasks.filter(t=>!t.done).length;
+  setText(el.querySelector('.left'),d === today ? (left ? `還有 ${left} 項` : '都完成了') : '');
+
+  /* cash */
+  el.querySelector('.c-future').hidden = !future;
+  el.querySelector('.c-form').hidden = future;
+  const counts = countsFor(id,d);
+  let checks = {}, C;
+  if (isLinked(id)) {
+    C = bookFor(id,d);
+    if (C) (C.checks||[]).forEach(x => { if (x.kind==='count') checks[x.id] = x; });
+  }
+  if (!future) {
+    const dr = draftOf(p,id,d);
+    const total = draftTotal(dr);
+    setText(el.querySelector('.w-text'),d === today ? hhmmLabel(nowHHMM()) : dayLabel(d));
+    setText(el.querySelector('.w-sub'),d === today ? '存入時自動記錄日期和時間' : '補登這天的點鈔，請填當時的時間');
+    el.querySelector('.c-time').hidden = d === today;
+    setText(el.querySelector('.c-total'),money(total));
+    const cmp = el.querySelector('.cmp'), diffEl = el.querySelector('.c-diff');
+    const hint = el.querySelector('.c-hint');
+    let hasDiff = false;
+    cmp.hidden = !C;
+    if (C) {
+      setText(el.querySelector('.c-exp'),money(C.now));
+      const diff = r2(total-C.now);
+      hasDiff = total > 0 && Math.abs(diff) >= 0.01;
+      el.querySelector('.c-diffrow').hidden = total === 0;
+      setText(diffEl,Math.abs(diff)<0.01 ? '✓ 相符' : `${diff>0?'多':'少'} ${money(Math.abs(diff))}`);
+      diffEl.className = 'c-diff ' + (Math.abs(diff)<0.01 ? 'ok' : 'bad');
+    }
+    el.querySelector('.c-reason').hidden = !hasDiff;
+    if (!hint.classList.contains('err')) {
+      let msg = '';
+      if (!isLinked(id)) msg = '這間店只記在這裡，不會進主系統現金櫃。';
+      else if (!fs || mainFailed) msg = '還讀不到主系統現金櫃。';
+      else if (C === undefined) msg = '讀取現金櫃中…';
+      else if (C === null) msg = '這個月還沒有起點，這次點鈔會成為本月起點。';
+      else msg = '存入後會自動進主系統現金櫃。';
+      setText(hint,msg);
+    }
+  }
+  syncList(el.querySelector('.counts'),counts,c => String(c.id),() => {
+    const r = document.createElement('div');
+    r.className = 'cnt';
+    r.innerHTML = '<span class="ct"></span><b></b><div class="res"></div>';
+    return r;
+  },(r,c) => {
+    setText(r.querySelector('.ct'),`${hhmmLabel(c.time)}${c.by?` ${c.by}`:''}`);
+    setText(r.querySelector('b'),money(c.amt));
+    const chk = checks[c.id], res = r.querySelector('.res');
+    let t = '', cls = '';
+    if (isLinked(id)) {
+      if (!chk) t = '本月起點';
+      else if (Math.abs(chk.diff)<0.01) { t = `帳面 ${money(chk.expected)}，✓ 相符`; cls = 'ok'; }
+      else { t = `帳面 ${money(chk.expected)}，${chk.diff>0?'多':'少'} ${money(Math.abs(chk.diff))}${(chk.reason||c.reason)?'（已說明）':''}`; cls = (chk.reason||c.reason)?'':'bad'; }
+    }
+    setText(res,t);
+    res.className = 'res ' + cls;
+  });
+}
+function render() {
+  renderBanner();
+  { const dd = parseDay(viewDate);
+    setText($('dateLabel'),`${dd.getMonth()+1}月${dd.getDate()}日`);
+    setText($('dateSub'),`星期${WEEK[dd.getDay()]}${viewDate===today?'，今天':''}`); }
+  $('goToday').style.visibility = viewDate===today ? 'hidden' : '';
+  renderWeek();
+  const all = stores();
+  if (!all.some(s => s.id === curStore)) curStore = 'mv';
+  syncList($('tabs'),all,s => s.id,() => {
+    const t = document.createElement('button');
+    t.className = 'tab'; t.setAttribute('role','tab');
+    return t;
+  },(t,s) => {
+    setText(t,s.name);
+    t.setAttribute('aria-selected',String(s.id===curStore));
+    t.style.setProperty('--c',s.id==='mv'?'#1656A0':s.id==='sr'?'#5E35B1':'#7A5B2E');
+  });
+  all.forEach(s => { ensureStore(s.id); renderPart(s); });
+  Object.keys(parts).forEach(id => { parts[id].el.hidden = !all.some(s => s.id === id); });
+  if (!$('calpop').hidden) renderCal();
+  if (!$('tplDlg').hidden && $('tplDlg').open) renderTpl();
+}
+$('tabs').addEventListener('click', e => {
+  const t = e.target.closest('.tab');
+  if (!t) return;
+  curStore = t.dataset.key;
+  LS.set('sl.cur',curStore);
+  render();
+});
+
+/* ---------- actions ---------- */
+function saveTpl(s,obj) { return write(fs.setDoc(refOf.board(s),{template:obj},{merge:true})).catch(()=>{}); }
+async function addTask(s) {
+  if (!needDb()) return;
+  const p = parts[s], inp = p.el.querySelector('.i-task');
+  const text = inp.value.trim();
+  if (!text) { inp.focus(); return; }
+  const who = await needName();
+  if (!who) return;
+  const id = uid();
+  write(fs.setDoc(refOf.board(s),{tasks:{[id]:{text,due:viewDate,done:false,by:who,assignee:p.el.querySelector('.i-who').value,createdAt:new Date().toISOString(),time:''}}},{merge:true})).catch(()=>{});
+  inp.value = '';
+  p.el.querySelector('.i-who').value = '';
+  inp.focus();
+}
+function addDaily(s) {
+  if (!needDb()) return;
+  const inp = parts[s].el.querySelector('.i-daily');
+  const v = inp.value.trim();
+  if (!v) { inp.focus(); return; }
+  const tpl = templateOf(s);
+  saveTpl(s,{[uid()]:{text:v,order:tpl.length ? (tpl[tpl.length-1].order||0)+1 : 1,created:today}});
+  inp.value = '';
+  inp.focus();
+}
+async function toggleTask(s,id) {
+  const t = (board(s).tasks||{})[id];
+  if (!t || viewDate < today || !needDb()) return;
+  if (t.done) return write(fs.setDoc(refOf.board(s),{tasks:{[id]:{done:false,doneBy:'',doneAt:''}}},{merge:true})).catch(()=>{});
+  const who = await needName();
+  if (!who) return;
+  write(fs.setDoc(refOf.board(s),{tasks:{[id]:{done:true,doneBy:who,doneAt:new Date().toISOString()}}},{merge:true})).catch(()=>{});
+}
+async function toggleDaily(s,id) {
+  if (viewDate !== today || !needDb()) return;
+  const cur = (data[s].checks[today]||{})[id];
+  if (cur) return write(fs.setDoc(refOf.checks(s,today),{items:{[id]:fs.deleteField()}},{merge:true})).catch(()=>{});
+  const who = await needName();
+  if (!who) return;
+  const r = dailyRows(s,today).find(x => x.id === id);
+  if (r) write(fs.setDoc(refOf.checks(s,today),{items:{[id]:{by:who,at:new Date().toISOString(),text:r.text}}},{merge:true})).catch(()=>{});
+}
+$('parts').addEventListener('click', async e => {
+  const host = e.target.closest('.part');
+  if (!host) return;
+  const s = host.dataset.store;
+  if (e.target.matches('.b-task')) return addTask(s);
+  if (e.target.matches('.b-daily')) return addDaily(s);
+  if (e.target.matches('.c-tpl')) return openTpl(s);
+  if (e.target.matches('.c-save')) return saveCount(s);
+  if (e.target.matches('.p-remove')) {
+    if (await confirmIt(`移除「${storeName(s)}」？資料會保留。`)) write(fs.setDoc(refOf.cfg(),{stores:{[s]:{hidden:true}}},{merge:true})).catch(()=>{});
+    return;
+  }
+  const row = e.target.closest('.row');
+  if (!row) return;
+  if (row.closest('.tasks')) {
+    if (e.target.matches('.x')) {
+      const t = (board(s).tasks||{})[row.dataset.key];
+      if (t && needDb() && await confirmIt(`刪除「${t.text}」？`))
+        write(fs.setDoc(refOf.board(s),{tasks:{[row.dataset.key]:fs.deleteField()}},{merge:true})).catch(()=>{});
+      return;
+    }
+    return toggleTask(s,row.dataset.key);
+  }
+  return toggleDaily(s,row.dataset.key);
+});
+$('parts').addEventListener('input', e => {
+  const host = e.target.closest('.part');
+  if (!host) return;
+  const p = parts[host.dataset.store];
+  if (e.target.dataset.den) {
+    const clean = e.target.value.replace(/\D/g,'');
+    if (clean !== e.target.value) e.target.value = clean;
+    p.draft.counts[e.target.dataset.den] = clean;
+  } else if (e.target.matches('.c-reason')) p.draft.reason = e.target.value;
+  else return;
+  LS.set(p.draftKey,p.draft);
+  host.querySelector('.c-hint').classList.remove('err');
+  render();
+});
+$('parts').addEventListener('focusin', e => { if (e.target.dataset && e.target.dataset.den) e.target.select(); });
+
+/* ---------- add store ---------- */
+$('addStore').onclick = () => { $('storeName').value = ''; $('storeDlg').showModal(); $('storeName').focus(); };
+$('storeCancel').onclick = () => $('storeDlg').close();
+function addStore() {
+  const n = $('storeName').value.trim();
+  if (!n) { $('storeName').focus(); return; }
+  if (!needDb()) return;
+  const id = 's' + uid();
+  write(fs.setDoc(refOf.cfg(),{stores:{[id]:{name:n,order:Object.keys(storeCfg).length+1}}},{merge:true})).catch(()=>{});
+  $('storeDlg').close();
+  curStore = id;
+  LS.set('sl.cur',id);
+  toast(`已新增 ${n}`);
+}
+$('storeOk').onclick = addStore;
+enterKey($('storeName'),addStore);
+
+/* ---------- daily item editor ---------- */
+let tplStore = 'mv';
+function openTpl(s) { tplStore = s; renderTpl(); $('tplDlg').showModal(); }
+function renderTpl() {
+  const tpl = templateOf(tplStore);
+  setText($('tplTitle'),`${storeName(tplStore)} 每日固定項目`);
+  syncList($('tplList'),tpl,t => t.id,() => {
     const el = document.createElement('div');
-    el.className = 'tpl';
-    el.innerHTML = '<input class="field" maxlength="120" aria-label="項目名稱"><button class="mv" data-dir="-1" aria-label="上移 Move up">↑</button><button class="mv" data-dir="1" aria-label="下移 Move down">↓</button><button class="x" aria-label="刪除 Delete">×</button>';
+    el.className = 'tplrow';
+    el.innerHTML = '<input class="field" maxlength="120" aria-label="項目名稱"><button class="mv" data-dir="-1" aria-label="上移">↑</button><button class="mv" data-dir="1" aria-label="下移">↓</button><button class="x" aria-label="刪除">×</button>';
     return el;
-  }, (el,t) => {
+  },(el,t) => {
     setVal(el.querySelector('input'),t.text||'');
     const i = tpl.findIndex(x => x.id === t.id);
     el.querySelector('[data-dir="-1"]').disabled = i === 0;
     el.querySelector('[data-dir="1"]').disabled = i === tpl.length-1;
   });
-  const other = STORES.find(s => s.id !== store).id;
-  const n = templateOf(other).length;
-  const c = $('tplCopy');
-  c.hidden = !(tpl.length === 0 && n > 0);
-  setText(c, `從 ${storeName(other)} 複製 ${n} 項 Copy ${n} items`);
+  $('tplCopy').hidden = true;
 }
-const storeName = s => STORES.find(x => x.id === s).name;
-function saveTpl(obj) { return write(setDoc(refOf.board(store),{template:obj},{merge:true})).catch(()=>{}); }
-
-$('dailyList').addEventListener('click', async e => {
-  const row = e.target.closest('.row');
-  if (!row || viewDate !== today) return;
-  const id = row.dataset.key;
-  const s = store, d = today;
-  const cur = (data[s].checks[d] || {})[id];
-  if (cur) {
-    write(setDoc(refOf.checks(s,d),{items:{[id]:deleteField()}},{merge:true})).catch(()=>{});
-    return;
-  }
-  const who = await needName();
-  if (!who) return;
-  const r = dailyRows(s,d).find(x => x.id === id);
-  if (!r) return;
-  write(setDoc(refOf.checks(s,d),{items:{[id]:{by:who,at:new Date().toISOString(),text:r.text}}},{merge:true})).catch(()=>{});
-});
-$('editTpl').onclick = () => { editing = true; render(); };
-$('tplDone').onclick = () => { editing = false; render(); };
-function addTpl() {
-  const v = $('tplInput').value.trim();
-  if (!v) return;
-  const tpl = templateOf(store);
-  const order = tpl.length ? (tpl[tpl.length-1].order||0)+1 : 1;
-  saveTpl({[uid()]:{text:v,order,created:today}});
-  $('tplInput').value = '';
-  $('tplInput').focus();
-  toast(`已新增「${v}」 Added`);
-}
-$('tplAdd').onclick = addTpl;
-$('tplInput').addEventListener('keydown', e => { if (e.key === 'Enter' && !e.isComposing) addTpl(); });
-$('tplCopy').onclick = () => {
-  const other = STORES.find(s => s.id !== store).id;
-  const out = {};
-  templateOf(other).forEach((t,i) => { out[uid()+i] = {text:t.text,order:i+1,created:today}; });
-  saveTpl(out);
-};
+$('tplClose').onclick = () => $('tplDlg').close();
 $('tplList').addEventListener('change', e => {
   if (!e.target.matches('input')) return;
-  const id = e.target.closest('.tpl').dataset.key;
+  const id = e.target.closest('.tplrow').dataset.key;
   const v = e.target.value.trim();
-  if (v) saveTpl({[id]:{text:v}});
-  else e.target.value = (board(store).template||{})[id]?.text || '';
+  if (v) saveTpl(tplStore,{[id]:{text:v}});
+  else e.target.value = (board(tplStore).template||{})[id]?.text||'';
 });
 $('tplList').addEventListener('click', async e => {
-  const row = e.target.closest('.tpl');
+  const row = e.target.closest('.tplrow');
   if (!row) return;
   const id = row.dataset.key;
   if (e.target.matches('.mv')) {
-    const tpl = templateOf(store);
+    const tpl = templateOf(tplStore);
     const i = tpl.findIndex(t => t.id === id), j = i + Number(e.target.dataset.dir);
     if (!tpl[j]) return;
-    // 兩項對調排序；同時重編號，避免舊資料順序值相同
     const out = {};
     tpl.forEach((t,k) => { out[t.id] = {order: k===i ? j+1 : k===j ? i+1 : k+1}; });
-    saveTpl(out);
+    saveTpl(tplStore,out);
   } else if (e.target.matches('.x')) {
-    const t = (board(store).template||{})[id];
-    if (await confirmDelete(`刪除「${t?.text||''}」？ Delete this daily item?`)) saveTpl({[id]:deleteField()});
+    const t = (board(tplStore).template||{})[id];
+    $('tplDlg').close();
+    if (await confirmIt(`刪除「${t?.text||''}」？`)) await saveTpl(tplStore,{[id]:fs.deleteField()});
+    openTpl(tplStore);
   }
 });
 
-/* ---------- next day ---------- */
-function renderAssign() {
-  const sel = $('assign');
-  const keep = sel.value;
-  sel.replaceChildren(new Option('不指定 Anyone',''),...staff.map(n => new Option(n,n)));
-  sel.value = keep;
+/* ---------- save count ---------- */
+// 只把這一筆點鈔加進主系統的現金櫃紀錄；用交易寫入，同時有人存檔也不會蓋掉對方
+async function pushCountToMain(rec) {
+  await fs.runTransaction(db, async tx => {
+    const ref = refOf.main();
+    const sn = await tx.get(ref);
+    if (!sn.exists()) throw new Error('main-missing');
+    const raw = sn.data();
+    if (raw._fmt !== 2 || typeof raw._json !== 'string') throw new Error('main-format');
+    const main = JSON.parse(raw._json);
+    if (!main || typeof main !== 'object' || !Array.isArray(main.staff)) throw new Error('main-format');
+    if (!Array.isArray(main.cd)) main.cd = [];
+    const mo = rec.date.slice(0,7);
+    const prior = main.cd.filter(e => e.store===rec.store && e.type==='count' && e.date.slice(0,7)===mo);
+    const last = prior.length ? prior[prior.length-1] : null;
+    const entry = {...rec,
+      id:Math.max(Date.now(),...main.cd.map(e => Number(e.id)||0).filter(n => n < 9e14).map(n => n+1)),
+      change:last?r2(rec.amt-last.amt):null, lastAmt:last?last.amt:null, lastDate:last?last.date:''};
+    main.cd.push(entry);
+    main.cd.sort((a,b) => a.date<b.date?-1:a.date>b.date?1:(a.id||0)-(b.id||0));
+    const ts = Math.max(Date.now(),(raw._savedAt||0)+1);
+    main._savedAt = ts;
+    const json = JSON.stringify(main);
+    if (json.length > 950000) throw new Error('main-too-big');
+    tx.set(ref,{...raw,_json:json,_savedAt:ts});
+  });
 }
-function makeTask() {
-  const el = document.createElement('div');
-  el.className = 'row';
-  el.innerHTML = '<button class="check"></button><img class="thumb" alt="相片" hidden><div class="body"><div class="t"></div><div class="m"></div></div><button class="x" aria-label="刪除 Delete">×</button>';
-  return el;
-}
-function updateTask(el,t) {
-  el.classList.toggle('done',!!t.done);
-  const b = el.querySelector('.check');
-  b.setAttribute('aria-pressed',String(!!t.done));
-  b.setAttribute('aria-label',t.text);
-  setText(el.querySelector('.t'),t.text);
-  const parts = [];
-  if (t.assignee) parts.push(`給 ${t.assignee}`);
-  if (t.done) parts.push(`${t.doneBy} 完成 ${clock(t.doneAt)}`);
-  else if (t.due < today) parts.push(`${shortDay(t.due)} 留下來的`);
-  else if (t.by) parts.push(`${t.by} 新增`);
-  const m = el.querySelector('.m');
-  setText(m,parts.join('，'));
-  m.classList.toggle('old',!t.done && t.due < today);
-  const img = el.querySelector('.thumb');
-  if (t.imageUrl) { if (img.getAttribute('src') !== t.imageUrl) img.src = t.imageUrl; img.hidden = false; }
-  else img.hidden = true;
-}
-function renderNext() {
-  const a = todayTasks(store), b = tomorrowTasks(store);
-  setText($('todayTitle'),`今天要做 Today ${shortDay(today)}`);
-  setText($('tmrTitle'),`明天要做 Tomorrow ${shortDay(addDays(today,1))}`);
-  setText($('todayCount'),a.length ? `${a.filter(t=>t.done).length} / ${a.length} 完成` : '');
-  setText($('tmrCount'),b.length ? `${b.length} 項` : '');
-  syncList($('todayList'),a,t=>t.id,makeTask,updateTask);
-  syncList($('tmrList'),b,t=>t.id,makeTask,updateTask);
-  $('todayEmpty').hidden = a.length > 0;
-  $('tmrEmpty').hidden = b.length > 0;
-}
-function setDue(v) {
-  dueTarget = v;
-  $('dueTomorrow').setAttribute('aria-pressed',String(v==='tomorrow'));
-  $('dueToday').setAttribute('aria-pressed',String(v==='today'));
-}
-$('dueTomorrow').onclick = () => setDue('tomorrow');
-$('dueToday').onclick = () => setDue('today');
-async function addTask() {
-  const text = $('taskInput').value.trim();
-  if (!text && !pendingPhoto) return;
+async function saveCount(s) {
+  const p = parts[s], el = p.el, d = viewDate;
+  const hint = el.querySelector('.c-hint');
+  const fail = t => { hint.classList.add('err'); setText(hint,t); };
+  hint.classList.remove('err');
+  if (!fs) return fail('還沒連上資料庫，這筆沒有存，數字還在。');
+  const dr = p.draft, total = draftTotal(dr);
+  if (total === 0) return fail('請先填入各面額數量');
+  let time = nowHHMM();
+  if (d !== today) {
+    time = el.querySelector('.c-time').value;
+    if (!time) { el.querySelector('.c-time').focus(); return fail('請填點鈔時間'); }
+  }
   const who = await needName();
   if (!who) return;
-  const id = uid();
-  write(setDoc(refOf.board(store),{tasks:{[id]:{
-    text:text||'（相片）', due:dueTarget==='tomorrow'?addDays(today,1):today,
-    done:false, by:who, assignee:$('assign').value, createdAt:new Date().toISOString(),
-    imageUrl:pendingPhoto
-  }}},{merge:true})).catch(()=>{});
-  $('taskInput').value = '';
-  $('assign').value = '';
-  pendingPhoto = '';
-  setText($('photoBtn'),'相片 Photo');
-  $('taskInput').focus();
-}
-$('taskAdd').onclick = addTask;
-$('taskInput').addEventListener('keydown', e => { if (e.key === 'Enter' && !e.isComposing) addTask(); });
-async function taskClick(e) {
-  const row = e.target.closest('.row');
-  if (!row) return;
-  const id = row.dataset.key;
-  const t = (board(store).tasks||{})[id];
-  if (!t) return;
-  if (e.target.matches('.thumb')) {
-    $('photoImg').src = t.imageUrl;
-    $('photoDlg').showModal();
-  } else if (e.target.matches('.x')) {
-    if (await confirmDelete(`刪除「${t.text}」？ Delete this item?`))
-      write(setDoc(refOf.board(store),{tasks:{[id]:deleteField()}},{merge:true})).catch(()=>{});
-  } else if (t.done) {
-    write(setDoc(refOf.board(store),{tasks:{[id]:{done:false,doneBy:'',doneAt:''}}},{merge:true})).catch(()=>{});
-  } else {
-    const who = await needName();
-    if (!who) return;
-    write(setDoc(refOf.board(store),{tasks:{[id]:{done:true,doneBy:who,doneAt:new Date().toISOString()}}},{merge:true})).catch(()=>{});
-  }
-}
-$('todayList').addEventListener('click',taskClick);
-$('tmrList').addEventListener('click',taskClick);
-$('photoClose').onclick = () => $('photoDlg').close();
-$('photoBtn').onclick = () => $('photoFile').click();
-$('photoFile').addEventListener('change', async () => {
-  const f = $('photoFile').files[0];
-  if (!f) return;
-  setText($('photoBtn'),'上傳中 Uploading');
+  const details = CD_DENOMS.map(v => { const q = parseInt(dr.counts[v],10)||0; return q>0?`$${v}×${q}`:null; }).filter(Boolean).join(' / ');
+  const rec = {date:d,time,store:s,type:'count',amt:total,note:`${details} / ${who}`,by:who};
+  const reasonEl = el.querySelector('.c-reason');
+  const reason = (reasonEl.hidden ? '' : dr.reason||'').trim();
+  if (reason) rec.reason = reason;
+  const btn = el.querySelector('.c-save');
+  btn.disabled = true;
+  setText(btn,'儲存中…');
   try {
-    const { getStorage, ref, uploadBytes, getDownloadURL } = await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-storage.js');
-    const r = ref(getStorage(app),`listImages/${uid()}_${f.name.replace(/[^\w.-]/g,'_')}`);
-    await uploadBytes(r,f);
-    pendingPhoto = await getDownloadURL(r);
-    setText($('photoBtn'),'已加相片 Added');
+    if (isLinked(s)) await pushCountToMain(rec);
+    else { const id = uid(); await fs.setDoc(refOf.cash(s),{[id]:{...rec,id}},{merge:true}); }
+    LS.del(p.draftKey);
+    p.draftKey = '';
+    toast(`已存入 ${money(total)}，${hhmmLabel(time)}`);
   } catch (e) {
     console.error(e);
-    setText($('photoBtn'),'相片 Photo');
-    toast('相片上傳失敗，請再試一次 Photo upload failed. Try again.');
+    fail(e.message === 'main-too-big' ? '主系統資料已接近上限，這筆沒有存。'
+      : String(e.message).startsWith('main-') ? '主系統資料格式不符，這筆沒有存。'
+      : '儲存失敗，數字還在，請檢查 WiFi 再試一次。');
   }
-  $('photoFile').value = '';
-});
-
-/* ---------- cash ---------- */
-const drafts = {};
-const draftKey = () => `${store}|${viewDate}`;
-const lsDraft = k => `sl.cash.${k}`;
-const entryOf = (s,d) => (data[s].cash || {})[d] || null;
-function previousFloat(s,d) {
-  const prev = Object.keys(data[s].cash || {}).filter(x => x < d).sort().pop();
-  return prev ? data[s].cash[prev].floatCents : null;
-}
-const centsToField = c => c == null ? '' : (c/100).toFixed(2);
-function draftFromEntry(s,d) {
-  const e = entryOf(s,d);
-  const counts = {};
-  DENOMS.forEach(v => { const n = e?.counts?.[v]; counts[v] = n ? String(n) : ''; });
-  return { counts, float:centsToField(e ? e.floatCents : previousFloat(s,d)), note:e?.note||'', baseAt:e?(e.editedAt||e.at):'', dirty:false };
-}
-function currentDraft() {
-  const k = draftKey();
-  let dr = drafts[k];
-  if (!dr) {
-    const saved = LS.get(lsDraft(k));
-    dr = drafts[k] = saved && saved.dirty ? saved : draftFromEntry(store,viewDate);
-  } else if (!dr.dirty) {
-    drafts[k] = dr = draftFromEntry(store,viewDate);
-  }
-  return dr;
-}
-function totals(dr) {
-  const total = DENOMS.reduce((sum,v) => sum + v*(parseInt(dr.counts[v],10)||0),0);
-  const float = Math.round((parseFloat(dr.float)||0)*100);
-  return {total,float,deposit:total-float};
-}
-DENOMS.forEach(v => {
-  const row = document.createElement('div');
-  row.className = 'den';
-  const label = v >= 100 ? `$${v/100}` : `${v}¢`;
-  row.innerHTML = `<label for="den${v}">${label}</label><input id="den${v}" data-den="${v}" inputmode="numeric" autocomplete="off" placeholder="0" maxlength="5" aria-label="${label} 數量"><output id="sub${v}">$0.00</output>`;
-  $('tally').append(row);
-});
-function renderCash() {
-  const dr = currentDraft();
-  DENOMS.forEach(v => {
-    setVal($('den'+v),dr.counts[v]||'');
-    const sub = v*(parseInt(dr.counts[v],10)||0);
-    const o = $('sub'+v);
-    setText(o,money(sub));
-    o.classList.toggle('has',sub>0);
-  });
-  setVal($('cashFloat'),dr.float);
-  setVal($('cashNote'),dr.note);
-  const t = totals(dr);
-  setText($('cashTotal'),money(t.total));
-  setText($('cashDeposit'),money(t.deposit));
-  $('cashDeposit').classList.toggle('neg',t.deposit<0);
-
-  const e = entryOf(store,viewDate);
-  const st = $('cashStatus');
-  let msg = '尚未點鈔 Not counted yet', ok = false;
-  if (dr.dirty) msg = '尚未儲存 Not saved yet';
-  else if (e) {
-    msg = `${e.by} 已點 ${clock(e.at)}` + (e.editedBy ? `，${e.editedBy} 修改 ${clock(e.editedAt)}` : '');
-    ok = true;
-  }
-  setText(st,msg);
-  st.classList.toggle('ok',ok);
-
-  const changed = dr.dirty && e && (e.editedAt||e.at) !== dr.baseAt;
-  $('cashConflict').hidden = !changed;
-  if (changed) setText($('cashConflictText'),`${e.editedBy||e.by} 剛存了這天的點鈔 ${money(e.totalCents)}。 `);
-
-  const hist = Object.entries(data[store].cash||{}).sort((a,b) => b[0].localeCompare(a[0])).slice(0,7);
-  syncList($('cashHist'),hist,h=>h[0],() => {
-    const b = document.createElement('button');
-    b.className = 'hist';
-    b.innerHTML = '<span><span class="hd"></span><small></small></span><b></b>';
-    return b;
-  },(el,[d,en]) => {
-    const dd = parseDay(d);
-    setText(el.querySelector('.hd'),`${dd.getMonth()+1}/${dd.getDate()}（${WEEK[dd.getDay()]}）`);
-    setText(el.querySelector('small'),en.editedBy ? `${en.by}，${en.editedBy} 修改` : en.by);
-    setText(el.querySelector('b'),money(en.totalCents));
-  });
-  $('cashHistEmpty').hidden = hist.length > 0;
-}
-function markDirty() {
-  const k = draftKey();
-  const dr = drafts[k];
-  dr.dirty = true;
-  LS.set(lsDraft(k),dr);
-  renderCash();
-  renderTabs();
-}
-$('tally').addEventListener('input', e => {
-  if (!e.target.dataset.den) return;
-  const clean = e.target.value.replace(/\D/g,'');
-  if (clean !== e.target.value) e.target.value = clean;
-  currentDraft().counts[e.target.dataset.den] = clean;
-  markDirty();
-});
-$('tally').addEventListener('focusin', e => { if (e.target.select) e.target.select(); });
-$('cashFloat').addEventListener('input', e => {
-  const clean = e.target.value.replace(/[^\d.]/g,'');
-  if (clean !== e.target.value) e.target.value = clean;
-  currentDraft().float = clean;
-  markDirty();
-});
-$('cashNote').addEventListener('input', e => { currentDraft().note = e.target.value; markDirty(); });
-$('cashLoadRemote').onclick = () => {
-  const k = draftKey();
-  drafts[k] = draftFromEntry(store,viewDate);
-  LS.del(lsDraft(k));
-  DENOMS.forEach(v => { $('den'+v).value = drafts[k].counts[v]; });
-  $('cashFloat').value = drafts[k].float;
-  $('cashNote').value = drafts[k].note;
+  btn.disabled = false;
+  setText(btn,'存入記錄');
   render();
-};
-$('cashSave').onclick = async () => {
-  const who = await needName();
-  if (!who) return;
-  const s = store, d = viewDate, k = draftKey();
-  const dr = currentDraft();
-  const t = totals(dr);
-  const prior = entryOf(s,d);
-  const now = new Date().toISOString();
-  const counts = {};
-  DENOMS.forEach(v => { counts[v] = parseInt(dr.counts[v],10)||0; });
-  const entry = {
-    counts, totalCents:t.total, floatCents:t.float, depositCents:t.deposit, note:dr.note.trim(),
-    by:prior?prior.by:who, at:prior?prior.at:now,
-    editedBy:prior?who:'', editedAt:prior?now:''
-  };
-  const btn = $('cashSave');
-  setText(btn,'儲存中 Saving…');
-  dr.baseAt = now;
-  dr.dirty = false;
-  try {
-    await write(setDoc(refOf.cash(s),{[d]:entry},{merge:true}));
-    LS.del(lsDraft(k)); // 確定寫入後才清掉本機草稿
-    toast(`已儲存 ${money(t.total)} Saved`);
-  } catch {
-    dr.dirty = true;
-    LS.set(lsDraft(k),dr);
-  }
-  setText(btn,'儲存點鈔 Save count');
-  render();
-};
-$('cashHist').addEventListener('click', e => {
-  const b = e.target.closest('.hist');
-  if (b) { goDate(b.dataset.key); scrollTo(0,0); }
-});
-
-/* ---------- top level ---------- */
-const storeBtns = STORES.map(s => {
-  const b = document.createElement('button');
-  b.className = 'store';
-  b.innerHTML = `<b>${s.name}</b><small></small>`;
-  b.onclick = () => {
-    if (store === s.id) return;
-    store = s.id; LS.set('sl.store',store);
-    editing = false;
-    scrollTo(0,0);
-    render();
-  };
-  $('stores').append(b);
-  return {b,s};
-});
-document.querySelectorAll('.tab').forEach(t => {
-  t.onclick = () => {
-    if (tab === t.dataset.tab) return;
-    tab = t.dataset.tab; LS.set('sl.tab',tab);
-    editing = false;
-    scrollTo(0,0);
-    render();
-  };
-});
-function renderTabs() {
-  storeBtns.forEach(({b,s}) => {
-    b.setAttribute('aria-pressed',String(s.id===store));
-    const ready = data[s.id].board && data[s.id].checks[today];
-    const n = ready ? leftCount(s.id) : null;
-    setText(b.querySelector('small'), n===null ? ' ' : n ? `今天還有 ${n} 項` : '今天沒有待辦');
-  });
-  document.querySelectorAll('.tab').forEach(t => t.setAttribute('aria-selected',String(t.dataset.tab===tab)));
-  const rows = dailyRows(store,today);
-  setText($('tabDaily'),rows.length ? `${rows.filter(r=>r.check).length} / ${rows.length}` : ' ');
-  const left = todayTasks(store).filter(t=>!t.done).length;
-  setText($('tabNext'),left ? `今天 ${left} 項` : ' ');
-  setText($('tabCash'),entryOf(store,today) ? '今天已點' : '今天未點');
-}
-function render() {
-  renderBanner();
-  renderTabs();
-  renderDateBars();
-  ['daily','next','cash'].forEach(p => { $('panel-'+p).hidden = p !== tab; });
-  if (tab === 'daily') renderDaily();
-  if (tab === 'next') renderNext();
-  if (tab === 'cash') renderCash();
 }
 
-// iPad 整晚開著也會自動換到新的一天，並清掉昨天選的名字
-function checkNewDay() {
+/* ---------- clock & new day ---------- */
+function tick() {
   const now = ymd(new Date());
-  if (now === today) return;
-  const wasToday = viewDate === today;
-  const holding = tab === 'cash' && drafts[draftKey()]?.dirty;
-  today = now;
-  if (wasToday && !holding) viewDate = now;
-  setName('');
-  watchDates();
+  if (now !== today) {
+    const wasToday = viewDate === today;
+    today = now;
+    if (wasToday) { viewDate = now; calMonth = now.slice(0,7); }
+    setName('');
+    watchDates();
+    loadShards();
+  }
   render();
 }
-setInterval(checkNewDay,30000);
-document.addEventListener('visibilitychange',() => { if (!document.hidden) checkNewDay(); });
+setInterval(tick,30000);
+document.addEventListener('visibilitychange',() => { if (!document.hidden) tick(); });
 
+/* ---------- start ---------- */
 setName(name);
-renderAssign();
+watchDates();
 render();
-window.__slReady = true;
+(async function boot() {
+  try {
+    const [appMod,fsMod] = await Promise.all([import(FB+'firebase-app.js'),import(FB+'firebase-firestore.js')]);
+    app = appMod.initializeApp({
+      apiKey:"AIzaSyCbiJE0WiBy9oOPp0Vh0AdsEOcPjyNsVwk",
+      authDomain:"chiclash-2a154.firebaseapp.com",
+      projectId:"chiclash-2a154",
+      storageBucket:"chiclash-2a154.firebasestorage.app",
+      messagingSenderId:"77248539857",
+      appId:"1:77248539857:web:54e80b840160a2e30569f0"
+    });
+    db = fsMod.getFirestore(app);
+    fs = fsMod;
+    startLive();
+    render();
+  } catch (e) {
+    console.error(e);
+    dbError = '資料庫程式載入失敗。如果你是在聊天視窗的預覽裡看，請把檔案上傳到網站後，用瀏覽器打開；否則請檢查 WiFi 後重新整理。';
+    render();
+  }
+})();
 </script>
 </body>
 </html>
