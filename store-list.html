@@ -315,16 +315,16 @@ function stores() {
 const storeName = id => (stores().find(s => s.id === id) || {}).name || id;
 const isLinked = id => id in LINKED;
 const refOf = {
-  board: s => fs.doc(db,'myListApp',`store_${s}_board`),
-  cash: s => fs.doc(db,'myListApp',`store_${s}_cash`),
-  checks: (s,d) => fs.doc(db,'myListApp',`store_${s}_checks_${d}`),
-  cfg: () => fs.doc(db,'myListApp','store_config'),
+  board: s => fs.doc(db,'storeList',`store_${s}_board`),
+  cash: s => fs.doc(db,'storeList',`store_${s}_cash`),
+  checks: (s,d) => fs.doc(db,'storeList',`store_${s}_checks_${d}`),
+  cfg: () => fs.doc(db,'storeList','store_config'),
   main: () => fs.doc(db,'chic lash','data')
 };
 function showDbError(e) {
   console.error(e);
   dbError = e && e.code === 'permission-denied'
-    ? '資料庫拒絕存取，需要在 Firebase 規則開放 myListApp。'
+    ? '資料庫拒絕存取，需要在 Firebase 規則開放 storeList。'
     : '連不上資料庫，請檢查 WiFi 後重新整理。';
   renderBanner();
 }
