@@ -72,6 +72,31 @@ button{cursor:pointer;background:none;border:0;padding:0}
 .parts{grid-template-columns:repeat(auto-fit,minmax(340px,1fr))}
 #calBtn{display:none}
 
+/* 購物清單 */
+.shop{background:var(--white);border:1px solid var(--border);border-radius:12px;padding:12px;margin-top:12px}
+.shop h3{font-size:14px;font-weight:700;display:flex;justify-content:space-between;align-items:baseline;margin-bottom:8px}
+.shop h3 small{font-size:12px;font-weight:600;color:var(--warn)}
+.shopadd{display:flex;flex-wrap:wrap;gap:6px}
+.shopadd .field{flex:1 1 100%}
+.shopadd select{flex:1;min-height:40px;border:1px solid var(--border);border-radius:6px;background:var(--white);padding:0 6px;font-size:14px;outline:none;min-width:0}
+.shopadd .btn{background:var(--ink)}
+#shopList{margin-top:8px}
+.si{padding:8px 0;border-top:1px solid var(--border)}
+.si .top{display:flex;align-items:flex-start;gap:6px}
+.si .tx{flex:1;min-width:0;overflow-wrap:anywhere;font-size:15px;font-weight:500}
+.si .tag{font-size:11px;font-weight:700;color:#fff;border-radius:4px;padding:1px 5px;flex:none;margin-top:3px}
+.si .sm{font-size:12px;color:var(--sub);margin-top:2px}
+.si .acts{display:flex;gap:6px;margin-top:6px}
+.si .acts button{min-height:34px;padding:0 12px;border-radius:17px;font-size:13px;font-weight:700;border:1.5px solid var(--border2);background:var(--white)}
+.si .acts .go{background:var(--ink);border-color:var(--ink);color:#fff}
+.si .acts .st{border-color:var(--ok);color:var(--ok);background:var(--ok-bg)}
+.si.got .tx{color:var(--faint);text-decoration:line-through}
+.si .x{width:28px;height:28px;font-size:16px}
+.shopdone{margin-top:8px;border-top:1px solid var(--border);padding-top:6px}
+.shopdone summary{font-size:13px;font-weight:600;color:var(--sub);min-height:32px;display:flex;align-items:center;cursor:pointer}
+.shopdone .si .tx{color:var(--faint);text-decoration:line-through;font-weight:400}
+.b-shop{min-height:40px;padding:0 12px;font-size:14px;flex:none}
+
 /* 週列（手機） */
 .strip{position:sticky;top:0;z-index:10;background:var(--bg);padding:0 0 12px}
 .weekrow{display:flex;align-items:center;gap:4px;background:var(--white);border:1px solid var(--border);border-radius:10px;padding:4px}
@@ -201,6 +226,7 @@ dialog h2{font-size:17px;font-weight:700;margin-bottom:12px}
 
 @media (max-width:860px){
   .layout{display:block;margin-top:6px}
+  .content>.shop{margin:0 0 14px}
   .content .strip{display:block}
   #calBtn{display:inline-block}
   .side{display:none;position:fixed;inset:0;top:0;z-index:30;background:rgba(28,26,23,.45);padding:calc(70px + env(safe-area-inset-top)) 12px 12px}
@@ -250,6 +276,20 @@ dialog h2{font-size:17px;font-weight:700;margin-bottom:12px}
       <div class="legend" id="legend"></div>
       <button class="plain caltoday" id="calToday">回到今天</button>
     </div>
+    <section class="shop" id="shop">
+      <h3><span>🛒 要買的東西</span><small id="shopCount"></small></h3>
+      <div class="shopadd">
+        <input class="field" id="shopInput" placeholder="要買什麼？" maxlength="120" autocomplete="off" aria-label="新增要買的東西">
+        <select id="shopStore" aria-label="哪間店"></select>
+        <button class="btn" id="shopAdd">加入</button>
+      </div>
+      <div id="shopList"></div>
+      <div class="none" id="shopEmpty">目前沒有要買的東西</div>
+      <details class="shopdone" id="shopDoneBox" hidden>
+        <summary id="shopDoneSum"></summary>
+        <div id="shopDone"></div>
+      </details>
+    </section>
   </aside>
   <div class="content">
   <div class="strip">
@@ -359,6 +399,7 @@ let name = (() => { const s = LS.get('sl.name'); return s && s.date === today ? 
 let dbError = '';
 let storeCfg = {};
 let connected = false;
+let shopping = {};
 const data = {};
 let _D = null;      // 主系統資料（每日記帳只讀目前看的月份）
 let mainFailed = '';
@@ -377,6 +418,7 @@ const refOf = {
   cash: s => fs.doc(db,'storeList',`store_${s}_cash`),
   checks: (s,d) => fs.doc(db,'storeList',`store_${s}_checks_${d}`),
   cfg: () => fs.doc(db,'storeList','store_config'),
+  shop: () => fs.doc(db,'storeList','shopping'),
   main: () => fs.doc(db,'chic lash','data')
 };
 function showDbError(e) {
@@ -584,6 +626,10 @@ function watchDates() {
   });
 }
 function startLive() {
+  fs.onSnapshot(refOf.shop(), snap => {
+    shopping = snap.exists() ? (snap.data().items||{}) : {};
+    render();
+  }, showDbError);
   fs.onSnapshot(refOf.cfg(), snap => {
     storeCfg = snap.exists() ? (snap.data().stores||{}) : {};
     watchDates();
@@ -877,6 +923,7 @@ function makePart(id) {
         <input class="field i-date" type="date" aria-label="選日期" hidden>
         <select class="i-who" aria-label="指派給"></select>
         <button class="plus b-task">新增</button>
+        <button class="btn line b-shop" title="把這個加到「要買的東西」">🛒 要買</button>
       </div>
       <div class="list tasks"></div>
       <div class="none n-task" hidden>這天沒有事項</div>
@@ -1078,6 +1125,7 @@ function render() {
   $('goToday').style.visibility = viewDate===today ? 'hidden' : '';
   renderWeek();
   renderUpcoming();
+  renderShop();
   const all = stores();
   if (!all.some(s => s.id === curStore)) curStore = 'mv';
   syncList($('tabs'),all,s => s.id,() => {
@@ -1110,6 +1158,85 @@ $('tabs').addEventListener('click', e => {
 
 /* ---------- actions ---------- */
 function saveTpl(s,obj) { return write(fs.setDoc(refOf.board(s),{template:obj},{merge:true})).catch(()=>{}); }
+/* ---------- shopping ---------- */
+// 還沒買的一直顯示；按「買了」就收進「這週已買」，買了超過 7 天就不再顯示（資料庫仍保留）
+function shopItems() {
+  const all = Object.entries(shopping).map(([id,v]) => ({id,...v}));
+  const weekAgo = Date.now() - 7*864e5;
+  const toBuy = all.filter(t => !t.boughtAt).sort((a,b) => String(b.createdAt).localeCompare(String(a.createdAt)));
+  const done = all.filter(t => t.boughtAt && new Date(t.boughtAt).getTime() > weekAgo).sort((a,b) => String(b.boughtAt).localeCompare(String(a.boughtAt)));
+  return {toBuy,done};
+}
+function placeShop() { // 電腦放月曆下方；手機放在提醒上面
+  const shop = $('shop');
+  if (innerWidth <= 860) { if (shop.parentNode !== document.querySelector('.content')) $('up').before(shop); }
+  else if (shop.parentNode !== $('side')) $('side').append(shop);
+}
+const when = iso => { const d = new Date(iso); return `${d.getMonth()+1}/${d.getDate()} ${clock(iso)}`; };
+function shopRow(cls) {
+  return () => {
+    const el = document.createElement('div');
+    el.className = 'si';
+    el.innerHTML = '<div class="top"><span class="tag"></span><span class="tx"></span><button class="x" aria-label="刪除">×</button></div><div class="sm"></div>' + (cls==='todo' ? '<div class="acts"><button class="go" data-act="buy">買了</button></div>' : '<div class="acts"><button class="st" data-act="unbuy" title="按一下改回還沒買">還沒買</button></div>');
+    return el;
+  };
+}
+function fillShop(el,t) {
+  const tag = el.querySelector('.tag');
+  tag.style.background = colorOf(t.store);
+  setText(tag,storeName(t.store));
+  setText(el.querySelector('.tx'),t.text);
+  setText(el.querySelector('.sm'), t.boughtAt ? `${t.boughtBy} ${when(t.boughtAt)} 買了` : `${t.by} ${when(t.createdAt)} 加`);
+}
+function renderShop() {
+  placeShop();
+  const sel = $('shopStore'), sig = stores().map(x => x.id).join(',');
+  if (sel.dataset.sig !== sig) {
+    sel.dataset.sig = sig;
+    const keep = sel.value;
+    sel.replaceChildren(...stores().map(x => new Option(x.name,x.id)));
+    sel.value = stores().some(x => x.id === keep) ? keep : curStore;
+  }
+  const {toBuy,done} = shopItems();
+  setText($('shopCount'), toBuy.length ? `${toBuy.length} 樣還沒買` : '');
+  $('shopEmpty').hidden = toBuy.length > 0;
+  syncList($('shopList'),toBuy,t => t.id,shopRow('todo'),fillShop);
+  syncList($('shopDone'),done,t => t.id,shopRow('done'),fillShop);
+  $('shopDoneBox').hidden = !done.length;
+  setText($('shopDoneSum'),`這週已買 ${done.length} 樣`);
+}
+async function addShop(text,store) {
+  if (!needDb()) return false;
+  text = text.trim();
+  if (!text) return false;
+  const who = await needName();
+  if (!who) return false;
+  write(fs.setDoc(refOf.shop(),{items:{[uid()]:{text,store,by:who,createdAt:new Date().toISOString(),boughtBy:'',boughtAt:''}}},{merge:true})).catch(()=>{});
+  return true;
+}
+async function submitShop() {
+  if (await addShop($('shopInput').value,$('shopStore').value)) { $('shopInput').value = ''; $('shopInput').focus(); }
+  else $('shopInput').focus();
+}
+$('shopAdd').onclick = submitShop;
+enterKey($('shopInput'),submitShop);
+document.querySelector('#shop').addEventListener('click', async e => {
+  const el = e.target.closest('.si');
+  if (!el || !needDb()) return;
+  const id = el.dataset.key, t = shopping[id];
+  if (!t) return;
+  const set = f => write(fs.setDoc(refOf.shop(),{items:{[id]:f}},{merge:true})).catch(()=>{});
+  if (e.target.matches('.x')) { if (await confirmIt(`刪除「${t.text}」？`)) write(fs.setDoc(refOf.shop(),{items:{[id]:fs.deleteField()}},{merge:true})).catch(()=>{}); return; }
+  const act = e.target.dataset.act;
+  if (act === 'unbuy') return set({boughtBy:'',boughtAt:''});
+  if (act === 'buy') {
+    const who = await needName();
+    if (!who) return;
+    set({boughtBy:who,boughtAt:new Date().toISOString()});
+    toast(`已買：${t.text}`);
+  }
+});
+
 async function addTask(s) {
   if (!needDb()) return;
   const p = parts[s], inp = p.el.querySelector('.i-task');
@@ -1165,6 +1292,12 @@ $('parts').addEventListener('click', async e => {
   if (!host) return;
   const s = host.dataset.store;
   if (e.target.matches('.b-task')) return addTask(s);
+  if (e.target.matches('.b-shop')) {
+    const inp = host.querySelector('.i-task');
+    if (!inp.value.trim()) { inp.focus(); toast('先打要買什麼，再按「🛒 要買」'); return; }
+    if (await addShop(inp.value,s)) { inp.value = ''; toast('已加到「要買的東西」'); }
+    return;
+  }
   if (e.target.matches('.b-daily')) return addDaily(s);
   if (e.target.matches('.c-tpl')) return openTpl(s);
   if (e.target.matches('.c-save')) return saveCount(s);
