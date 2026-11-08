@@ -530,6 +530,7 @@ input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-
   <button class="ni" id="ni-gc" onclick="showPage('gc')"><span class="ni-ic">🎁</span>Gift Card 記錄</button>
   <button class="ni" id="ni-cardexp" onclick="showPage('cardexp')"><span class="ni-ic">🧾</span>員工消費卡</button>
   <button class="ni" id="ni-stockout" onclick="showPage('stockout')"><span class="ni-ic">📦</span>庫存出庫</button>
+  <button class="ni" id="ni-buy" onclick="showPage('buy')"><span class="ni-ic">🛒</span>進貨記錄</button>
   <div class="s-sec">月結</div>
   <button class="ni" id="ni-report" onclick="showPage('report')"><span class="ni-ic">📋</span>月結報表</button>
   <button class="ni" id="ni-payroll" onclick="showPage('payroll')"><span class="ni-ic">💜</span>Lucy &amp; Luter 薪資</button>
@@ -1052,6 +1053,21 @@ input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-
   <div class="gd-tbl" id="cex-list-wrap">
     <div class="gc-empty">尚無刷卡記錄，請在上方新增</div>
   </div>
+</div>
+
+<!-- 進貨記錄：員工店務清單（store-list.html）「要買的東西」按了「買了」的紀錄，唯讀 -->
+<div class="page" id="page-buy">
+  <div class="pg-hd"><div class="pg-title">🛒 進貨記錄</div><div class="pg-sub">員工在店務清單加的「要買的東西」，按了「買了」就會出現在這裡：什麼時候、誰買的、買了什麼。</div></div>
+  <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:14px">
+    <button class="gc-field" style="min-width:0;cursor:pointer" onclick="buyShiftMonth(-1)">‹</button>
+    <b id="buy-month" style="font-size:15px;min-width:110px;text-align:center"></b>
+    <button class="gc-field" style="min-width:0;cursor:pointer" onclick="buyShiftMonth(1)">›</button>
+    <select id="buy-store" class="gc-field" onchange="renderBuyPage()"><option value="">兩間店</option></select>
+    <input type="text" id="buy-q" class="gc-field" placeholder="搜尋品項…" oninput="renderBuyPage()" style="min-width:160px">
+    <span id="buy-sum" style="font-size:13px;color:var(--sub)"></span>
+  </div>
+  <div id="buy-todo"></div>
+  <div class="gc-tbl" id="buy-tbl"></div>
 </div>
 
 <!-- 庫存出庫 -->
@@ -3402,6 +3418,62 @@ function calcMonth(s){
 
 // ── NAV ──
 function changeMonth(d){_gdRowOpen={};cur.setMonth(cur.getMonth()+d);renderAll();}
+// ── 進貨記錄：讀員工店務清單 storeList/shopping（store-list.html 寫入），這裡只看不改 ──
+var _buyMonth = null, _buyCache = null;
+function buyShiftMonth(n){
+  var p = (_buyMonth || todayLocal().slice(0,7)).split('-').map(Number);
+  var d = new Date(p[0], p[1]-1+n, 1);
+  _buyMonth = d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0');
+  renderBuyPage(true);
+}
+async function renderBuyPage(skipFetch){
+  if(!_buyMonth) _buyMonth = todayLocal().slice(0,7);
+  var esc = function(x){return String(x==null?'':x).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];});};
+  var tbl = document.getElementById('buy-tbl');
+  var p = _buyMonth.split('-');
+  document.getElementById('buy-month').textContent = p[0]+' 年 '+Number(p[1])+' 月';
+  if(!skipFetch || !_buyCache){
+    if(!_buyCache) tbl.innerHTML = '<div class="gc-empty">讀取中…</div>';
+    try{
+      const { doc, getDoc } = await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js');
+      const [shop, cfg] = await Promise.all([getDoc(doc(window._db,'storeList','shopping')), getDoc(doc(window._db,'storeList','store_config'))]);
+      _buyCache = { items: shop.exists() ? (shop.data().items||{}) : {}, stores: cfg.exists() ? (cfg.data().stores||{}) : {} };
+    }catch(e){
+      console.warn('進貨記錄讀取失敗', e);
+      tbl.innerHTML = '<div class="gc-empty">讀不到店務清單的資料，請檢查網路後再點一次「進貨記錄」。</div>';
+      return;
+    }
+  }
+  var names = {mv:'Mill Valley', sr:'San Rafael'};
+  Object.keys(_buyCache.stores).forEach(function(k){ if(_buyCache.stores[k].name) names[k] = _buyCache.stores[k].name; });
+  var colors = {mv:'var(--mv)', sr:'var(--sr)'};
+  var sel = document.getElementById('buy-store');
+  if(sel.options.length === 1) Object.keys(names).forEach(function(k){ var o=document.createElement('option'); o.value=k; o.textContent=names[k]; sel.appendChild(o); });
+  var fs = sel.value, q = (document.getElementById('buy-q').value||'').trim().toLowerCase();
+  var local = function(iso){ var d=new Date(iso); return isNaN(d)?null:d; };
+  var dayKey = function(d){ return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); };
+  var tm = function(d){ return d.toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'}); };
+  var all = Object.keys(_buyCache.items).map(function(id){ var t=_buyCache.items[id]; t.id=id; return t; })
+    .filter(function(t){ return (!fs || t.store===fs) && (!q || String(t.text||'').toLowerCase().indexOf(q)>=0); });
+  var bought = all.filter(function(t){ var d=t.boughtAt&&local(t.boughtAt); return d && dayKey(d).slice(0,7)===_buyMonth; })
+    .sort(function(a,b){ return String(b.boughtAt).localeCompare(String(a.boughtAt)); });
+  var todo = all.filter(function(t){ return !t.boughtAt; });
+  var tag = function(s){ return '<span style="font-size:11px;font-weight:700;color:#fff;background:'+(colors[s]||'var(--gold)')+';border-radius:4px;padding:1px 6px;white-space:nowrap">'+esc(names[s]||s)+'</span>'; };
+  document.getElementById('buy-sum').textContent = '這個月買了 '+bought.length+' 樣';
+  var td = document.getElementById('buy-todo');
+  td.innerHTML = todo.length ? '<div style="background:var(--warn-bg);border:1px solid var(--warn-bd);border-radius:10px;padding:10px 14px;margin-bottom:12px;font-size:13px"><b style="color:var(--warn)">還沒買 '+todo.length+' 樣：</b> '+todo.map(function(t){return tag(t.store)+' '+esc(t.text);}).join('　')+'</div>' : '';
+  if(!bought.length){ tbl.innerHTML = '<div class="gc-empty">這個月還沒有進貨記錄</div>'; return; }
+  var rows = bought.map(function(t){
+    var d = local(t.boughtAt), c = t.createdAt && local(t.createdAt);
+    return '<tr><td style="white-space:nowrap">'+(d.getMonth()+1)+'/'+d.getDate()+'（'+'日一二三四五六'[d.getDay()]+'）<br><span style="color:var(--sub);font-size:11px">'+tm(d)+'</span></td>'
+      +'<td>'+tag(t.store)+'</td><td style="font-weight:600">'+esc(t.text)+'</td><td>'+esc(t.boughtBy||'')+'</td>'
+      +'<td style="color:var(--sub);font-size:12px">'+esc(t.by||'')+(c?' '+(c.getMonth()+1)+'/'+c.getDate():'')+'</td></tr>';
+  }).join('');
+  tbl.innerHTML = '<table style="width:100%;border-collapse:collapse;font-size:13px"><thead><tr style="text-align:left;color:var(--sub);font-size:12px">'
+    +'<th style="padding:10px 14px">買的日期</th><th style="padding:10px 14px">店</th><th style="padding:10px 14px">買了什麼</th><th style="padding:10px 14px">誰買的</th><th style="padding:10px 14px">誰提出要買</th></tr></thead><tbody>'
+    + rows.replace(/<td/g,'<td style="padding:9px 14px;border-top:1px solid var(--border);vertical-align:top"').replace(/<td style="padding:9px 14px;border-top:1px solid var\(--border\);vertical-align:top" style="/g,'<td style="padding:9px 14px;border-top:1px solid var(--border);vertical-align:top;')
+    + '</tbody></table>';
+}
 function showPage(p){
   document.querySelectorAll('.page').forEach(e=>e.classList.remove('on'));
   document.querySelectorAll('.ni').forEach(e=>e.classList.remove('on'));
@@ -3419,6 +3491,7 @@ function showPage(p){
   if(p==='cal')renderCalPage();
   if(p==='cardexp')renderCardExpPage();
   if(p==='stockout')renderStockPage();
+  if(p==='buy')renderBuyPage();
   if(p==='products')renderProductsPage();
   if(p==='members')renderMembersPage();
   if(p==='staff')renderStaffPage();
