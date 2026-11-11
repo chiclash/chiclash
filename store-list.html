@@ -79,8 +79,24 @@ button{cursor:pointer;background:none;border:0;padding:0}
 .chip[aria-pressed=true]{background:var(--c);border-color:var(--c);color:#fff}
 .chip.elsewhere{border-style:dashed;color:var(--sub)}
 .chip.twice{background:var(--warn);border-color:var(--warn)}
+.chips:empty{display:none}
+.chips{margin-bottom:10px}
+.w-add{width:100%;background:var(--c)}
+.names button.elsewhere{border-style:dashed;color:var(--faint)}
+.names button small{display:block;font-size:11px;font-weight:500}
 .chip:disabled{cursor:default}
-/* 購物清單列 */
+/* 購物清單列：老闆要看，框線和字都加深加大 */
+.s-shop .panel{border:2px solid #6B6560;background:var(--white)}
+.s-shop h3{font-size:14px;color:var(--ink)}
+.s-shop .list{border:1.5px solid #8F867D}
+.s-shop .row{border-bottom-color:#C8C2BA;min-height:58px}
+.s-shop .tx{font-size:17px;font-weight:600;color:var(--ink)}
+.s-shop .sm{font-size:13px;color:#5F5954}
+.si .buy{min-height:42px;padding:0 18px;border-radius:21px;font-size:15px;font-weight:700;background:var(--ink);color:#fff;flex:none}
+.si .undo{min-height:36px;padding:0 12px;border-radius:18px;font-size:13px;font-weight:600;border:1.5px solid #8F867D;color:var(--ink);background:var(--white);flex:none}
+.s-shop .row.done .tx{color:#8F867D;text-decoration:line-through;font-weight:400}
+.s-shop .shopdone summary{color:var(--ink)}
+
 .shopbtn{background:var(--ink)}
 .si .buy{min-height:34px;padding:0 14px;border-radius:17px;font-size:13px;font-weight:700;background:var(--ink);color:#fff;flex:none}
 .si .undo{min-height:30px;padding:0 10px;border-radius:15px;font-size:12px;font-weight:600;border:1px solid var(--border2);color:var(--sub);background:var(--white);flex:none}
@@ -292,6 +308,12 @@ dialog h2{font-size:17px;font-weight:700;margin-bottom:12px}
     <button class="btn line" id="otherUse">使用</button>
   </div>
   <div class="foot"><button class="btn line" id="nameCancel">取消</button></div>
+</dialog>
+<dialog id="whoDlg" aria-labelledby="whoTitle">
+  <h2 id="whoTitle"></h2>
+  <div class="names" id="whoNames"></div>
+  <div class="hint">灰色虛線的人今天已經在另一間店按過了。</div>
+  <div class="foot"><button class="btn line" id="whoCancel">取消</button></div>
 </dialog>
 <dialog id="tplDlg" aria-labelledby="tplTitle">
   <h2 id="tplTitle"></h2>
@@ -916,9 +938,9 @@ function makePart(id) {
     <section class="sec s-who">
       <h3><span class="num">1</span>👋 今天誰在這裡上班<small class="wcount"></small></h3>
       <div class="panel">
-        <div class="whohint"></div>
         <div class="chips"></div>
-        <div class="none w-none" hidden>這天沒有人按名字</div>
+        <div class="none w-none" hidden></div>
+        <button class="btn w-add">＋ 我今天在這裡上班</button>
       </div>
     </section>
     <section class="sec">
@@ -962,7 +984,7 @@ function makePart(id) {
       <div class="list counts"></div>
       </div>
     </section>
-    <section class="sec">
+    <section class="sec s-shop">
       <h3><span class="num">5</span>🛒 要買的東西<small class="scount"></small></h3>
       <div class="panel">
       <div class="list shoplist"></div>
@@ -1191,10 +1213,11 @@ function shopItems(store) {
 }
 const when = iso => { const d = new Date(iso); return `${d.getMonth()+1}/${d.getDate()} ${clock(iso)}`; };
 // 跟其他清單一樣的勾選列：勾起來就是「買了」，再按一次改回沒買
+// 還沒買的：右邊一顆「買了」；已買的：一顆「改回沒買」
 const shopRow = bought => () => {
   const el = document.createElement('div');
   el.className = 'row si' + (bought ? ' done' : '');
-  el.innerHTML = `<button class="check" data-act="${bought?'unbuy':'buy'}" aria-label="${bought?'改回沒買':'買了'}"></button><div class="body"><div class="t tx"></div><div class="m sm"></div></div><button class="x" data-act="del" aria-label="刪除">×</button>`;
+  el.innerHTML = `<div class="body"><div class="t tx"></div><div class="m sm"></div></div>` + (bought ? '<button class="undo" data-act="unbuy">改回沒買</button>' : '<button class="buy" data-act="buy">買了</button>') + '<button class="x" data-act="del" aria-label="刪除">×</button>';
   return el;
 };
 function fillShop(el,t) {
@@ -1209,26 +1232,39 @@ function renderWho(id,el,d,past,future) {
   if (future) return;
   const day = shiftDay(d);
   const here = n => !!(day[n] && day[n][id]);
-  // 過去的日子只顯示有按的人；今天顯示全部員工
-  const names = past ? Object.keys(day).filter(here).sort() : [...new Set([...staff,...Object.keys(day).filter(here)])];
-  syncList(el.querySelector('.chips'),names,n => n,() => { const b = document.createElement('button'); b.className = 'chip'; b.innerHTML = '<span></span><small hidden></small>'; return b; },(b,n) => {
-    const on = here(n);
+  // 只列出已經在這間店按的人（照按的時間排），其他人收在「我今天在這裡上班」按鈕裡
+  const names = Object.keys(day).filter(here).sort((a,b) => String(day[a][id]).localeCompare(String(day[b][id])));
+  syncList(el.querySelector('.chips'),names,n => n,() => { const b = document.createElement('button'); b.className = 'chip'; b.innerHTML = '<span></span><small></small>'; return b; },(b,n) => {
     const other = storesOf(d,n).filter(x => x !== id);
     setText(b.firstChild,n);
-    const sm = b.querySelector('small');
-    setText(sm, on ? clock(day[n][id]) : other.length ? `在 ${storeName(other[0])}` : '');
-    sm.hidden = !sm.textContent;
-    b.setAttribute('aria-pressed',String(on));
-    b.classList.toggle('elsewhere',!on && other.length > 0);
-    b.classList.toggle('twice',on && other.length > 0);
-    if (on && other.length) setText(sm,`⚠ 兩店都按`);
-    b.disabled = false; // 過去的日子只會列出有按的人，可以按掉錯的那間
+    setText(b.querySelector('small'), other.length ? '⚠ 兩店都按' : clock(day[n][id]));
+    b.setAttribute('aria-pressed','true');
+    b.classList.toggle('twice',other.length > 0);
+    b.title = '按錯了？點一下取消';
   });
-  setText(sec.querySelector('.whohint'), past ? '這天有按名字的人。按錯的話點一下就能取消。' : '上班時按一下自己的名字（打卡還是照常打）');
-  const cnt = names.filter(here).length;
-  setText(el.querySelector('.wcount'), cnt ? `${cnt} 人` : '');
-  el.querySelector('.w-none').hidden = names.length > 0;
+  setText(el.querySelector('.wcount'), names.length ? `${names.length} 人` : '');
+  const none = el.querySelector('.w-none');
+  none.hidden = names.length > 0;
+  setText(none, past ? '這天沒有人按名字' : '還沒有人按。上班的人按下面的按鈕，選自己的名字。');
+  el.querySelector('.w-add').hidden = past;
 }
+let whoStore = 'mv';
+function openWho(s) {
+  whoStore = s;
+  const day = shiftDay(today);
+  setText($('whoTitle'),`誰今天在 ${storeName(s)} 上班？`);
+  const list = staff.filter(n => !(day[n] && day[n][s]));
+  $('whoNames').replaceChildren(...list.map(n => {
+    const b = document.createElement('button');
+    const other = storesOf(today,n);
+    b.textContent = n;
+    if (other.length) { b.classList.add('elsewhere'); const sm = document.createElement('small'); sm.textContent = `在 ${storeName(other[0])}`; b.append(sm); }
+    b.onclick = async () => { $('whoDlg').close(); await toggleShift(s,n); };
+    return b;
+  }));
+  $('whoDlg').showModal();
+}
+$('whoCancel').onclick = () => $('whoDlg').close();
 async function toggleShift(s,n) {
   if (viewDate > today || !needDb()) return;
   const d = viewDate, mo = d.slice(0,7);
@@ -1343,6 +1379,7 @@ $('parts').addEventListener('click', async e => {
   const s = host.dataset.store;
   const chip = e.target.closest('.chip');
   if (chip) return toggleShift(s,chip.dataset.key);
+  if (e.target.matches('.w-add')) return openWho(s);
   if (e.target.matches('.b-task')) return addTask(s);
   if (e.target.matches('.b-shop')) return addShopFrom(s);
   if (e.target.matches('.b-daily')) return addDaily(s);
