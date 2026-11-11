@@ -72,16 +72,18 @@ button{cursor:pointer;background:none;border:0;padding:0}
 .parts{grid-template-columns:repeat(auto-fit,minmax(340px,1fr))}
 #calBtn{display:none}
 
-/* 購物清單（每間店各自一份） */
+.whohint{font-size:12px;color:var(--sub);margin-bottom:8px}
+.chips{display:flex;flex-wrap:wrap;gap:8px}
+.chip{min-height:44px;padding:4px 14px;border-radius:22px;border:1.5px solid var(--border2);background:var(--white);font-weight:600;font-size:15px;display:flex;flex-direction:column;align-items:center;justify-content:center;line-height:1.15}
+.chip small{font-size:11px;font-weight:500;opacity:.85}
+.chip[aria-pressed=true]{background:var(--c);border-color:var(--c);color:#fff}
+.chip.elsewhere{border-style:dashed;color:var(--sub)}
+.chip.twice{background:var(--warn);border-color:var(--warn)}
+.chip:disabled{cursor:default}
+/* 購物清單列 */
 .shopbtn{background:var(--ink)}
-.si{display:flex;align-items:center;gap:10px;min-height:52px;padding:6px 0;border-bottom:1px solid var(--border)}
-.si:last-child{border-bottom:0}
-.si .body{flex:1;min-width:0}
-.si .tx{font-size:15px;overflow-wrap:anywhere}
-.si .sm{font-size:12px;color:var(--sub)}
 .si .buy{min-height:34px;padding:0 14px;border-radius:17px;font-size:13px;font-weight:700;background:var(--ink);color:#fff;flex:none}
 .si .undo{min-height:30px;padding:0 10px;border-radius:15px;font-size:12px;font-weight:600;border:1px solid var(--border2);color:var(--sub);background:var(--white);flex:none}
-.si.done .tx{color:var(--faint);text-decoration:line-through}
 .shopdone{margin-top:8px}
 .shopdone summary{font-size:13px;font-weight:600;color:var(--sub);min-height:32px;display:flex;align-items:center;cursor:pointer}
 .sec h3 small.warn{color:var(--warn)}
@@ -374,6 +376,7 @@ let dbError = '';
 let storeCfg = {};
 let connected = false;
 let shopping = {};
+const shifts = {}, shiftSubs = {}; // 每月一份：{'YYYY-MM-DD': {名字: {店: 按的時間}}}
 const data = {};
 let _D = null;      // 主系統資料（每日記帳只讀目前看的月份）
 let mainFailed = '';
@@ -393,6 +396,7 @@ const refOf = {
   checks: (s,d) => fs.doc(db,'storeList',`store_${s}_checks_${d}`),
   cfg: () => fs.doc(db,'storeList','store_config'),
   shop: () => fs.doc(db,'storeList','shopping'),
+  shifts: mo => fs.doc(db,'storeList',`shifts_${mo}`),
   main: () => fs.doc(db,'chic lash','data')
 };
 function showDbError(e) {
@@ -600,9 +604,18 @@ function watchChecks(s,d) {
     render();
   }, showDbError);
 }
+function watchShifts(mo) {
+  if (shiftSubs[mo]) return;
+  shiftSubs[mo] = fs.onSnapshot(refOf.shifts(mo), snap => {
+    shifts[mo] = snap.exists() ? snap.data() : {};
+    render();
+  }, showDbError);
+}
 function watchDates() {
   stores().forEach(({id}) => ensureStore(id));
   if (!fs) return;
+  watchShifts(today.slice(0,7));
+  watchShifts(viewDate.slice(0,7));
   stores().forEach(({id}) => {
     const box = data[id];
     watchChecks(id,today);
@@ -782,13 +795,13 @@ function renderWeek() {
     host.append(b);
   }
   const v = parseDay(viewDate);
-  // 從選的那天前一天開始，往後看一週，明天、後天一定看得到
-  const start = new Date(v.getFullYear(),v.getMonth(),v.getDate()-1);
+  // 固定星期日到星期六，點哪天都不會移動；按左右箭頭才換週
+  const start = new Date(v.getFullYear(),v.getMonth(),v.getDate()-v.getDay());
   [...host.children].forEach((b,i) => {
     const d = new Date(start); d.setDate(start.getDate()+i);
     const s = ymd(d);
     b.dataset.d = s;
-    setText(b.querySelector('.w'),s===today?'今天':s===addDays(today,1)?'明天':WEEK[d.getDay()]);
+    setText(b.querySelector('.w'),s===today?'今天':WEEK[d.getDay()]);
     setText(b.querySelector('.n'),String(d.getDate()));
     b.className = 'day' + (s===today?' today':'') + (s===viewDate?' sel':'') + (s<today?' past':'');
     const c = b.querySelector('.c');
@@ -900,8 +913,16 @@ function makePart(id) {
   el.dataset.store = id;
   el.innerHTML = `
     <div class="part-head"><h2></h2><small class="left"></small><button class="x p-remove" aria-label="移除這間店" hidden>×</button></div>
+    <section class="sec s-who">
+      <h3><span class="num">1</span>👋 今天誰在這裡上班<small class="wcount"></small></h3>
+      <div class="panel">
+        <div class="whohint"></div>
+        <div class="chips"></div>
+        <div class="none w-none" hidden>這天沒有人按名字</div>
+      </div>
+    </section>
     <section class="sec">
-      <h3><span class="num">1</span>當日事項<small class="tcount"></small></h3>
+      <h3><span class="num">2</span>當日事項<small class="tcount"></small></h3>
       <div class="panel">
       <div class="add q-task">
         <input class="field i-task" placeholder="新增事項或提醒" maxlength="300" autocomplete="off" aria-label="新增事項">
@@ -912,17 +933,6 @@ function makePart(id) {
       </div>
       <div class="list tasks"></div>
       <div class="none n-task" hidden>這天沒有事項</div>
-      </div>
-    </section>
-    <section class="sec">
-      <h3><span class="num">2</span>🛒 要買的東西<small class="scount"></small></h3>
-      <div class="panel">
-      <div class="add">
-        <input class="field i-shop" placeholder="要買什麼？（老闆買了會打勾）" maxlength="120" autocomplete="off" aria-label="新增要買的東西">
-        <button class="plus shopbtn b-shop">加入</button>
-      </div>
-      <div class="list shoplist"></div>
-      <details class="shopdone" hidden><summary></summary><div class="list donelist"></div></details>
       </div>
     </section>
     <section class="sec">
@@ -950,6 +960,17 @@ function makePart(id) {
         <div class="hint c-hint"></div>
       </div>
       <div class="list counts"></div>
+      </div>
+    </section>
+    <section class="sec">
+      <h3><span class="num">5</span>🛒 要買的東西<small class="scount"></small></h3>
+      <div class="panel">
+      <div class="list shoplist"></div>
+      <div class="add" style="margin-top:8px">
+        <input class="field i-shop" placeholder="要買什麼？" maxlength="120" autocomplete="off" aria-label="新增要買的東西">
+        <button class="plus b-shop">加入</button>
+      </div>
+      <details class="shopdone" hidden><summary></summary><div class="list donelist"></div></details>
       </div>
     </section>`;
   const dens = el.querySelector('.dens');
@@ -1023,7 +1044,7 @@ function renderPart(s) {
   if (due.dataset.sig !== dueSig) {
     due.dataset.sig = dueSig;
     const opts = [];
-    if (viewDate !== today && viewDate !== addDays(today,1) && viewDate > today) opts.push(new Option(`這天 ${shortDay(viewDate)}`,viewDate));
+    if (viewDate !== today && viewDate !== addDays(today,1) && viewDate > today) opts.push(new Option(shortDay(viewDate),viewDate));
     opts.push(new Option('今天',today), new Option('明天',addDays(today,1)), new Option('後天',addDays(today,2)), new Option('其他日期…','pick'));
     due.replaceChildren(...opts);
     due.value = viewDate > today ? viewDate : today;
@@ -1036,6 +1057,8 @@ function renderPart(s) {
     sel.value = keep;
   }
 
+
+  renderWho(id,el,d,past,future);
   renderShopPart(id,el);
 
   /* daily */
@@ -1167,15 +1190,60 @@ function shopItems(store) {
   return {toBuy,done};
 }
 const when = iso => { const d = new Date(iso); return `${d.getMonth()+1}/${d.getDate()} ${clock(iso)}`; };
+// 跟其他清單一樣的勾選列：勾起來就是「買了」，再按一次改回沒買
 const shopRow = bought => () => {
   const el = document.createElement('div');
-  el.className = 'si' + (bought ? ' done' : '');
-  el.innerHTML = '<div class="body"><div class="tx"></div><div class="sm"></div></div>' + (bought ? '<button class="undo" data-act="unbuy">改回沒買</button>' : '<button class="buy" data-act="buy">買了</button>') + '<button class="x" data-act="del" aria-label="刪除">×</button>';
+  el.className = 'row si' + (bought ? ' done' : '');
+  el.innerHTML = `<button class="check" data-act="${bought?'unbuy':'buy'}" aria-label="${bought?'改回沒買':'買了'}"></button><div class="body"><div class="t tx"></div><div class="m sm"></div></div><button class="x" data-act="del" aria-label="刪除">×</button>`;
   return el;
 };
 function fillShop(el,t) {
   setText(el.querySelector('.tx'),t.text);
   setText(el.querySelector('.sm'), t.boughtAt ? `${t.boughtBy} ${when(t.boughtAt)} 買了` : `${t.by} ${when(t.createdAt)} 加`);
+}
+const shiftDay = d => (shifts[d.slice(0,7)]||{})[d] || {};
+const storesOf = (d,n) => Object.keys((shiftDay(d)[n])||{}).filter(k => shiftDay(d)[n][k]);
+function renderWho(id,el,d,past,future) {
+  const sec = el.querySelector('.s-who');
+  sec.hidden = future;
+  if (future) return;
+  const day = shiftDay(d);
+  const here = n => !!(day[n] && day[n][id]);
+  // 過去的日子只顯示有按的人；今天顯示全部員工
+  const names = past ? Object.keys(day).filter(here).sort() : [...new Set([...staff,...Object.keys(day).filter(here)])];
+  syncList(el.querySelector('.chips'),names,n => n,() => { const b = document.createElement('button'); b.className = 'chip'; b.innerHTML = '<span></span><small hidden></small>'; return b; },(b,n) => {
+    const on = here(n);
+    const other = storesOf(d,n).filter(x => x !== id);
+    setText(b.firstChild,n);
+    const sm = b.querySelector('small');
+    setText(sm, on ? clock(day[n][id]) : other.length ? `在 ${storeName(other[0])}` : '');
+    sm.hidden = !sm.textContent;
+    b.setAttribute('aria-pressed',String(on));
+    b.classList.toggle('elsewhere',!on && other.length > 0);
+    b.classList.toggle('twice',on && other.length > 0);
+    if (on && other.length) setText(sm,`⚠ 兩店都按`);
+    b.disabled = false; // 過去的日子只會列出有按的人，可以按掉錯的那間
+  });
+  setText(sec.querySelector('.whohint'), past ? '這天有按名字的人。按錯的話點一下就能取消。' : '上班時按一下自己的名字（打卡還是照常打）');
+  const cnt = names.filter(here).length;
+  setText(el.querySelector('.wcount'), cnt ? `${cnt} 人` : '');
+  el.querySelector('.w-none').hidden = names.length > 0;
+}
+async function toggleShift(s,n) {
+  if (viewDate > today || !needDb()) return;
+  const d = viewDate, mo = d.slice(0,7);
+  const on = !!((shiftDay(d)[n]||{})[s]);
+  if (!on && d !== today) return; // 只能補按今天；以前的日子只能取消按錯的
+  if (on) {
+    if (!await confirmIt(`取消 ${n} ${d===today?'今天':shortDay(d)} 在 ${storeName(s)} 上班？`)) return;
+    write(fs.setDoc(refOf.shifts(mo),{[d]:{[n]:{[s]:fs.deleteField()}}},{merge:true})).catch(()=>{});
+    return;
+  }
+  const other = storesOf(d,n).filter(x => x !== s);
+  if (other.length && !await confirmIt(`⚠ ${n} 今天已經按了 ${storeName(other[0])}。兩間店都按會被標成「有問題」，老闆要另外確認。確定也要加 ${storeName(s)} 嗎？`)) return;
+  write(fs.setDoc(refOf.shifts(mo),{[d]:{[n]:{[s]:new Date().toISOString()}}},{merge:true})).catch(()=>{});
+  if (!name) setName(n);
+  toast(`${n} 今天在 ${storeName(s)} 上班`);
 }
 function renderShopPart(id,el) {
   const {toBuy,done} = shopItems(id);
@@ -1273,6 +1341,8 @@ $('parts').addEventListener('click', async e => {
   const host = e.target.closest('.part');
   if (!host) return;
   const s = host.dataset.store;
+  const chip = e.target.closest('.chip');
+  if (chip) return toggleShift(s,chip.dataset.key);
   if (e.target.matches('.b-task')) return addTask(s);
   if (e.target.matches('.b-shop')) return addShopFrom(s);
   if (e.target.matches('.b-daily')) return addDaily(s);
@@ -1283,7 +1353,7 @@ $('parts').addEventListener('click', async e => {
     return;
   }
   const row = e.target.closest('.row');
-  if (!row) return;
+  if (!row || row.classList.contains('si')) return;
   if (row.closest('.tasks')) {
     if (e.target.matches('.x')) {
       const t = (board(s).tasks||{})[row.dataset.key];
