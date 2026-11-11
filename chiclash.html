@@ -11804,22 +11804,77 @@ function loadShiftMonth(mo){
     _shiftAt[mo] = Date.now() - 50000; // 10 秒後再點進來會重試
   }).then(function(){
     _shiftLoading[mo] = false;
-    if(mk()!==mo) return;
-    var on = function(id){ var pg=document.getElementById(id); return pg && pg.classList.contains('on'); };
-    if(on('page-att')){ renderAttStoreSum(); var w=document.getElementById('att-staff-cards'); if(w) w.innerHTML=activeStaffList().map(buildStaffCard).join(''); }
-    if(on('page-home')) renderHomeLabor();
-    if(on('page-cal')) renderCalDetail();
+    rerenderShiftViews(mo);
   });
 }
+// 打卡記錄每一天的 MV / SR 按鈕：員工沒在店務清單按到，可以在這裡幫他補或改
 function shiftBadges(name,date){
-  var sts = shiftStoresFor(name,date);
-  if(sts.length > 1) return '<span title="店務清單裡這天兩間店都按了名字，請確認實際在哪一間" style="display:inline-block;margin-left:4px;padding:1px 6px;border-radius:4px;background:var(--warn-bg);color:var(--warn);border:1px solid var(--warn-bd);font-size:10px;font-weight:700">⚠ 兩店都按</span>';
-  return sts.map(function(st){
-    var nmz = st==='mv'?'MV':st==='sr'?'SR':st;
-    var col = st==='mv'?'var(--mv)':st==='sr'?'var(--sr)':'var(--gold)';
-    return '<span title="店務清單：這天在這家店" style="display:inline-block;margin-left:4px;padding:1px 6px;border-radius:4px;background:'+col+';color:#fff;font-size:10px;font-weight:700">'+nmz+'</span>';
-  }).join('');
+  var sts = shiftStoresFor(name,date), both = sts.length > 1;
+  var q = "'", en = name.replace(/\\/g,'\\\\').replace(/'/g,"\\'").replace(/"/g,'&quot;').replace(/</g,'&lt;');
+  return '<span style="display:inline-flex;gap:4px;margin-left:6px;vertical-align:middle'+(both?';outline:2px solid var(--warn);outline-offset:2px;border-radius:5px':'')+'" title="'+(both?'兩店都按了，點正確的那間就會只留那間':'這天在哪家店上班（點一下設定，再點一次取消）')+'">'+
+    [['mv','MV','var(--mv)'],['sr','SR','var(--sr)']].map(function(x){
+      var on = sts.indexOf(x[0]) >= 0;
+      return '<button type="button" onclick="setShiftStore('+q+en+q+','+q+date+q+','+q+x[0]+q+')" style="font-family:inherit;font-size:10.5px;font-weight:700;padding:2px 8px;border-radius:4px;cursor:pointer;border:1.5px solid '+x[2]+';background:'+(on?x[2]:'var(--white)')+';color:'+(on?'#fff':x[2])+'">'+x[1]+'</button>';
+    }).join('')+'</span>';
 }
+function rerenderShiftViews(mo){
+  if(mk()!==mo) return;
+  var on = function(id){ var pg=document.getElementById(id); return pg && pg.classList.contains('on'); };
+  if(on('page-att')){ renderAttStoreSum(); var w=document.getElementById('att-staff-cards'); if(w) w.innerHTML=activeStaffList().map(buildStaffCard).join(''); }
+  if(on('page-home')) renderHomeLabor();
+  if(on('page-cal')) renderCalDetail();
+}
+// 寫入前先讀最新的資料（員工可能剛在店務清單按過），再決定要改什麼，避免用到舊資料
+async function shiftWrite(mo, build){
+  const m = await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js');
+  const ref = m.doc(window._db,'storeList','shifts_'+mo);
+  const sn = await m.getDoc(ref);
+  _shiftCache[mo] = sn.exists() ? sn.data() : {};
+  _shiftErr[mo] = false; _shiftAt[mo] = Date.now();
+  const body = build(m);
+  if(!Object.keys(body).length) return;
+  await m.setDoc(ref, body, {merge:true});
+  // 存完再讀一次，畫面跟資料庫一定一致
+  const after = await m.getDoc(ref);
+  _shiftCache[mo] = after.exists() ? after.data() : {};
+}
+// 設定某人某天在哪家店：點的那間如果已經是唯一一間就取消；否則設成只有這一間（兩店都按的也會被修成一間）
+async function setShiftStore(name,date,store){
+  var mo = date.slice(0,7);
+  try{
+    await shiftWrite(mo, function(m){
+      var cur0 = shiftStoresFor(name,date);
+      var only = cur0.length===1 && cur0[0]===store;
+      var patch = {}; patch[store] = only ? m.deleteField() : new Date().toISOString();
+      ['mv','sr'].forEach(function(o){ if(o!==store && cur0.indexOf(o)>=0) patch[o] = m.deleteField(); });
+      var body = {}; body[date] = {}; body[date][name] = patch;
+      return body;
+    });
+  }catch(e){
+    console.warn('設定店家失敗',e);
+    alertBox('沒有存到，請檢查網路後再試一次。');
+  }
+  rerenderShiftViews(mo);
+}
+// 一次把某人這個月「有打卡但還沒分店」的日子都設成同一間（一次存完）
+async function setShiftBulk(name,store){
+  var mo = mk(), d = attData();
+  try{
+    await shiftWrite(mo, function(){
+      var body = {}, now = new Date().toISOString();
+      (d.records[name]||[]).forEach(function(r){
+        if(r.date.slice(0,7)!==mo || shiftStoresFor(name,r.date).length) return;
+        body[r.date] = {}; body[r.date][name] = {}; body[r.date][name][store] = now;
+      });
+      return body;
+    });
+  }catch(e){
+    console.warn('一次設定店家失敗',e);
+    alertBox('沒有存到，請檢查網路後再試一次。');
+  }
+  rerenderShiftViews(mo);
+}
+function alertBox(msg){ try{ alert(msg); }catch(e){ console.warn(msg); } }
 // 各店工時：以打卡時數為準，再看那天在店務清單按的是哪家店
 function renderAttStoreSum(){
   var el = document.getElementById('att-store-sum'); if(!el) return;
@@ -11854,19 +11909,22 @@ function renderAttStoreSum(){
     return '<span style="display:inline-block;background:var(--warn-bg);border:1px solid var(--warn-bd);color:var(--warn);border-radius:6px;padding:2px 8px;font-weight:700">⚠ '+r.bothDays.sort().map(md).join('、')+(r.both.d?'（'+minsToHrs(r.both.m)+'）':'')+'</span>';
   };
   var problems = rows.filter(function(r){ return r.bothDays.length; });
+  var bulkBtns = function(n){ var en=n.replace(/\\/g,'\\\\').replace(/'/g,"\\'").replace(/"/g,'&quot;').replace(/</g,'&lt;'); return '<div style="margin-top:4px;font-size:10.5px;color:var(--sub)">全部設成 '+
+    '<button type="button" onclick="setShiftBulk(\''+en+'\',\'mv\')" style="font-family:inherit;font-size:10.5px;font-weight:700;padding:1px 7px;border-radius:4px;cursor:pointer;border:1.5px solid var(--mv);background:var(--white);color:var(--mv)">MV</button> '+
+    '<button type="button" onclick="setShiftBulk(\''+en+'\',\'sr\')" style="font-family:inherit;font-size:10.5px;font-weight:700;padding:1px 7px;border-radius:4px;cursor:pointer;border:1.5px solid var(--sr);background:var(--white);color:var(--sr)">SR</button></div>'; };
   var cell = function(x,col){ return x.d ? '<b style="color:'+col+'">'+minsToHrs(x.m)+'</b><span style="color:var(--sub);font-size:11px">（'+x.d+' 天）</span>' : '<span style="color:var(--faint)">—</span>'; };
   var td = 'padding:7px 10px;border-top:1px solid var(--border);white-space:nowrap';
   el.innerHTML = '<div style="background:var(--white);border:1px solid var(--border);border-radius:10px;padding:12px 14px;margin:4px 0 14px;overflow-x:auto">'+
     '<div style="font-size:13px;font-weight:700;margin-bottom:2px">🏪 各店工時（看成本用）</div>'+
-    '<div style="font-size:11px;color:var(--sub);margin-bottom:8px">工時用打卡記錄算；在哪家店是看員工當天在店務清單按自己名字。沒按名字的天數會算在「沒標店」。</div>'+
+    '<div style="font-size:11px;color:var(--sub);margin-bottom:8px">工時用打卡記錄算；在哪家店是看員工當天在店務清單按自己名字。沒按名字的天數會算在「還沒分店」，可以在下面每天日期旁按 MV / SR 補上。</div>'+
     (problems.length ? '<div style="background:var(--warn-bg);border:1px solid var(--warn-bd);color:var(--warn);border-radius:8px;padding:8px 12px;margin-bottom:10px;font-size:12.5px;font-weight:600">⚠ 有 '+problems.length+' 位員工有「同一天兩間店都按了名字」：'+problems.map(function(r){return escH(r.name)+'（'+r.bothDays.sort().map(md).join('、')+'）';}).join('、')+'。這幾天的工時沒有算進任何一間店，請問清楚後，到店務清單點到那一天，在錯的那間店按一下名字取消。</div>' : '')+
     '<table style="width:100%;border-collapse:collapse;font-size:12.5px"><thead><tr style="text-align:left;color:var(--sub);font-size:11px">'+
-    '<th style="padding:4px 10px">員工</th><th style="padding:4px 10px;color:var(--mv)">Mill Valley</th><th style="padding:4px 10px;color:var(--sr)">San Rafael</th><th style="padding:4px 10px;color:var(--warn)">⚠ 兩店都按（要確認）</th><th style="padding:4px 10px">沒標店</th><th style="padding:4px 10px">有按名字但沒打卡</th></tr></thead><tbody>'+
+    '<th style="padding:4px 10px">員工</th><th style="padding:4px 10px;color:var(--mv)">Mill Valley</th><th style="padding:4px 10px;color:var(--sr)">San Rafael</th><th style="padding:4px 10px;color:var(--warn)">⚠ 兩店都按（要確認）</th><th style="padding:4px 10px">還沒分店</th><th style="padding:4px 10px">有按名字但沒打卡</th></tr></thead><tbody>'+
     rows.map(function(r){
-      return '<tr><td style="'+td+';font-weight:600">'+escH(r.name)+'</td><td style="'+td+'">'+cell(r.mv,'var(--mv)')+'</td><td style="'+td+'">'+cell(r.sr,'var(--sr)')+'</td><td style="'+td+'">'+bothCell(r)+'</td><td style="'+td+'">'+cell(r.none,'var(--warn)')+'</td>'+
+      return '<tr><td style="'+td+';font-weight:600">'+escH(r.name)+'</td><td style="'+td+'">'+cell(r.mv,'var(--mv)')+'</td><td style="'+td+'">'+cell(r.sr,'var(--sr)')+'</td><td style="'+td+'">'+bothCell(r)+'</td><td style="'+td+'">'+cell(r.none,'var(--warn)')+(r.none.d?bulkBtns(r.name):'')+'</td>'+
         '<td style="'+td+';color:var(--warn);font-size:11.5px">'+(r.tapOnly.length? r.tapOnly.sort().map(function(x){return Number(x.slice(5,7))+'/'+Number(x.slice(8));}).join('、') : '<span style="color:var(--faint)">—</span>')+'</td></tr>';
     }).join('')+
-    '<tr style="font-weight:700"><td style="'+td+'">合計</td><td style="'+td+';color:var(--mv)">'+minsToHrs(tot.mv)+'</td><td style="'+td+';color:var(--sr)">'+minsToHrs(tot.sr)+'</td><td style="'+td+';color:'+(tot.both?'var(--warn)':'var(--faint)')+'">'+(tot.both?minsToHrs(tot.both):'—')+'</td><td style="'+td+';color:var(--warn)">'+minsToHrs(tot.none)+'</td><td style="'+td+'"></td></tr>'+
+    '<tr style="font-weight:700"><td style="'+td+'">合計</td><td style="'+td+';color:var(--mv)">'+minsToHrs(tot.mv)+'</td><td style="'+td+';color:var(--sr)">'+minsToHrs(tot.sr)+'</td><td style="'+td+';color:'+(tot.both?'var(--warn)':'var(--faint)')+'">'+(tot.both?minsToHrs(tot.both):'—')+'</td><td style="'+td+';color:var(--warn)">'+(tot.none?minsToHrs(tot.none):'—')+'</td><td style="'+td+'"></td></tr>'+
     '</tbody></table></div>';
 }
 // ── 人力成本：誰在哪家店、幾小時、多少錢 ──
@@ -11883,13 +11941,13 @@ function laborForDay(name, dateStr){
   var sts = shiftStoresFor(name,dateStr);
   var hStore = sts.length===1 ? sts[0] : sts.length>1 ? 'both' : 'none';
   var out = {};
-  var add = function(st,m,amt,lbl){ if(!out[st]) out[st]={mins:0,amt:0,lbls:[]}; out[st].mins+=m; out[st].amt=r2(out[st].amt+amt); if(lbl) out[st].lbls.push(lbl); };
+  var add = function(st,m,amt,lbl,kind){ if(!out[st]) out[st]={mins:0,amt:0,lbls:[],hourAmt:0,commAmt:0}; out[st].mins+=m; out[st].amt=r2(out[st].amt+amt); if(kind) out[st][kind]=r2(out[st][kind]+amt); if(lbl) out[st].lbls.push(lbl); };
   if(mins>0) add(hStore, mins, 0, '');
   var hrs = Math.round(mins/60*100)/100;
-  if((cfg.payType==='hourly'||cfg.payType==='mixed') && mins>0) add(hStore, 0, r2(hrs*(cfg.hourlyRate||0)), '時薪 $'+(cfg.hourlyRate||0)+'×'+hrs+'h');
+  if((cfg.payType==='hourly'||cfg.payType==='mixed') && mins>0) add(hStore, 0, r2(hrs*(cfg.hourlyRate||0)), '時薪 $'+(cfg.hourlyRate||0)+'×'+hrs+'h', 'hourAmt');
   if(cfg.payType==='salary' && mins>0){
     var days = att.filter(function(r){ return netMins(r.rawMins,r.breakDeducted)>0; }).length || 1;
-    add(hStore, 0, r2((cfg.salary||0)/days), '月薪÷'+days+'天');
+    add(hStore, 0, r2((cfg.salary||0)/days), '月薪÷'+days+'天', 'hourAmt');
   }
   if((cfg.payType==='commission'||cfg.payType==='mixed') && mo===mk()){
     var rate = cfg.payType==='commission' ? (cfg.commRate||50) : (cfg.commRate||0);
@@ -11899,12 +11957,12 @@ function laborForDay(name, dateStr){
         var ct = Array.isArray(c.staff)&&c.staff.length>0 ? c.staff[0] : (c.tech||'');
         if(ct===name){ sales += gv(c.svc); sales += gv(c.cpTopup); }
       });
-      if(sales>0) add(st, 0, r2(sales*rate/100), '抽成 '+rate+'%×$'+r2(sales));
+      if(sales>0) add(st, 0, r2(sales*rate/100), '抽成 '+rate+'%×$'+r2(sales), 'commAmt');
     });
   }
   return out;
 }
-var LABOR_COLS = [['mv','Mill Valley','var(--mv)'],['sr','San Rafael','var(--sr)'],['both','⚠ 兩店都按','var(--warn)'],['none','沒標店','var(--warn)']];
+var LABOR_COLS = [['mv','Mill Valley','var(--mv)'],['sr','San Rafael','var(--sr)'],['both','⚠ 兩店都按','var(--warn)'],['none','還沒分店','var(--warn)']];
 function laborMoney(n){ return '$'+n.toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2}); }
 function renderHomeLabor(){
   var el = document.getElementById('home-labor'); if(!el) return;
@@ -11917,8 +11975,9 @@ function renderHomeLabor(){
     for(var d=1; d<=days; d++){
       var x = laborForDay(name, mo+'-'+String(d).padStart(2,'0'));
       Object.keys(x).forEach(function(st){
-        if(!r.c[st]) r.c[st]={mins:0,amt:0};
+        if(!r.c[st]) r.c[st]={mins:0,amt:0,hourAmt:0,commAmt:0};
         r.c[st].mins += x[st].mins; r.c[st].amt = r2(r.c[st].amt + x[st].amt);
+        r.c[st].hourAmt = r2(r.c[st].hourAmt + x[st].hourAmt); r.c[st].commAmt = r2(r.c[st].commAmt + x[st].commAmt);
         if(!tot[st]) tot[st]={mins:0,amt:0};
         tot[st].mins += x[st].mins; tot[st].amt = r2(tot[st].amt + x[st].amt);
       });
@@ -11927,14 +11986,22 @@ function renderHomeLabor(){
   }).filter(function(r){ return Object.keys(r.c).length; });
   var cols = LABOR_COLS.filter(function(c){ return c[0]==='mv'||c[0]==='sr'||tot[c[0]]; });
   var rev = {mv: calcMonth('mv').rev||0, sr: calcMonth('sr').rev||0};
-  var cell = function(x,col){ return x && (x.amt||x.mins) ? '<div style="font-weight:700;color:'+col+'">'+laborMoney(x.amt)+'</div><div style="font-size:11px;color:var(--sub)">'+(x.mins?minsToHrs(x.mins):'沒打卡')+'</div>' : '<span style="color:var(--faint)">—</span>'; };
+  // 金額下面寫清楚這筆錢怎麼來的：時薪（幾小時）或抽成
+  var cell = function(x,col){
+    if(!x || !(x.amt||x.mins)) return '<span style="color:var(--faint)">—</span>';
+    var how = [];
+    if(x.hourAmt) how.push('時薪 '+minsToHrs(x.mins));
+    else if(x.mins) how.push('上班 '+minsToHrs(x.mins));
+    if(x.commAmt) how.push('抽成 '+laborMoney(x.commAmt));
+    return '<div style="font-weight:700;color:'+col+'">'+laborMoney(x.amt)+'</div><div style="font-size:11px;color:var(--sub)">'+how.join('＋')+'</div>';
+  };
   var td = 'padding:8px 10px;border-top:1px solid var(--border);vertical-align:top;white-space:nowrap';
   var pct = function(st){ return rev[st]>0 && tot[st] ? '<div style="font-size:11px;color:var(--sub);font-weight:500">佔營業額 '+Math.round(tot[st].amt/rev[st]*1000)/10+'%</div>' : ''; };
   var shiftNote = !_shiftCache[mo] ? '<div style="font-size:12px;color:'+(_shiftErr[mo]?'var(--warn)':'var(--sub)')+';margin-bottom:8px">'+(_shiftErr[mo]?'⚠ 讀不到店務清單的上班紀錄，時薪的部分暫時全部算在「沒標店」。請檢查網路後重新整理。':'讀取各店上班紀錄中…')+'</div>' : '';
-  var warn = !shiftNote && ((tot.both&&tot.both.amt)||(tot.none&&tot.none.amt)) ? '<div style="background:var(--warn-bg);border:1px solid var(--warn-bd);color:var(--warn);border-radius:8px;padding:7px 12px;margin-bottom:10px;font-size:12px">⚠ 有些天沒標店或兩店都按，那部分的時薪不知道算哪家店。到「打卡記錄」頁的各店工時表可以看是哪幾天。</div>' : '';
+  var warn = !shiftNote && ((tot.both&&tot.both.amt)||(tot.none&&tot.none.amt)) ? '<div style="background:var(--warn-bg);border:1px solid var(--warn-bd);color:var(--warn);border-radius:8px;padding:7px 12px;margin-bottom:10px;font-size:12px">⚠ 還有 '+laborMoney(r2(((tot.none&&tot.none.amt)||0)+((tot.both&&tot.both.amt)||0)))+' 不知道算哪家店。到「打卡記錄」頁，在每天的日期旁按 MV 或 SR（或用「全部設成」一次補完），兩店的數字才會準。</div>' : '';
   el.innerHTML = '<div style="background:var(--white);border:1px solid var(--border);border-radius:10px;padding:14px 18px;overflow-x:auto">'+
-    '<div style="font-size:11px;font-weight:700;color:var(--sub);text-transform:uppercase;letter-spacing:.07em;margin-bottom:2px">👥 當月人力成本（分店）</div>'+
-    '<div style="font-size:11px;color:var(--faint);margin-bottom:10px">時薪＝打卡時數×時薪（店看員工在店務清單按的名字）；抽成＝在那家店做的服務業績×抽成%；固定月薪按上班天數分攤。不含小費、補差額、獎懲，所以會跟實際發薪略有不同。</div>'+
+    '<div style="font-size:13px;font-weight:700;margin-bottom:4px">👥 這個月每家店付了多少薪水</div>'+
+    '<div style="font-size:12px;color:var(--sub);margin-bottom:10px;line-height:1.6">• 時薪的人：打卡幾小時 × 時薪，算在他那天上班的店。<br>• 抽成的人：在哪家店做的業績，就算那家店。<br>• 「還沒分店」：有打卡但不知道那天在哪家店，所以還沒算進任何一家。到「打卡記錄」頁按 MV / SR 補上，錢就會移到那家店。<br><span style="color:var(--faint)">不含小費、補差額、獎懲，所以跟實際發薪會有一點差。</span></div>'+
     shiftNote+warn+
     (rows.length ? '<table style="width:100%;border-collapse:collapse;font-size:12.5px"><thead><tr style="text-align:left;font-size:11px;color:var(--sub)"><th style="padding:4px 10px">員工</th>'+
       cols.map(function(c){ return '<th style="padding:4px 10px;color:'+c[2]+'">'+c[1]+'</th>'; }).join('')+'<th style="padding:4px 10px">合計</th></tr></thead><tbody>'+
@@ -11942,7 +12009,7 @@ function renderHomeLabor(){
         var sum = Object.keys(r.c).reduce(function(t,k){ return r2(t+r.c[k].amt); },0);
         return '<tr><td style="'+td+';font-weight:600">'+escH(r.name)+'<div style="font-size:10.5px;color:var(--faint);font-weight:400">'+payTypeShort(r.name)+'</div></td>'+cols.map(function(c){ return '<td style="'+td+'">'+cell(r.c[c[0]],c[2])+'</td>'; }).join('')+'<td style="'+td+';font-weight:700">'+laborMoney(sum)+'</td></tr>';
       }).join('')+
-      '<tr style="background:var(--bg)"><td style="'+td+';font-weight:700">兩店合計</td>'+cols.map(function(c){ var x=tot[c[0]]; return '<td style="'+td+'">'+(x?'<div style="font-weight:700;font-size:15px;color:'+c[2]+'">'+laborMoney(x.amt)+'</div><div style="font-size:11px;color:var(--sub)">'+minsToHrs(x.mins)+'</div>'+pct(c[0]):'<span style="color:var(--faint)">—</span>')+'</td>'; }).join('')+
+      '<tr style="background:var(--bg)"><td style="'+td+';font-weight:700">兩店合計</td>'+cols.map(function(c){ var x=tot[c[0]]; return '<td style="'+td+'">'+(x?'<div style="font-weight:700;font-size:15px;color:'+c[2]+'">'+laborMoney(x.amt)+'</div>'+pct(c[0]):'<span style="color:var(--faint)">—</span>')+'</td>'; }).join('')+
       '<td style="'+td+';font-weight:700;font-size:15px">'+laborMoney(Object.keys(tot).reduce(function(t,k){ return r2(t+tot[k].amt); },0))+'</td></tr></tbody></table>'
     : '<div style="font-size:12px;color:var(--faint)">這個月還沒有打卡或業績資料</div>')+
     '</div>';

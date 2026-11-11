@@ -361,7 +361,7 @@ const parseDay = s => { const [y,m,d] = s.split('-').map(Number); return new Dat
 const addDays = (s,n) => { const d = parseDay(s); d.setDate(d.getDate()+n); return ymd(d); };
 const shortDay = s => { const d = parseDay(s); return `${d.getMonth()+1}/${d.getDate()}`; };
 const dayLabel = s => { const d = parseDay(s); return `${d.getMonth()+1}/${d.getDate()}（${WEEK[d.getDay()]}）`; };
-const clock = iso => iso ? new Date(iso).toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'}) : '';
+const clock = iso => { const d = iso ? new Date(iso) : null; return d && !isNaN(d) ? d.toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'}) : ''; };
 const hhmmLabel = t => { if (!t) return ''; let [h,m] = t.split(':').map(Number); const ap = h>=12?'PM':'AM'; h = h%12||12; return `${h}:${pad(m)} ${ap}`; };
 const nowHHMM = () => { const d = new Date(); return `${pad(d.getHours())}:${pad(d.getMinutes())}`; };
 const money = n => (n<0?'-':'') + '$' + Math.abs(n).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});
