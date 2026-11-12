@@ -37,6 +37,11 @@ button{cursor:pointer;background:none;border:0;padding:0}
 .plain:hover{border-color:var(--border2);color:var(--ink)}
 .who{min-height:38px;padding:0 14px;border:1px solid var(--border);border-radius:8px;background:var(--white);font-size:14px;font-weight:600;white-space:nowrap;max-width:150px;overflow:hidden;text-overflow:ellipsis}
 .who::before{content:'👤 ';font-weight:400}
+.sync{font-size:13px;font-weight:600;padding:6px 10px;border-radius:16px;white-space:nowrap;cursor:default}
+.sync:empty{display:none}
+.sync.ok{color:var(--ok);background:var(--ok-bg)}
+.sync.wait{color:#8A5F1A;background:#FAF3E5}
+.sync.bad{color:#fff;background:var(--warn);cursor:pointer}
 .who.empty{background:var(--warn);border-color:var(--warn);color:#fff}
 .unused-calpop{position:absolute;top:100%;left:0;width:320px;max-width:calc(100vw - 32px);background:var(--white);border:1px solid var(--border);border-radius:10px;padding:12px;box-shadow:0 10px 30px rgba(28,26,23,.14);z-index:12}
 .cal-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:6px}
@@ -160,6 +165,7 @@ button{cursor:pointer;background:none;border:0;padding:0}
 .add .field{flex:1}
 .add .i-due{flex:none;width:96px;min-height:40px;border:1px solid var(--border);border-radius:6px;background:var(--white);padding:0 6px;font-size:14px;font-weight:600;color:var(--c);outline:none}
 .add .i-date{flex:none;width:150px}
+.add .i-days,.tplrow .tdays{flex:none;width:96px;min-height:40px;border:1px solid var(--border);border-radius:6px;background:var(--white);padding:0 6px;font-size:14px;font-weight:600;color:var(--c,var(--ink));outline:none}
 .add select{flex:none;width:96px;min-height:40px;border:1px solid var(--border);border-radius:6px;background:var(--white);padding:0 6px;font-size:14px;color:var(--sub);outline:none}
 .field{width:100%;min-height:40px;background:var(--white);border:1px solid var(--border);border-radius:6px;padding:6px 10px;outline:none;min-width:0}
 .field:focus,.add select:focus{border-color:var(--c,var(--ink))}
@@ -270,6 +276,7 @@ dialog h2{font-size:17px;font-weight:700;margin-bottom:12px}
     <div class="hero-r">
       <button class="plain" id="goToday">回到今天</button>
       <button class="plain" id="calBtn">📅 月曆</button>
+      <span class="sync" id="sync" role="status" aria-live="polite"></span>
       <button class="who empty" id="who">選名字</button>
     </div>
   </header>
@@ -431,7 +438,44 @@ function showDbError(e) {
     : '連不上資料庫，請檢查 WiFi 後重新整理。';
   renderBanner();
 }
-const write = p => p.catch(e => { showDbError(e); throw e; });
+// ── 上傳偵測：每一筆存檔都要等雲端回覆「收到了」才算成功，右上角會顯示還有幾筆沒上傳 ──
+const pendingWrites = new Map();
+let syncFailed = 0, lastOk = 0;
+function track(p, label) {
+  const id = uid();
+  pendingWrites.set(id,{at:Date.now(),label:label||''});
+  renderSync();
+  return p.then(v => { pendingWrites.delete(id); lastOk = Date.now(); renderSync(); return v; },
+                e => { pendingWrites.delete(id); syncFailed++; renderSync(); throw e; });
+}
+const write = p => track(p).catch(e => { showDbError(e); throw e; });
+function renderSync() {
+  const el = $('sync');
+  if (!el) return;
+  const n = pendingWrites.size;
+  const oldest = n ? Math.min(...[...pendingWrites.values()].map(x => x.at)) : 0;
+  const slow = n && Date.now() - oldest > 6000;
+  let cls = 'ok', txt = '✓ 已上傳';
+  if (!fs) { cls = 'bad'; txt = '⚠ 還沒連上'; }
+  else if (!serverHeard && navigator.onLine !== false) { cls = 'wait'; txt = '⏳ 連線中…'; }
+  else if (navigator.onLine === false || !serverOk) { cls = 'bad'; txt = '⚠ 沒有網路，不能存'; }
+  else if (syncFailed) { cls = 'bad'; txt = '⚠ 有東西沒存到'; }
+  else if (slow) { cls = 'bad'; txt = `⚠ 網路慢，${n} 筆還沒上傳`; }
+  else if (n) { cls = 'wait'; txt = `⏳ 上傳中（${n}）`; }
+  else if (!lastOk) { txt = '✓ 已連線'; }
+  if (el.className !== 'sync '+cls) el.className = 'sync '+cls;
+  setText(el,txt);
+  el.title = cls==='bad' ? '網路恢復、右上角變回綠色後，再把剛剛沒存到的重做一次。' : '';
+}
+setInterval(renderSync, 2000);
+addEventListener('online', renderSync);
+addEventListener('offline', renderSync);
+// 還有沒上傳的就關頁面，先提醒
+addEventListener('beforeunload', e => { if (pendingWrites.size) { e.preventDefault(); e.returnValue = ''; } });
+$('sync') && $('sync').addEventListener('click', () => {
+  if (syncFailed) { syncFailed = 0; renderSync(); toast('剛剛有沒存到的，請再做一次'); }
+  else if (pendingWrites.size) toast('還有東西在等網路上傳，先不要關掉這個頁面');
+});
 function renderBanner() {
   const msg = dbError || (navigator.onLine === false ? '目前離線，連上網路後才會同步。' : '');
   setText($('banner'),msg);
@@ -439,10 +483,13 @@ function renderBanner() {
 }
 addEventListener('online', () => { dbError = fs ? '' : dbError; renderBanner(); });
 addEventListener('offline', renderBanner);
+// 所有功能都要有網路：沒連上雲端就不讓存，免得這台看得到、別台看不到
+let serverOk = false, serverHeard = false; // serverHeard：雲端回應過了沒（剛打開時還在連線）
 function needDb() {
-  if (fs) return true;
-  toast('還沒連上資料庫，這筆沒有存');
-  return false;
+  if (!fs) { toast('還沒連上資料庫，這筆沒有存'); return false; }
+  if (!serverHeard && navigator.onLine !== false) { toast('還在連線，等右上角變綠色再按一次'); return false; }
+  if (navigator.onLine === false || !serverOk) { toast('沒有網路，這筆沒有存。連上網路後再按一次。'); renderSync(); return false; }
+  return true;
 }
 
 /* ---------- 主系統現金櫃算法：以下函式直接取自 chiclash.html，確保數字和現金櫃頁一致 ---------- */
@@ -655,7 +702,12 @@ function startLive() {
     shopping = snap.exists() ? (snap.data().items||{}) : {};
     render();
   }, showDbError);
-  fs.onSnapshot(refOf.cfg(), snap => {
+  // 順便用這份資料偵測「現在有沒有連到雲端」：fromCache 代表連不上，只是舊資料
+  fs.onSnapshot(refOf.cfg(), {includeMetadataChanges:true}, snap => {
+    const was = serverOk;
+    serverOk = !snap.metadata.fromCache;
+    serverHeard = true;
+    if (was !== serverOk) renderSync();
     storeCfg = snap.exists() ? (snap.data().stores||{}) : {};
     watchDates();
     render();
@@ -773,9 +825,13 @@ const board = s => data[s]?.board || {};
 const templateOf = s => Object.entries(board(s).template||{})
   .map(([id,v]) => ({id,...v}))
   .sort((a,b) => (a.order||0)-(b.order||0) || a.id.localeCompare(b.id));
+// 固定事項可以設「每天」或「每週某一天」（days 沒設就是每天）
+const DAY_OPTS = '<option value="">每天</option>' + [1,2,3,4,5,6,0].map(i => `<option value="${i}">每週${WEEK[i]}</option>`).join('');
+const daysLabel = t => t.days && t.days.length ? t.days.map(i => '週'+WEEK[i]).join('、') : '';
 function dailyRows(s,d) {
   const checks = data[s]?.checks[d] || {};
-  const tpl = templateOf(s).filter(t => d >= today || !t.created || t.created <= d);
+  const wd = parseDay(d).getDay();
+  const tpl = templateOf(s).filter(t => (d >= today || !t.created || t.created <= d) && (!t.days || !t.days.length || t.days.includes(wd)));
   const ids = new Set(tpl.map(t => t.id));
   const removed = Object.entries(checks).filter(([id]) => !ids.has(id)).map(([id,c]) => ({id,text:c.text,order:1e15}));
   return [...tpl,...removed].map(t => ({...t,check:checks[t.id]||null}));
@@ -961,10 +1017,11 @@ function makePart(id) {
       </div>
     </section>
     <section class="sec">
-      <h3><span class="num">3</span>每日固定<small class="dcount"></small></h3>
+      <h3><span class="num">3</span>固定事項<small class="dcount"></small></h3>
       <div class="panel">
       <div class="add q-daily">
-        <input class="field i-daily" placeholder="新增每天都要做的事" maxlength="120" autocomplete="off" aria-label="新增每日固定項目">
+        <input class="field i-daily" placeholder="新增固定要做的事" maxlength="120" autocomplete="off" aria-label="新增固定事項">
+        <select class="i-days" aria-label="哪幾天要做">${DAY_OPTS}</select>
         <button class="plus b-daily">新增</button>
       </div>
       <div class="list daily"></div>
@@ -1098,7 +1155,7 @@ function renderPart(s) {
     c.style.visibility = future ? 'hidden' : '';
     setText(r.querySelector('.t'),x.text||'');
     const m = r.querySelector('.m');
-    setText(m,x.check ? `${x.check.by} ${clock(x.check.at)}` : ''); m.hidden = !m.textContent;
+    setText(m,[daysLabel(x) ? `每${daysLabel(x)}` : '', x.check ? `${x.check.by} ${clock(x.check.at)}` : ''].filter(Boolean).join('，')); m.hidden = !m.textContent;
   });
   setText(el.querySelector('.dcount'),rows.length ? `${doneN} / ${rows.length} 完成` : '');
   el.querySelector('.q-daily').hidden = past;
@@ -1204,7 +1261,7 @@ $('tabs').addEventListener('click', e => {
 });
 
 /* ---------- actions ---------- */
-function saveTpl(s,obj) { return write(fs.setDoc(refOf.board(s),{template:obj},{merge:true})).catch(()=>{}); }
+function saveTpl(s,obj) { if (!needDb()) return Promise.resolve(); return write(fs.setDoc(refOf.board(s),{template:obj},{merge:true})).catch(()=>{}); }
 /* ---------- shopping ---------- */
 // 每間店各自一份：還沒買的一直顯示；按「買了」就收進「這週已買」，買了 7 天後不再顯示（資料庫仍保留）
 function shopItems(store) {
@@ -1355,8 +1412,12 @@ function addDaily(s) {
   const v = inp.value.trim();
   if (!v) { inp.focus(); return; }
   const tpl = templateOf(s);
-  saveTpl(s,{[uid()]:{text:v,order:tpl.length ? (tpl[tpl.length-1].order||0)+1 : 1,created:today}});
+  const daySel = parts[s].el.querySelector('.i-days');
+  const days = daySel.value === '' ? [] : [Number(daySel.value)];
+  saveTpl(s,{[uid()]:{text:v,order:tpl.length ? (tpl[tpl.length-1].order||0)+1 : 1,created:today,days}});
+  if (days.length && days[0] !== parseDay(viewDate).getDay()) toast(`已新增，每週${WEEK[days[0]]}才會出現`);
   inp.value = '';
+  daySel.value = '';
   inp.focus();
 }
 async function toggleTask(s,id) {
@@ -1449,14 +1510,15 @@ let tplStore = 'mv';
 function openTpl(s) { tplStore = s; renderTpl(); $('tplDlg').showModal(); }
 function renderTpl() {
   const tpl = templateOf(tplStore);
-  setText($('tplTitle'),`${storeName(tplStore)} 每日固定項目`);
+  setText($('tplTitle'),`${storeName(tplStore)} 固定事項`);
   syncList($('tplList'),tpl,t => t.id,() => {
     const el = document.createElement('div');
     el.className = 'tplrow';
-    el.innerHTML = '<input class="field" maxlength="120" aria-label="項目名稱"><button class="mv" data-dir="-1" aria-label="上移">↑</button><button class="mv" data-dir="1" aria-label="下移">↓</button><button class="x" aria-label="刪除">×</button>';
+    el.innerHTML = '<input class="field" maxlength="120" aria-label="項目名稱"><select class="tdays" aria-label="哪幾天要做">'+DAY_OPTS+'</select><button class="mv" data-dir="-1" aria-label="上移">↑</button><button class="mv" data-dir="1" aria-label="下移">↓</button><button class="x" aria-label="刪除">×</button>';
     return el;
   },(el,t) => {
     setVal(el.querySelector('input'),t.text||'');
+    setVal(el.querySelector('.tdays'), t.days && t.days.length ? String(t.days[0]) : '');
     const i = tpl.findIndex(x => x.id === t.id);
     el.querySelector('[data-dir="-1"]').disabled = i === 0;
     el.querySelector('[data-dir="1"]').disabled = i === tpl.length-1;
@@ -1465,11 +1527,18 @@ function renderTpl() {
 }
 $('tplClose').onclick = () => $('tplDlg').close();
 $('tplList').addEventListener('change', e => {
+  const id = e.target.closest('.tplrow')?.dataset.key;
+  const saved = (board(tplStore).template||{})[id] || {};
+  // 沒網路存不了：馬上改回原本的，不要讓畫面看起來像改好了
+  if (e.target.matches('.tdays')) {
+    if (!needDb()) { e.target.value = saved.days && saved.days.length ? String(saved.days[0]) : ''; return; }
+    saveTpl(tplStore,{[id]:{days: e.target.value === '' ? [] : [Number(e.target.value)]}});
+    return;
+  }
   if (!e.target.matches('input')) return;
-  const id = e.target.closest('.tplrow').dataset.key;
   const v = e.target.value.trim();
-  if (v) saveTpl(tplStore,{[id]:{text:v}});
-  else e.target.value = (board(tplStore).template||{})[id]?.text||'';
+  if (v && needDb()) saveTpl(tplStore,{[id]:{text:v}});
+  else e.target.value = saved.text||'';
 });
 $('tplList').addEventListener('click', async e => {
   const row = e.target.closest('.tplrow');
@@ -1522,7 +1591,7 @@ async function saveCount(s) {
   const hint = el.querySelector('.c-hint');
   const fail = t => { hint.classList.add('err'); setText(hint,t); };
   hint.classList.remove('err');
-  if (!fs) return fail('還沒連上資料庫，這筆沒有存，數字還在。');
+  if (!fs || navigator.onLine === false || !serverOk) return fail('沒有網路，這筆沒有存，數字還在。連上網路後再按一次。');
   const dr = p.draft, total = draftTotal(dr);
   if (total === 0) return fail('請先填入各面額數量');
   let time = nowHHMM();
@@ -1541,8 +1610,8 @@ async function saveCount(s) {
   btn.disabled = true;
   setText(btn,'儲存中…');
   try {
-    if (isLinked(s)) await pushCountToMain(rec);
-    else { const id = uid(); await fs.setDoc(refOf.cash(s),{[id]:{...rec,id}},{merge:true}); }
+    if (isLinked(s)) await track(pushCountToMain(rec));
+    else { const id = uid(); await track(fs.setDoc(refOf.cash(s),{[id]:{...rec,id}},{merge:true})); }
     LS.del(p.draftKey);
     p.draftKey = '';
     toast(`已存入 ${money(total)}，${hhmmLabel(time)}`);
@@ -1588,10 +1657,11 @@ render();
       messagingSenderId:"77248539857",
       appId:"1:77248539857:web:54e80b840160a2e30569f0"
     });
-    db = fsMod.getFirestore(app);
+    db = fsMod.getFirestore(app); // 不在裝置上暫存：兩家店和手機看到的一定是雲端同一份
     fs = fsMod;
     startLive();
     render();
+    renderSync();
   } catch (e) {
     console.error(e);
     dbError = '資料庫程式載入失敗。如果你是在聊天視窗的預覽裡看，請把檔案上傳到網站後，用瀏覽器打開；否則請檢查 WiFi 後重新整理。';
