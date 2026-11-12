@@ -477,6 +477,7 @@ $('sync') && $('sync').addEventListener('click', () => {
   else if (pendingWrites.size) toast('還有東西在等網路上傳，先不要關掉這個頁面');
 });
 function renderBanner() {
+  if ($('banner').dataset.update === '1') return;   // 正在顯示「有新版本」就不要蓋掉
   const msg = dbError || (navigator.onLine === false ? '目前離線，連上網路後才會同步。' : '');
   setText($('banner'),msg);
   $('banner').hidden = !msg;
@@ -1626,6 +1627,44 @@ async function saveCount(s) {
   render();
 }
 
+/* ---------- 自動更新：網站換了新版，這裡自己會換，不用重新加主畫面 ---------- */
+const APP_VERSION = '20261112134749';
+let newVersionReady = false;
+function safeToReload() {
+  const a = document.activeElement;
+  const typing = a && /INPUT|TEXTAREA|SELECT/.test(a.tagName) && a.value;
+  const dialogOpen = !!document.querySelector('dialog[open]');
+  return !pendingWrites.size && !typing && !dialogOpen;
+}
+async function checkForUpdate() {
+  if (navigator.onLine === false) return;
+  try {
+    const r = await fetch(location.pathname + '?check=' + Date.now(), {cache:'no-store'});
+    if (!r.ok) return;
+    const m = (await r.text()).match(/const APP_VERSION = '([^']+)'/);
+    if (!m || m[1] === APP_VERSION || m[1] === '__APP_VERSION__') return;
+    newVersionReady = true;
+  } catch { return; }
+  tryReload();
+}
+function tryReload() {
+  if (!newVersionReady) return;
+  if (safeToReload()) { location.replace(location.pathname + '?v=' + Date.now()); return; }
+  // 有人正在打字或還在上傳：先提示，等一下再換
+  const b = $('banner');
+  if (b.dataset.update !== '1') {
+    b.dataset.update = '1';
+    b.hidden = false;
+    b.textContent = '有新版本，打完這筆後會自動更新（或點這裡馬上更新）';
+    b.style.cursor = 'pointer';
+    b.onclick = () => { if (!pendingWrites.size) location.replace(location.pathname + '?v=' + Date.now()); };
+  }
+}
+setInterval(checkForUpdate, 5*60*1000);      // 每 5 分鐘檢查一次
+setInterval(tryReload, 5000);                // 有新版時，等到沒人在打字就換
+document.addEventListener('visibilitychange', () => { if (!document.hidden) checkForUpdate(); }); // 每次把 App 切回來都檢查
+setTimeout(checkForUpdate, 3000);
+
 /* ---------- clock & new day ---------- */
 function tick() {
   const now = ymd(new Date());
@@ -1658,6 +1697,9 @@ render();
       appId:"1:77248539857:web:54e80b840160a2e30569f0"
     });
     db = fsMod.getFirestore(app); // 不在裝置上暫存：兩家店和手機看到的一定是雲端同一份
+    // 上一版曾把資料暫存在裝置上；清掉那份舊的暫存，免得手機顯示舊的或重複的項目
+    try { await fsMod.clearIndexedDbPersistence(db); } catch (e) { console.warn('clear old cache',e); }
+    try { localStorage.setItem('sl.cacheCleared','1'); } catch {}
     fs = fsMod;
     startLive();
     render();
