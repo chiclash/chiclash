@@ -11781,30 +11781,35 @@ function renderAttSummary(){
 }
 // ── 各店上班：員工在店務清單（store-list.html）按自己名字的紀錄，存在 storeList/shifts_YYYY-MM，這裡只讀 ──
 // 格式：{'YYYY-MM-DD': {名字: {mv: 按的時間, sr: 按的時間}}}
-var _shiftCache = {}, _shiftLoading = {}, _shiftErr = {};
+var _shiftCache = {}, _shiftErr = {};
 function escH(x){ return String(x==null?'':x).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];}); }
 function shiftStoresFor(name,date){
   var m = _shiftCache[date.slice(0,7)];
   var x = m && m[date] && m[date][name];
   return x ? Object.keys(x).filter(function(k){ return x[k]; }).sort() : [];
 }
-var _shiftAt = {};
+var _shiftAt = {}, _shiftSub = {};
+// 即時監聽店務清單的上班紀錄：員工一按名字，這裡就自動更新（不用重新整理）
 function loadShiftMonth(mo){
-  if(_shiftLoading[mo] || ((_shiftCache[mo]||_shiftErr[mo]) && Date.now()-(_shiftAt[mo]||0) < 60000)) return; // 一分鐘內不重抓
-  _shiftLoading[mo] = true;
-  _shiftAt[mo] = Date.now();
+  if(_shiftSub[mo]) return;
+  if(!window._db){ setTimeout(function(){ loadShiftMonth(mo); }, 1000); return; } // 資料庫還沒連上，一秒後再試
+  _shiftSub[mo] = 'starting';
   import('https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js').then(function(m){
-    return m.getDoc(m.doc(window._db,'storeList','shifts_'+mo));
-  }).then(function(sn){
-    _shiftCache[mo] = sn.exists() ? sn.data() : {};
-    _shiftErr[mo] = false;
+    _shiftSub[mo] = m.onSnapshot(m.doc(window._db,'storeList','shifts_'+mo), function(sn){
+      _shiftCache[mo] = sn.exists() ? sn.data() : {};
+      _shiftErr[mo] = false; _shiftAt[mo] = Date.now();
+      rerenderShiftViews(mo);
+    }, function(e){
+      console.warn('各店上班讀取失敗',e);
+      _shiftErr[mo] = true; _shiftSub[mo] = null;
+      rerenderShiftViews(mo);
+      setTimeout(function(){ loadShiftMonth(mo); }, 15000); // 15 秒後自動重試
+    });
   }).catch(function(e){
     console.warn('各店上班讀取失敗',e);
-    _shiftErr[mo] = true;
-    _shiftAt[mo] = Date.now() - 50000; // 10 秒後再點進來會重試
-  }).then(function(){
-    _shiftLoading[mo] = false;
+    _shiftErr[mo] = true; _shiftSub[mo] = null;
     rerenderShiftViews(mo);
+    setTimeout(function(){ loadShiftMonth(mo); }, 15000);
   });
 }
 // 打卡記錄每一天的 MV / SR 按鈕：員工沒在店務清單按到，可以在這裡幫他補或改
@@ -11820,7 +11825,14 @@ function shiftBadges(name,date){
 function rerenderShiftViews(mo){
   if(mk()!==mo) return;
   var on = function(id){ var pg=document.getElementById(id); return pg && pg.classList.contains('on'); };
-  if(on('page-att')){ renderAttStoreSum(); var w=document.getElementById('att-staff-cards'); if(w) w.innerHTML=activeStaffList().map(buildStaffCard).join(''); }
+  if(on('page-att')){
+    renderAttStoreSum();
+    var w=document.getElementById('att-staff-cards');
+    // 正在編輯打卡時間時先不重畫，避免打到一半被打斷；離開輸入框後再更新
+    if(w && w.contains(document.activeElement) && /INPUT|SELECT|TEXTAREA/.test(document.activeElement.tagName)){
+      document.activeElement.addEventListener('blur', function(){ setTimeout(function(){ rerenderShiftViews(mo); }, 300); }, {once:true});
+    } else if(w) w.innerHTML=activeStaffList().map(buildStaffCard).join('');
+  }
   if(on('page-home')) renderHomeLabor();
   if(on('page-cal')) renderCalDetail();
 }
