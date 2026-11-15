@@ -1069,6 +1069,18 @@ input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-
   </div>
   <div id="buy-todo"></div>
   <div class="gc-tbl" id="buy-tbl"></div>
+  <div class="gc-form" style="margin-top:18px">
+    <div class="gc-form-title">📋 Square 商品清單（給店務清單用）</div>
+    <div style="font-size:12.5px;color:var(--sub);line-height:1.7;margin-bottom:10px">
+      員工在店務清單打「要買的東西」時，會跳出這裡的正式品名讓他們點選，大家寫法就會一樣（只用品名，不看庫存）。<br>
+      怎麼更新：Square 後台 → 商品 Items → 右上「Actions / 動作」→ <b>Export library / 匯出</b>（選 CSV）→ 回到這裡按「選檔案」，選剛剛下載的檔案。<br>
+      Square 有新增或改名的商品時，再匯出一次上傳就好（舊的清單會整份換掉）。
+    </div>
+    <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center">
+      <label class="gc-field" style="min-width:0;cursor:pointer;font-weight:600">選檔案<input type="file" id="cat-file" accept=".csv,text/csv" style="display:none" onchange="uploadSquareCatalog(this)"></label>
+      <span id="cat-status" style="font-size:13px;color:var(--sub)"></span>
+    </div>
+  </div>
 </div>
 
 <!-- 庫存出庫 -->
@@ -3420,6 +3432,67 @@ function calcMonth(s){
 
 // ── NAV ──
 function changeMonth(d){_gdRowOpen={};cur.setMonth(cur.getMonth()+d);renderAll();}
+// ── Square 商品清單：老闆上傳 Square 匯出的 CSV，存到 storeList/catalog，店務清單打字時拿來當建議品名 ──
+function parseCSV(text){
+  var rows=[], row=[], f='', q=false;
+  text=String(text||'').replace(/^\uFEFF/,'');
+  for(var i=0;i<text.length;i++){
+    var c=text[i];
+    if(q){ if(c==='"'){ if(text[i+1]==='"'){ f+='"'; i++; } else q=false; } else f+=c; continue; }
+    if(c==='"') q=true;
+    else if(c===','){ row.push(f); f=''; }
+    else if(c==='\n'||c==='\r'){ if(c==='\r'&&text[i+1]==='\n') i++; row.push(f); rows.push(row); row=[]; f=''; }
+    else f+=c;
+  }
+  if(f!==''||row.length){ row.push(f); rows.push(row); }
+  return rows.filter(function(r){ return r.some(function(x){ return String(x).trim(); }); });
+}
+function catalogFromSquareCSV(text){
+  var rows=parseCSV(text); if(rows.length<2) throw new Error('檔案是空的');
+  var h=rows[0].map(function(x){ return String(x).trim(); });
+  var col=function(n){ return h.indexOf(n); };
+  var iName=col('Item Name'), iVar=col('Variation Name'), iCat=col('Categories'), iType=col('Item Type'), iArch=col('Archived');
+  if(iName<0) throw new Error('這不是 Square 商品匯出的檔案（找不到 Item Name 欄）');
+  var skip=/^(loyalty)$/i, out=[], seen={};
+  rows.slice(1).forEach(function(r){
+    var name=String(r[iName]||'').replace(/\s+/g,' ').trim(); if(!name||skip.test(name)) return;
+    if(iArch>=0 && /^y/i.test(String(r[iArch]||''))) return;
+    if(iType>=0 && r[iType] && !/physical/i.test(r[iType])) return;
+    var v=iVar>=0?String(r[iVar]||'').trim():'';
+    if(v && !/^regular$/i.test(v)) name+=' · '+v;
+    if(seen[name]) return; seen[name]=1;
+    out.push({n:name, c:iCat>=0?String(r[iCat]||'').trim():''});   // 只存品名和分類，不存庫存
+  });
+  if(!out.length) throw new Error('檔案裡沒有商品');
+  return out;
+}
+async function uploadSquareCatalog(inp){
+  var st=document.getElementById('cat-status'), file=inp.files&&inp.files[0];
+  inp.value='';
+  if(!file) return;
+  if(!window._db||navigator.onLine===false){ st.style.color='var(--warn)'; st.textContent='沒有網路，連上網路後再上傳一次。'; return; }
+  st.style.color='var(--sub)'; st.textContent='上傳中…';
+  try{
+    var items=catalogFromSquareCSV(await file.text());
+    const m=await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js');
+    await m.setDoc(m.doc(window._db,'storeList','catalog'),{items:items, at:new Date().toISOString(), file:file.name});
+    st.style.color='var(--ok)'; st.textContent='✓ 已更新 '+items.length+' 樣商品，店務清單馬上會用新的清單。';
+  }catch(e){
+    console.warn('商品清單上傳失敗',e);
+    st.style.color='var(--warn)'; st.textContent='沒有上傳成功：'+(e&&e.message?e.message:'請檢查網路後再試一次');
+  }
+}
+async function showCatalogStatus(){
+  var st=document.getElementById('cat-status'); if(!st||!window._db) return;
+  try{
+    const m=await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js');
+    const sn=await m.getDoc(m.doc(window._db,'storeList','catalog'));
+    if(st.textContent.indexOf('✓')===0||st.textContent==='上傳中…') return;
+    if(!sn.exists()){ st.style.color='var(--warn)'; st.textContent='還沒有上傳過商品清單'; return; }
+    var d=sn.data(), t=new Date(d.at);
+    st.style.color='var(--sub)'; st.textContent='目前清單：'+((d.items||[]).length)+' 樣，'+(isNaN(t)?'':(t.getMonth()+1)+'/'+t.getDate()+' ')+'上傳';
+  }catch(e){ console.warn(e); }
+}
 // ── 進貨記錄：讀員工店務清單 storeList/shopping（store-list.html 寫入），這裡只看不改 ──
 var _buyMonth = null, _buyCache = null;
 function buyShiftMonth(n){
@@ -3430,6 +3503,7 @@ function buyShiftMonth(n){
 }
 async function renderBuyPage(skipFetch){
   if(!_buyMonth) _buyMonth = todayLocal().slice(0,7);
+  if(!skipFetch) showCatalogStatus();
   var esc = function(x){return String(x==null?'':x).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];});};
   var tbl = document.getElementById('buy-tbl');
   var p = _buyMonth.split('-');
@@ -11826,12 +11900,14 @@ function rerenderShiftViews(mo){
   if(mk()!==mo) return;
   var on = function(id){ var pg=document.getElementById(id); return pg && pg.classList.contains('on'); };
   if(on('page-att')){
+    var anc=attAnchor();
     renderAttStoreSum();
     var w=document.getElementById('att-staff-cards');
     // 正在編輯打卡時間時先不重畫，避免打到一半被打斷；離開輸入框後再更新
     if(w && w.contains(document.activeElement) && /INPUT|SELECT|TEXTAREA/.test(document.activeElement.tagName)){
       document.activeElement.addEventListener('blur', function(){ setTimeout(function(){ rerenderShiftViews(mo); }, 300); }, {once:true});
-    } else if(w) w.innerHTML=activeStaffList().map(buildStaffCard).join('');
+    } else if(w) rebuildStaffCards(w);
+    restoreAttAnchor(anc);
   }
   if(on('page-home')) renderHomeLabor();
   if(on('page-cal')) renderCalDetail();
@@ -11953,13 +12029,19 @@ function laborForDay(name, dateStr){
   var sts = shiftStoresFor(name,dateStr);
   var hStore = sts.length===1 ? sts[0] : sts.length>1 ? 'both' : 'none';
   var out = {};
-  var add = function(st,m,amt,lbl,kind){ if(!out[st]) out[st]={mins:0,amt:0,lbls:[],hourAmt:0,commAmt:0}; out[st].mins+=m; out[st].amt=r2(out[st].amt+amt); if(kind) out[st][kind]=r2(out[st][kind]+amt); if(lbl) out[st].lbls.push(lbl); };
+  var add = function(st,m,amt,lbl,kind){ if(!out[st]) out[st]={mins:0,amt:0,lbls:[],hourAmt:0,commAmt:0,salAmt:0,salDays:0}; out[st].mins+=m; out[st].amt=r2(out[st].amt+amt); if(kind) out[st][kind]=r2(out[st][kind]+amt); if(lbl) out[st].lbls.push(lbl); };
   if(mins>0) add(hStore, mins, 0, '');
   var hrs = Math.round(mins/60*100)/100;
   if((cfg.payType==='hourly'||cfg.payType==='mixed') && mins>0) add(hStore, 0, r2(hrs*(cfg.hourlyRate||0)), '時薪 $'+(cfg.hourlyRate||0)+'×'+hrs+'h', 'hourAmt');
-  if(cfg.payType==='salary' && mins>0){
-    var days = att.filter(function(r){ return netMins(r.rawMins,r.breakDeducted)>0; }).length || 1;
-    add(hStore, 0, r2((cfg.salary||0)/days), '月薪÷'+days+'天', 'hourAmt');
+  if(cfg.payType==='salary' && (cfg.salary||0)>0){
+    // 固定月薪不用打卡：有打卡的日子 + 在店務清單按名字的日子，都算上班天數；月薪平均分到這些天，算在那天的店
+    var wd = salaryWorkDays(name, mo, att);
+    if(wd.length && wd.indexOf(dateStr)>=0){
+      add(hStore, 0, r2(cfg.salary/wd.length), '月薪÷'+wd.length+'天', 'salAmt'); out[hStore].salDays++;
+    } else if(!wd.length && d===1 && _shiftCache[mo]){
+      // 這個月完全沒有上班紀錄：整份月薪先放「還沒分店」，提醒要在店務清單按名字
+      add('none', 0, r2(cfg.salary), '月薪（這個月沒有打卡、也沒在店務清單按名字）', 'salAmt');
+    }
   }
   if((cfg.payType==='commission'||cfg.payType==='mixed') && mo===mk()){
     var rate = cfg.payType==='commission' ? (cfg.commRate||50) : (cfg.commRate||0);
@@ -11974,6 +12056,13 @@ function laborForDay(name, dateStr){
   }
   return out;
 }
+function salaryWorkDays(name, mo, att){
+  var set = {};
+  att.forEach(function(r){ if(r.date && r.date.slice(0,7)===mo && netMins(r.rawMins,r.breakDeducted)>0) set[r.date]=1; });
+  var m = _shiftCache[mo] || {};
+  Object.keys(m).forEach(function(dt){ if(dt.slice(0,7)===mo && shiftStoresFor(name,dt).length) set[dt]=1; });
+  return Object.keys(set).sort();
+}
 var LABOR_COLS = [['mv','Mill Valley','var(--mv)'],['sr','San Rafael','var(--sr)'],['both','⚠ 兩店都按','var(--warn)'],['none','還沒分店','var(--warn)']];
 function laborMoney(n){ return '$'+n.toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2}); }
 function renderHomeLabor(){
@@ -11987,7 +12076,8 @@ function renderHomeLabor(){
     for(var d=1; d<=days; d++){
       var x = laborForDay(name, mo+'-'+String(d).padStart(2,'0'));
       Object.keys(x).forEach(function(st){
-        if(!r.c[st]) r.c[st]={mins:0,amt:0,hourAmt:0,commAmt:0};
+        if(!r.c[st]) r.c[st]={mins:0,amt:0,hourAmt:0,commAmt:0,salAmt:0,salDays:0};
+        r.c[st].salAmt = r2(r.c[st].salAmt + (x[st].salAmt||0)); r.c[st].salDays += (x[st].salDays||0);
         r.c[st].mins += x[st].mins; r.c[st].amt = r2(r.c[st].amt + x[st].amt);
         r.c[st].hourAmt = r2(r.c[st].hourAmt + x[st].hourAmt); r.c[st].commAmt = r2(r.c[st].commAmt + x[st].commAmt);
         if(!tot[st]) tot[st]={mins:0,amt:0};
@@ -12003,7 +12093,8 @@ function renderHomeLabor(){
     if(!x || !(x.amt||x.mins)) return '<span style="color:var(--faint)">—</span>';
     var how = [];
     if(x.hourAmt) how.push('時薪 '+minsToHrs(x.mins));
-    else if(x.mins) how.push('上班 '+minsToHrs(x.mins));
+    else if(x.mins && !x.salAmt) how.push('上班 '+minsToHrs(x.mins));
+    if(x.salAmt) how.push(x.salDays ? '月薪 '+x.salDays+' 天' : '月薪（沒上班紀錄）');
     if(x.commAmt) how.push('抽成 '+laborMoney(x.commAmt));
     return '<div style="font-weight:700;color:'+col+'">'+laborMoney(x.amt)+'</div><div style="font-size:11px;color:var(--sub)">'+how.join('＋')+'</div>';
   };
@@ -12013,7 +12104,7 @@ function renderHomeLabor(){
   var warn = !shiftNote && ((tot.both&&tot.both.amt)||(tot.none&&tot.none.amt)) ? '<div style="background:var(--warn-bg);border:1px solid var(--warn-bd);color:var(--warn);border-radius:8px;padding:7px 12px;margin-bottom:10px;font-size:12px">⚠ 還有 '+laborMoney(r2(((tot.none&&tot.none.amt)||0)+((tot.both&&tot.both.amt)||0)))+' 不知道算哪家店。到「打卡記錄」頁，在每天的日期旁按 MV 或 SR（或用「全部設成」一次補完），兩店的數字才會準。</div>' : '';
   el.innerHTML = '<div style="background:var(--white);border:1px solid var(--border);border-radius:10px;padding:14px 18px;overflow-x:auto">'+
     '<div style="font-size:13px;font-weight:700;margin-bottom:4px">👥 這個月每家店付了多少薪水</div>'+
-    '<div style="font-size:12px;color:var(--sub);margin-bottom:10px;line-height:1.6">• 時薪的人：打卡幾小時 × 時薪，算在他那天上班的店。<br>• 抽成的人：在哪家店做的業績，就算那家店。<br>• 「還沒分店」：有打卡但不知道那天在哪家店，所以還沒算進任何一家。到「打卡記錄」頁按 MV / SR 補上，錢就會移到那家店。<br><span style="color:var(--faint)">不含小費、補差額、獎懲，所以跟實際發薪會有一點差。</span></div>'+
+    '<div style="font-size:12px;color:var(--sub);margin-bottom:10px;line-height:1.6">• 時薪的人：打卡幾小時 × 時薪，算在他那天上班的店。<br>• 抽成的人：在哪家店做的業績，就算那家店（不用打卡）。<br>• 固定月薪的人：月薪 ÷ 這個月上班天數，算在那天的店。不用打卡，只要每天在店務清單按自己名字就會算進去。<br>• 「還沒分店」：有打卡但不知道那天在哪家店，所以還沒算進任何一家。到「打卡記錄」頁按 MV / SR 補上，錢就會移到那家店。<br><span style="color:var(--faint)">不含小費、補差額、獎懲，所以跟實際發薪會有一點差。</span></div>'+
     shiftNote+warn+
     (rows.length ? '<table style="width:100%;border-collapse:collapse;font-size:12.5px"><thead><tr style="text-align:left;font-size:11px;color:var(--sub)"><th style="padding:4px 10px">員工</th>'+
       cols.map(function(c){ return '<th style="padding:4px 10px;color:'+c[2]+'">'+c[1]+'</th>'; }).join('')+'<th style="padding:4px 10px">合計</th></tr></thead><tbody>'+
@@ -12074,7 +12165,38 @@ function renderAttPage(){
   renderAttStoreSum();
   var wrap=document.getElementById('att-staff-cards');if(!wrap)return;
   if(staff.length===0){wrap.innerHTML='<div style="padding:20px;text-align:center;font-size:13px;color:var(--faint)">尚無員工，請先至員工管理新增</div>';return;}
-  wrap.innerHTML=staff.map(buildStaffCard).join('');
+  rebuildStaffCards(wrap);
+}
+// 重畫員工卡片時，記住哪幾張是打開的、畫面捲到哪裡，畫完再還原（點 MV/SR 不會整個縮起來或跳走）
+function rebuildStaffCards(wrap){
+  var open={};
+  wrap.querySelectorAll('.att-card-body.open').forEach(function(b){ open[b.id]=1; });
+  var y=window.scrollY;
+  wrap.innerHTML=activeStaffList().map(buildStaffCard).join('');
+  Object.keys(open).forEach(function(id){
+    var b=document.getElementById(id); if(!b) return;
+    b.classList.add('open');
+    var a=document.getElementById(id.replace('attbody-','attarr-')); if(a) a.classList.add('open');
+  });
+  if(Math.abs(window.scrollY-y)>1) window.scrollTo(0,y);
+}
+// 記住剛剛點的那一天（或畫面上第一個看得到的日期）在螢幕上的位置，重畫後捲回同一個位置，不會跳走
+var _attLastRow='';
+document.addEventListener('pointerdown',function(e){ var r=e.target.closest&&e.target.closest('[id^="att-row-"]'); _attLastRow=r?r.id:''; },true);
+function attAnchor(){
+  var el=_attLastRow&&document.getElementById(_attLastRow);
+  if(!el||!el.offsetParent){
+    el=null;
+    var rows=document.querySelectorAll('#att-staff-cards [id^="att-row-"]');
+    for(var i=0;i<rows.length;i++){ var t=rows[i].getBoundingClientRect().top; if(rows[i].offsetParent&&t>=0){ el=rows[i]; break; } }
+  }
+  return el?{id:el.id,top:el.getBoundingClientRect().top}:null;
+}
+function restoreAttAnchor(a){
+  if(!a) return;
+  var el=document.getElementById(a.id); if(!el||!el.offsetParent) return;
+  var d=el.getBoundingClientRect().top-a.top;
+  if(Math.abs(d)>1) window.scrollBy(0,d);
 }
 function exportAttCSV(){
   var y=cur.getFullYear(),m=cur.getMonth();
