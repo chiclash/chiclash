@@ -2730,11 +2730,11 @@ function ledgerCardItems(d){
       if(c.pay==='gc'){
         var gcA=resolveGcAmt(c); noGD.gc+=gcA; if(gcA>0)noGD.gcN++;
         parts.push('禮品卡 $'+gcA.toFixed(2)+'（不經過 GoDaddy）');
-        if(gv(c.topup)>0){ if(c.topupPay==='cash'){noGD.cash+=gv(c.topup);parts.push('補差額 $'+gv(c.topup).toFixed(2)+' 現金');} else {card+=gv(c.topup);parts.push('補差額刷卡 $'+gv(c.topup).toFixed(2));} }
+        if(gv(c.topup)>0){ if(c.topupPay==='cash'){noGD.cash+=gv(c.topup);parts.push('補差額 $'+gv(c.topup).toFixed(2)+' 現金');} else if(c.topupPay==='venmo'){noGD.venmo+=gv(c.topup);parts.push('補差額 $'+gv(c.topup).toFixed(2)+' Venmo');} else {card+=gv(c.topup);parts.push('補差額刷卡 $'+gv(c.topup).toFixed(2));} }
       } else if(c.cp){
         noGD.cp+=svc; if(svc>0){noGD.cpN++;noGD.cpList.push((c.clientName||'（沒填名字）')+' $'+svc.toFixed(2));}
         parts.push('ClassPass $'+svc.toFixed(2)+'（不經過 GoDaddy）');
-        if(gv(c.cpTopup)>0){ if(c.cpTopupPay==='cash'){noGD.cash+=gv(c.cpTopup);parts.push('加購 $'+gv(c.cpTopup).toFixed(2)+' 現金');} else {card+=gv(c.cpTopup);parts.push('加購刷卡 $'+gv(c.cpTopup).toFixed(2));} }
+        if(gv(c.cpTopup)>0){ if(c.cpTopupPay==='cash'){noGD.cash+=gv(c.cpTopup);parts.push('加購 $'+gv(c.cpTopup).toFixed(2)+' 現金');} else if(c.cpTopupPay==='venmo'){noGD.venmo+=gv(c.cpTopup);parts.push('加購 $'+gv(c.cpTopup).toFixed(2)+' Venmo');} else {card+=gv(c.cpTopup);parts.push('加購刷卡 $'+gv(c.cpTopup).toFixed(2));} }
       } else if(c.pay==='cash'){ noGD.cash+=svc; if(svc>0)noGD.cashN++; if(svc>0){parts.push('服務 $'+svc.toFixed(2)+' 現金'); var nk=(c.clientName||'（沒填名字）')+'（'+sName+'）'; cashSvc[nk]=r2((cashSvc[nk]||0)+svc); cashSvc[nk+'#'+items.length+'_'+svc]=svc;}}
       else if(c.pay==='venmo'){ noGD.venmo+=svc; if(svc>0)noGD.venmoN++; if(svc>0)parts.push('服務 $'+svc.toFixed(2)+' Venmo');}
       else { card+=svc; svcPart=svc; if(svc>0)parts.push('服務刷卡 $'+svc.toFixed(2)); }
@@ -3298,7 +3298,9 @@ function calcDay(s,d){
       const topup=gv(c.topup);
       // 補差額本質上是一筆真正的刷卡/現金收入（客人用禮品卡付一部分、剩下用卡或現金補），
       // GoDaddy 撥款時一樣會收這筆刷卡錢，所以要併進 cardSvc/cashSvc，才會同時算進「月營業額」跟「GoDaddy應收」
-      if(c.topupPay==='card'){topupCard+=topup; cardSvc+=topup;}
+      // 沒選付款方式＝刷卡（跟 GoDaddy 對帳、畫面上亮的按鈕一致）
+      if(!c.topupPay||c.topupPay==='card'){topupCard+=topup; cardSvc+=topup;}
+      else if(c.topupPay==='venmo'){venmoSvc+=topup;}
       else {topupCash+=topup; cashSvc+=topup;}
       var tp=c.tipPay||'card'; // 沒選＝刷卡（跟新增客人的預設、小費分配頁一致）
       if(tp==='gc'&&c.pay==='gc')gcTip+=tip; // 小費用禮品卡付：已經算在禮品卡兌換金額裡，不算刷卡也不算現金
@@ -3314,7 +3316,7 @@ function calcDay(s,d){
         // 才會同時流進「月營業額」跟「GoDaddy應收」——這筆加購的錢是真的透過刷卡機處理的
         const cpTopup=gv(c.cpTopup);
         if(cpTopup>0){
-          if(c.cpTopupPay==='card')cardSvc+=cpTopup;
+          if(!c.cpTopupPay||c.cpTopupPay==='card')cardSvc+=cpTopup; // 沒選＝刷卡（Square 匯入的 ClassPass 列沒有這個欄位）
           else if(c.cpTopupPay==='venmo')venmoSvc+=cpTopup;
           else cashSvc+=cpTopup;
         }
@@ -3645,7 +3647,7 @@ function renderDay(d,dow){
         <table class='ct' id="ct-${d}">
           <thead><tr>
             <th></th><th>#</th><th>客人名字</th><th>技師</th><th>服務金額</th><th>付款方式</th><th>ClassPass</th>
-            <th style="min-width:80px;max-width:80px">GC金額</th><th style="min-width:140px;max-width:140px">補差額/加購</th><th>Tip</th><th>Tip方式</th><th style="text-align:right">總額</th><th style="text-align:center">POS</th><th style="text-align:center">GD</th><th></th>
+            <th style="min-width:80px;max-width:80px">GC金額</th><th style="min-width:205px;max-width:205px">補差額/加購</th><th>Tip</th><th>Tip方式</th><th style="text-align:right">總額</th><th style="text-align:center">POS</th><th style="text-align:center">GD</th><th></th>
           </tr></thead>
           <tbody id="ctb-${d}"></tbody>
         </table>
@@ -3775,9 +3777,9 @@ function renderClientTable(d){
       <td style="min-width:80px;max-width:80px;overflow:hidden">
         ${isGC?`<input type="text" inputmode="decimal" class='ti' placeholder="GC金額" min="0" step="0.01" value="${c.gcAmt||''}" oninput="updC(${d},${i},'gcAmt',this.value)" style="width:72px" title="Gift Card 使用金額（整筆都是禮品卡付的話可以留空，系統會自動用服務金額計算；只有部分用禮品卡、部分補差額時才需要填實際扣了多少）">`:`<span style="color:var(--faint);font-size:11px">—</span>`}
       </td>
-      <td style="min-width:140px;max-width:140px;overflow:hidden">
-        ${isGC?`<div class='tgl-grp'><input type="text" inputmode="decimal" class='ti' placeholder="0.00" min="0" step="0.01" value="${c.topup||''}" oninput="updC(${d},${i},'topup',this.value)" style="width:55px" title="補差額"><button class='tgl ${c.topupPay==="card"?"on-card":""}' onclick="setTopup(${d},${i},'card',this)">刷卡</button><button class='tgl ${c.topupPay==="cash"?"on-cash":""}' onclick="setTopup(${d},${i},'cash',this)">現金</button></div>`
-        :(c.cp?`<div class='tgl-grp'><input type="text" inputmode="decimal" class='ti' placeholder="加購$" min="0" step="0.01" value="${c.cpTopup||''}" oninput="updC(${d},${i},'cpTopup',this.value)" style="width:55px" title="ClassPass加購金額（客人另外付的錢，算一般抽成）"><button class='tgl ${c.cpTopupPay==="card"?"on-card":""}' onclick="setCPTopupPay(${d},${i},'card',this)">刷卡</button><button class='tgl ${c.cpTopupPay==="cash"?"on-cash":""}' onclick="setCPTopupPay(${d},${i},'cash',this)">現金</button></div>`
+      <td style="min-width:205px;max-width:205px;overflow:hidden">
+        ${isGC?`<div class='tgl-grp'><input type="text" inputmode="decimal" class='ti' placeholder="0.00" min="0" step="0.01" value="${c.topup||''}" oninput="updC(${d},${i},'topup',this.value)" style="width:55px" title="補差額"><button class='tgl ${(!c.topupPay||c.topupPay==="card")?"on-card":""}' onclick="setTopup(${d},${i},'card',this)">刷卡</button><button class='tgl ${c.topupPay==="cash"?"on-cash":""}' onclick="setTopup(${d},${i},'cash',this)">現金</button><button class='tgl ${c.topupPay==="venmo"?"on-venmo":""}' onclick="setTopup(${d},${i},'venmo',this)">Venmo</button></div>`
+        :(c.cp?`<div class='tgl-grp'><input type="text" inputmode="decimal" class='ti' placeholder="加購$" min="0" step="0.01" value="${c.cpTopup||''}" oninput="updC(${d},${i},'cpTopup',this.value)" style="width:55px" title="ClassPass加購金額（客人另外付的錢，算一般抽成）"><button class='tgl ${(!c.cpTopupPay||c.cpTopupPay==="card")?"on-card":""}' onclick="setCPTopupPay(${d},${i},'card',this)">刷卡</button><button class='tgl ${c.cpTopupPay==="cash"?"on-cash":""}' onclick="setCPTopupPay(${d},${i},'cash',this)">現金</button><button class='tgl ${c.cpTopupPay==="venmo"?"on-venmo":""}' onclick="setCPTopupPay(${d},${i},'venmo',this)">Venmo</button></div>`
         :`<span style="color:var(--faint);font-size:11px">—</span>`)}
       </td>
       <td>
@@ -4021,14 +4023,14 @@ function setTopup(d,i,val,btn){
   const c=sDay(activeStore,d).clients[i];if(!c)return;
   c.topupPay=val;save();
   const grp=btn.closest('.tgl-grp');
-  grp.querySelectorAll('.tgl').forEach(b=>{b.className='tgl'+(b===btn?(' on-'+(val==='card'?'card':'cash')):'');});
+  grp.querySelectorAll('.tgl').forEach(b=>{b.className='tgl'+(b===btn?(' on-'+val):'');});
   updateDaySummary(d);updateAll();
 }
 function setCPTopupPay(d,i,val,btn){
   const c=sDay(activeStore,d).clients[i];if(!c)return;
   c.cpTopupPay=val;save();
   const grp=btn.closest('.tgl-grp');
-  grp.querySelectorAll('.tgl').forEach(b=>{b.className='tgl'+(b===btn?(' on-'+(val==='card'?'card':'cash')):'');});
+  grp.querySelectorAll('.tgl').forEach(b=>{b.className='tgl'+(b===btn?(' on-'+val):'');});
   updateDaySummary(d);updateAll();
 }
 function setTipPay(d,i,val,btn){
@@ -10858,8 +10860,8 @@ function exportReconReport(){
       clients.forEach(function(c){
         var svc=gv(c.svc), tip=gv(c.tip);
         var payLabel=c.pay==='card'?'刷卡':c.pay==='cash'?'現金':c.pay==='venmo'?'Venmo':c.pay==='gc'?'禮品卡':(c.pay||'—');
-        if(c.pay==='gc'&&gv(c.topup)>0) payLabel+=' + 補'+(c.topupPay==='card'?'刷卡':'現金')+' $'+gv(c.topup).toFixed(2);
-        if(c.cp&&gv(c.cpTopup)>0) payLabel+=' + 加購'+(c.cpTopupPay==='card'?'刷卡':c.cpTopupPay==='venmo'?'Venmo':'現金')+' $'+gv(c.cpTopup).toFixed(2);
+        if(c.pay==='gc'&&gv(c.topup)>0) payLabel+=' + 補'+((!c.topupPay||c.topupPay==='card')?'刷卡':c.topupPay==='venmo'?'Venmo':'現金')+' $'+gv(c.topup).toFixed(2);
+        if(c.cp&&gv(c.cpTopup)>0) payLabel+=' + 加購'+((!c.cpTopupPay||c.cpTopupPay==='card')?'刷卡':c.cpTopupPay==='venmo'?'Venmo':'現金')+' $'+gv(c.cpTopup).toFixed(2);
         var techName=Array.isArray(c.staff)&&c.staff.length>0?c.staff[0]:(c.tech||'—');
         var tipPayLabel=tip>0?(c.tipPay==='cash'?'現金':c.tipPay==='venmo'?'Venmo':'刷卡'):'—';
         rowsHtml+='<tr>'
